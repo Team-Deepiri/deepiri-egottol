@@ -1,4 +1,4 @@
-# egottol
+# Deepiri Egottol
 
 **Modern Binary Electrical Systems and Avionics Lab**
 
