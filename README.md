@@ -1,6 +1,6 @@
 # Deepiri Egottol
 
-**Modern Binary Electrical Systems and Avionics Lab**
+**Binary Electrical Systems Simulation Lab**
 
 egottol is an advanced multi-domain circuit simulation platform built for engineers who need more than conventional SPICE tools can provide. It combines analog circuit solving, event-driven digital logic, VHDL-defined hardware blocks, GPU-accelerated computation, and real-time avionics protocol simulation in a single integrated environment.
 
