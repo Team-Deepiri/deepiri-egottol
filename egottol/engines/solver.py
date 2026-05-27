@@ -1,17 +1,12 @@
 import numpy as np
-from scipy.sparse import lil_matrix
-from scipy.sparse.linalg import spsolve
-from typing import List, Dict, Any
+from typing import Dict
 from egottol.models.base import Circuit, ComponentType
 
+
 class AdvancedMNASolver:
-    """
-    Industry-level MNA Solver.
-    Solves Ax = B for circuit voltages and currents.
-    """
     def __init__(self, circuit: Circuit):
         self.circuit = circuit
-        self.node_map = {}
+        self.node_map: Dict[str, int] = {}
         self.dim = 0
 
     def _prepare_nodes(self):
