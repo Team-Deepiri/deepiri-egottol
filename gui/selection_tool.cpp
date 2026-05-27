@@ -1,4 +1,5 @@
 #include "selection_tool.h"
+#include <QGraphicsItem>
 #include "scene.h"
 #include "component_item.h"
 #include "wire_item.h"

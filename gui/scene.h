@@ -1,12 +1,12 @@
 #pragma once
 
 #include <QGraphicsScene>
+#include <QGraphicsItem>
 #include <QList>
 #include <QString>
 #include <QPointF>
 
 QT_BEGIN_NAMESPACE
-class QGraphicsItem;
 class QGraphicsSceneMouseEvent;
 class QMenu;
 class QAction;

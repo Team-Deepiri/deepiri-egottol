@@ -37,6 +37,8 @@ public:
     QColor wire_color() const;
 
 signals:
+    void activated();
+    void deactivated();
     void wire_created(WireItem* wire);
     void wire_completed(WireItem* wire);
 
