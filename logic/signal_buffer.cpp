@@ -100,9 +100,9 @@ SignalManager& SignalManager::instance() {
 
 size_t SignalManager::create_signal(const std::string& name, size_t width) {
     SignalBus bus(name, width);
-    bus.id_ = next_id_++;
+    bus.set_id(next_id_++);
     signals_.push_back(bus);
-    return bus.id_;
+    return bus.id();
 }
 
 SignalBus* SignalManager::get_signal(size_t id) {
