@@ -113,8 +113,7 @@ if(Qt6_FOUND AND ENABLE_QT)
         deepiri_core deepiri_models deepiri_io Qt6::Core Qt6::Gui Qt6::Widgets
     )
     
-    add_executable(deepiri gui/main_window.cpp)
-    target_link_libraries(deepiri PRIVATE deepiri_gui)
+    # No standalone C++ executable — app is launched via Python (egottol.ui.main)
 endif()
 
 enable_testing()
