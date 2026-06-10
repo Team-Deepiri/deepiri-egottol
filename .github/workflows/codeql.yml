@@ -22,10 +22,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install pydantic numpy scipy
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: cpp,c
+          languages: python
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Perform CodeQL Analysis
