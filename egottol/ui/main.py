@@ -478,6 +478,45 @@ SYMBOLS = {
         ("line",0,-25,0,25),
         ("line",-4,-25,-4,25), ("line",4,-25,4,25),
     ],
+    "CONN_2PIN": [
+        ("rect",-10,-6,20,12), ("line",0,-6,0,-25), ("line",0,6,0,25),
+    ],
+    "CONN_3PIN": [
+        ("rect",-14,-10,28,20), ("line",-6,-10,-6,-25), ("line",0,-10,0,-25),
+        ("line",6,-10,6,-25), ("line",-6,10,-6,25), ("line",0,10,0,25),
+        ("line",6,10,6,25),
+    ],
+    "CONN_4PIN": [
+        ("rect",-18,-10,36,20), ("line",-8,-10,-8,-25), ("line",-2,-10,-2,-25),
+        ("line",4,-10,4,-25), ("line",10,-10,10,-25),
+        ("line",-8,10,-8,25), ("line",-2,10,-2,25),
+        ("line",4,10,4,25), ("line",10,10,10,25),
+    ],
+    "CONN_8PIN": [
+        ("rect",-28,-10,56,20),
+        ("line",-20,-10,-20,-25), ("line",-12,-10,-12,-25), ("line",-4,-10,-4,-25),
+        ("line",4,-10,4,-25), ("line",12,-10,12,-25), ("line",20,-10,20,-25),
+        ("line",-20,10,-20,25), ("line",-12,10,-12,25), ("line",-4,10,-4,25),
+        ("line",4,10,4,25), ("line",12,10,12,25), ("line",20,10,20,25),
+    ],
+    "TEST_POINT": [
+        ("circle",-6,-6,12,12), ("line",0,-6,0,-25),
+    ],
+    "MOTOR_DC": [
+        ("circle",-14,-14,28,28), ("text",-6,-18,"M"),
+        ("line",-10,0,10,0), ("line",0,-10,0,10),
+        ("line",0,-4,-4,0), ("line",0,-4,4,0),
+        ("line",0,-14,0,-25), ("line",0,14,0,25),
+    ],
+    "SPEAKER": [
+        ("circle",-12,-12,24,24), ("text",-4,-4,"S"),
+        ("line",0,-12,0,-25), ("line",0,12,0,25),
+    ],
+    "MICROPHONE": [
+        ("circle",-6,-12,12,24), ("line",0,12,0,25),
+        ("line",-8,-12,8,-12), ("line",-8,-14,8,-14),
+        ("line",-8,-16,8,-16), ("line",-8,-18,8,-18),
+    ],
     "DEFAULT": [
         ("rect",-18,-25,36,50), ("text",-6,-4,"IC"),
     ],
@@ -561,6 +600,16 @@ PORT_OFFSETS = {
     "Q_MEASURE":   [(0,-25,"IN"), (0,25,"OUT")],
     "Q_RESET":     [(0,-25,"IN"), (0,25,"OUT")],
     "Q_BARRIER":   [(0,-25,"IN"), (0,25,"OUT")],
+    "CONN_2PIN":   [(0,-25,"1"),  (0,25,"2")],
+    "CONN_3PIN":   [(-6,-25,"1"),(0,-25,"2"),(6,-25,"3"),(-6,25,"1"),(0,25,"2"),(6,25,"3")],
+    "CONN_4PIN":   [(-8,-25,"1"),(-2,-25,"2"),(4,-25,"3"),(10,-25,"4"),
+                   (-8,25,"1"),(-2,25,"2"),(4,25,"3"),(10,25,"4")],
+    "CONN_8PIN":   [(-20,-25,"1"),(-12,-25,"2"),(-4,-25,"3"),(4,-25,"4"),(12,-25,"5"),(20,-25,"6"),
+                   (-20,25,"7"),(-12,25,"8"),(-4,25,"9"),(4,25,"10"),(12,25,"11"),(20,25,"12")],
+    "TEST_POINT":  [(0,-25,"TP")],
+    "MOTOR_DC":    [(0,-25,"+"),  (0,25,"−")],
+    "SPEAKER":     [(0,-25,"+"),  (0,25,"−")],
+    "MICROPHONE":  [(0,-25,"OUT"),(0,25,"GND")],
     "DEFAULT":   [(-18,0,"1"),  (18,0,"2")],
 }
 
@@ -647,6 +696,18 @@ SYMBOL_KEY = {
     "RX":"Q_GATE","RY":"Q_GATE","RZ":"Q_GATE",
     "MEASURE":"Q_MEASURE","RESET":"Q_RESET","BARRIER":"Q_BARRIER",
     "QFT_BLOCK":"Q_GATE","QUBIT_REG":"DEFAULT","Q_IC":"DEFAULT",
+    "CONN_2PIN":"CONN_2PIN","CONN_3PIN":"CONN_3PIN",
+    "CONN_4PIN":"CONN_4PIN","CONN_8PIN":"CONN_8PIN",
+    "CONN_DB9":"DEFAULT","CONN_USB":"DEFAULT","CONN_HDMI":"DEFAULT",
+    "CONN_RCA":"DEFAULT","CONN_BNC":"DEFAULT","CONN_JACK":"DEFAULT",
+    "HEADER_2X5":"DEFAULT","HEADER_2X8":"DEFAULT",
+    "JUMPER":"DEFAULT","TEST_POINT":"TEST_POINT",
+    "MOTOR_DC":"MOTOR_DC","MOTOR_STEPPER":"DEFAULT","MOTOR_SERVO":"DEFAULT",
+    "SOLENOID":"IND","FAN":"DEFAULT",
+    "SPEAKER":"SPEAKER","MICROPHONE":"MICROPHONE",
+    "TRANSFO_AUDIO":"XFMR",
+    "HALL_SENSOR":"DEFAULT",
+    "CURRENT_SENSE":"R","SHUNT":"R",
 }
 
 

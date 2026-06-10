@@ -1096,6 +1096,153 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         parameters={"temp_mK": 15, "fridge": "dilution"}
     ),
 
+    # --- CONNECTORS ---
+    "CONN_2PIN": ComponentDefinition(
+        name="2-Pin Connector", category=ComponentType.CONNECTOR, symbol="CONN_2PIN",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rated_A": 3}
+    ),
+    "CONN_3PIN": ComponentDefinition(
+        name="3-Pin Connector", category=ComponentType.CONNECTOR, symbol="CONN_3PIN",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout"), Port(name="3", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rated_A": 3}
+    ),
+    "CONN_4PIN": ComponentDefinition(
+        name="4-Pin Connector", category=ComponentType.CONNECTOR, symbol="CONN_4PIN",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout"),
+               Port(name="3", direction="inout"), Port(name="4", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rated_A": 3}
+    ),
+    "CONN_8PIN": ComponentDefinition(
+        name="8-Pin Connector", category=ComponentType.CONNECTOR, symbol="CONN_8PIN",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout"),
+               Port(name="3", direction="inout"), Port(name="4", direction="inout"),
+               Port(name="5", direction="inout"), Port(name="6", direction="inout"),
+               Port(name="7", direction="inout"), Port(name="8", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rated_A": 3}
+    ),
+    "CONN_DB9": ComponentDefinition(
+        name="DB9 Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout"), Port(name="3", direction="inout"),
+               Port(name="4", direction="inout"), Port(name="5", direction="inout"), Port(name="6", direction="inout"),
+               Port(name="7", direction="inout"), Port(name="8", direction="inout"), Port(name="9", direction="inout")],
+        parameters={"type": "DE-9"}
+    ),
+    "CONN_USB": ComponentDefinition(
+        name="USB Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="VBUS", direction="inout"), Port(name="D-", direction="inout"),
+               Port(name="D+", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"type": "USB-A", "ver": 2.0}
+    ),
+    "CONN_HDMI": ComponentDefinition(
+        name="HDMI Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="TMDS", direction="inout"), Port(name="CEC", direction="inout"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="+5V", direction="inout"), Port(name="HPD", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"type": "HDMI-A", "ver": 2.0}
+    ),
+    "CONN_RCA": ComponentDefinition(
+        name="RCA Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="SIG", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"color": "red"}
+    ),
+    "CONN_BNC": ComponentDefinition(
+        name="BNC Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="CENTER", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"Z": 50}
+    ),
+    "CONN_JACK": ComponentDefinition(
+        name="Audio Jack", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="TIP", direction="inout"), Port(name="RING", direction="inout"), Port(name="SLEEVE", direction="inout")],
+        parameters={"size_mm": 3.5, "poles": 3}
+    ),
+    "HEADER_2X5": ComponentDefinition(
+        name="2x5 Pin Header", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="P1", direction="inout"), Port(name="P2", direction="inout"), Port(name="P3", direction="inout"),
+               Port(name="P4", direction="inout"), Port(name="P5", direction="inout"),
+               Port(name="P6", direction="inout"), Port(name="P7", direction="inout"), Port(name="P8", direction="inout"),
+               Port(name="P9", direction="inout"), Port(name="P10", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rows": 2}
+    ),
+    "HEADER_2X8": ComponentDefinition(
+        name="2x8 Pin Header", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="P1", direction="inout"), Port(name="P2", direction="inout"), Port(name="P3", direction="inout"),
+               Port(name="P4", direction="inout"), Port(name="P5", direction="inout"), Port(name="P6", direction="inout"),
+               Port(name="P7", direction="inout"), Port(name="P8", direction="inout"),
+               Port(name="P9", direction="inout"), Port(name="P10", direction="inout"),
+               Port(name="P11", direction="inout"), Port(name="P12", direction="inout"),
+               Port(name="P13", direction="inout"), Port(name="P14", direction="inout"),
+               Port(name="P15", direction="inout"), Port(name="P16", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rows": 2}
+    ),
+    "JUMPER": ComponentDefinition(
+        name="Jumper Wire", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"length_mm": 10, "color": "red"}
+    ),
+    "TEST_POINT": ComponentDefinition(
+        name="Test Point", category=ComponentType.CONNECTOR, symbol="TEST_POINT",
+        ports=[Port(name="TP", direction="inout")],
+        parameters={"type": "loop"}
+    ),
+    "MOTOR_DC": ComponentDefinition(
+        name="DC Motor", category=ComponentType.ELECTROMECHANICAL, symbol="MOTOR_DC",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"V_nom": 12.0, "I_stall": 1.0, "RPM": 3000}
+    ),
+    "MOTOR_STEPPER": ComponentDefinition(
+        name="Stepper Motor", category=ComponentType.ELECTROMECHANICAL, symbol="DEFAULT",
+        ports=[Port(name="A+", direction="inout"), Port(name="A-", direction="inout"),
+               Port(name="B+", direction="inout"), Port(name="B-", direction="inout")],
+        parameters={"steps_rev": 200, "V_nom": 12.0, "I_phase": 0.5}
+    ),
+    "MOTOR_SERVO": ComponentDefinition(
+        name="Servo Motor", category=ComponentType.ELECTROMECHANICAL, symbol="DEFAULT",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"), Port(name="PWM", direction="in")],
+        parameters={"torque_kgcm": 5.0, "speed_sec60": 0.12}
+    ),
+    "SOLENOID": ComponentDefinition(
+        name="Solenoid", category=ComponentType.ELECTROMECHANICAL, symbol="IND",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"V_nom": 12.0, "R_coil": 10.0, "stroke_mm": 10}
+    ),
+    "FAN": ComponentDefinition(
+        name="Cooling Fan", category=ComponentType.ELECTROMECHANICAL, symbol="DEFAULT",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"V_nom": 12.0, "CFM": 50, "dB": 25}
+    ),
+    "SPEAKER": ComponentDefinition(
+        name="Speaker", category=ComponentType.ELECTROMECHANICAL, symbol="SPEAKER",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"Z": 8, "P_rated": 5, "freq": [20, 20000]}
+    ),
+    "MICROPHONE": ComponentDefinition(
+        name="Electret Microphone", category=ComponentType.SENSOR, symbol="MICROPHONE",
+        ports=[Port(name="OUT", direction="out"), Port(name="GND", direction="inout")],
+        parameters={"sensitivity_dB": -44, "Z": 2.2e3}
+    ),
+    "TRANSFO_AUDIO": ComponentDefinition(
+        name="Audio Transformer", category=ComponentType.PASSIVE, symbol="XFMR",
+        ports=[Port(name="P1", direction="inout"), Port(name="P2", direction="inout"),
+               Port(name="S1", direction="inout"), Port(name="S2", direction="inout")],
+        parameters={"Z_ratio": "600:600", "freq": [20, 20000]}
+    ),
+    "HALL_SENSOR": ComponentDefinition(
+        name="Hall Effect Sensor", category=ComponentType.SENSOR, symbol="DEFAULT",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="out")],
+        parameters={"sensitivity": 2.5e-3, "B_max": 0.1}
+    ),
+    "CURRENT_SENSE": ComponentDefinition(
+        name="Current Sense Resistor", category=ComponentType.PASSIVE, symbol="R",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R": 0.01, "tolerance": 0.01, "P_rated": 3}
+    ),
+    "SHUNT": ComponentDefinition(
+        name="Precision Shunt", category=ComponentType.PASSIVE, symbol="R",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R": 0.001, "tolerance": 0.001, "I_rated": 100}
+    ),
+
     # --- EXPERIMENTAL / AVIONICS ---
     "ADSB_TX": ComponentDefinition(
         name="ADS-B Transponder", category=ComponentType.RF, symbol="RF_TX",
