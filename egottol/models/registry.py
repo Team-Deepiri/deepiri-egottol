@@ -66,6 +66,146 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         parameters={"R": 10000, "wiper": 0.5}
     ),
 
+    # --- PASSIVE EXPANSION ---
+    "VARISTOR": ComponentDefinition(
+        name="Varistor", category=ComponentType.PASSIVE, symbol="VARISTOR",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"V_clamp": 18.0, "energy_J": 1.0}
+    ),
+    "THERM_NTC": ComponentDefinition(
+        name="NTC Thermistor", category=ComponentType.PASSIVE, symbol="THERM_NTC",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R_25": 10000.0, "B": 3950.0}
+    ),
+    "THERM_PTC": ComponentDefinition(
+        name="PTC Thermistor", category=ComponentType.PASSIVE, symbol="THERM_PTC",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R_25": 100.0, "trip_current_A": 0.5}
+    ),
+    "TRIMMER": ComponentDefinition(
+        name="Trimmer Pot", category=ComponentType.PASSIVE, symbol="TRIMMER",
+        ports=[Port(name="1", direction="inout"), Port(name="W", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R": 10000.0, "turns": 25}
+    ),
+    "CAP_ELEC": ComponentDefinition(
+        name="Electrolytic Cap", category=ComponentType.PASSIVE, symbol="CAP_ELEC",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"C": 100e-6, "V_rated": 25.0, "esr": 0.5}
+    ),
+    "CAP_CER": ComponentDefinition(
+        name="Ceramic Cap", category=ComponentType.PASSIVE, symbol="CAP_CER",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"C": 100e-9, "V_rated": 50.0, "dielectric": "X7R"}
+    ),
+    "CAP_FILM": ComponentDefinition(
+        name="Film Cap", category=ComponentType.PASSIVE, symbol="CAP_FILM",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"C": 1e-6, "V_rated": 100.0, "tolerance": 0.01}
+    ),
+    "CAP_TANT": ComponentDefinition(
+        name="Tantalum Cap", category=ComponentType.PASSIVE, symbol="CAP_TANT",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"C": 10e-6, "V_rated": 16.0, "esr": 1.0}
+    ),
+    "CAP_TRIM": ComponentDefinition(
+        name="Trimmer Cap", category=ComponentType.PASSIVE, symbol="CAP_TRIM",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"C_min": 5e-12, "C_max": 50e-12}
+    ),
+    "IND_FERRITE": ComponentDefinition(
+        name="Ferrite Bead", category=ComponentType.PASSIVE, symbol="IND_FERRITE",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"Z_100MHz": 600.0, "I_max": 2.0}
+    ),
+    "IND_VAR": ComponentDefinition(
+        name="Variable Inductor", category=ComponentType.PASSIVE, symbol="IND_VAR",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"L_min": 1e-6, "L_max": 100e-6}
+    ),
+    "FUSE": ComponentDefinition(
+        name="Fuse", category=ComponentType.PASSIVE, symbol="FUSE",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"I_rated": 1.0, "V_rated": 250.0, "type": "fast"}
+    ),
+    "FUSE_PTC": ComponentDefinition(
+        name="PTC Resettable Fuse", category=ComponentType.PASSIVE, symbol="FUSE_PTC",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"I_hold": 0.5, "I_trip": 1.0, "R_min": 0.1}
+    ),
+    "CRYSTAL": ComponentDefinition(
+        name="Crystal Oscillator", category=ComponentType.PASSIVE, symbol="CRYSTAL",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"freq": 16e6, "CL": 18e-12, "ESR": 40.0}
+    ),
+    "RESONATOR": ComponentDefinition(
+        name="Ceramic Resonator", category=ComponentType.PASSIVE, symbol="RESONATOR",
+        ports=[Port(name="1", direction="inout"), Port(name="GND", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"freq": 8e6, "CL": 30e-12}
+    ),
+    "BUZZER": ComponentDefinition(
+        name="Piezo Buzzer", category=ComponentType.ELECTROMECHANICAL, symbol="BUZZER",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"freq": 4000, "SPL_dB": 85}
+    ),
+    "RELAY_SPST": ComponentDefinition(
+        name="Relay SPST", category=ComponentType.ELECTROMECHANICAL, symbol="RELAY_SPST",
+        ports=[
+            Port(name="COIL+", direction="inout"), Port(name="COIL−", direction="inout"),
+            Port(name="COM", direction="inout"), Port(name="NO", direction="inout"),
+        ],
+        parameters={"V_coil": 5.0, "R_coil": 70.0, "I_contact": 2.0}
+    ),
+    "RELAY_DPDT": ComponentDefinition(
+        name="Relay DPDT", category=ComponentType.ELECTROMECHANICAL, symbol="RELAY_DPDT",
+        ports=[
+            Port(name="COIL+", direction="inout"), Port(name="COIL−", direction="inout"),
+            Port(name="C1", direction="inout"), Port(name="NO1", direction="inout"), Port(name="NC1", direction="inout"),
+            Port(name="C2", direction="inout"), Port(name="NO2", direction="inout"), Port(name="NC2", direction="inout"),
+        ],
+        parameters={"V_coil": 12.0, "R_coil": 120.0, "I_contact": 5.0}
+    ),
+    "PHOTODIODE": ComponentDefinition(
+        name="Photodiode", category=ComponentType.PASSIVE, symbol="PHOTODIODE",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"lambda_peak": 850e-9, "responsivity": 0.5}
+    ),
+    "PHOTOTRANS": ComponentDefinition(
+        name="Phototransistor", category=ComponentType.ACTIVE, symbol="PHOTOTRANS",
+        ports=[Port(name="C", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"V_ceo": 30.0, "I_c_max": 0.02}
+    ),
+    "OPTOCOUPLER": ComponentDefinition(
+        name="Optocoupler", category=ComponentType.IC_BLOCK, symbol="OPTOCOUPLER",
+        ports=[
+            Port(name="AN", direction="inout"), Port(name="CA", direction="inout"),
+            Port(name="C", direction="inout"), Port(name="E", direction="inout"),
+        ],
+        parameters={"CTR": 1.0, "V_iso": 5000}
+    ),
+    "BRIDGE_RECT": ComponentDefinition(
+        name="Bridge Rectifier", category=ComponentType.PASSIVE, symbol="BRIDGE_RECT",
+        ports=[
+            Port(name="~1", direction="inout"), Port(name="~2", direction="inout"),
+            Port(name="+", direction="inout"), Port(name="−", direction="inout"),
+        ],
+        parameters={"V_rrm": 400.0, "I_o": 1.5}
+    ),
+    "TVS": ComponentDefinition(
+        name="TVS Diode", category=ComponentType.PASSIVE, symbol="TVS",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"V_br": 6.8, "I_pp": 50.0}
+    ),
+    "SCHOTTKY": ComponentDefinition(
+        name="Schottky Diode", category=ComponentType.PASSIVE, symbol="SCHOTTKY",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"V_f": 0.3, "V_rrm": 40.0, "I_o": 1.0}
+    ),
+    "DIODE_TUNNEL": ComponentDefinition(
+        name="Tunnel Diode", category=ComponentType.PASSIVE, symbol="DIODE_TUNNEL",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"I_p": 1e-3, "V_p": 0.065, "C_j": 10e-12}
+    ),
+
     # --- ACTIVE ---
     "NPN": ComponentDefinition(
         name="NPN BJT", category=ComponentType.ACTIVE, symbol="Q_NPN",
