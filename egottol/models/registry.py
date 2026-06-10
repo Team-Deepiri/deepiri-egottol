@@ -825,6 +825,144 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         parameters={"scale": 0.01, "offset_V": 0.5}
     ),
 
+    # --- POWER & RF EXPANSION ---
+    "LM2596": ComponentDefinition(
+        name="LM2596 Buck Converter", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="VIN", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="FB", direction="in"), Port(name="EN", direction="in")],
+        parameters={"V_out": 5.0, "I_max": 3.0, "freq": 150e3}
+    ),
+    "LM2577": ComponentDefinition(
+        name="LM2577 Boost Converter", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="VIN", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="FB", direction="in"), Port(name="EN", direction="in")],
+        parameters={"V_out": 12.0, "I_max": 3.0, "freq": 100e3}
+    ),
+    "XL6009": ComponentDefinition(
+        name="XL6009 Buck-Boost", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="VIN", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="FB", direction="in"), Port(name="EN", direction="in")],
+        parameters={"V_out": 12.0, "I_max": 4.0, "freq": 400e3}
+    ),
+    "TPS7A47": ComponentDefinition(
+        name="TPS7A47 Low-Noise LDO", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="inout"), Port(name="OUT", direction="out"),
+               Port(name="GND", direction="inout"), Port(name="EN", direction="in"), Port(name="NR", direction="inout")],
+        parameters={"V_out": 3.3, "I_max": 1.0, "noise_uV": 0.8}
+    ),
+    "AMS1117": ComponentDefinition(
+        name="AMS1117 3.3V Regulator", category=ComponentType.POWER, symbol="IC_REG",
+        ports=[Port(name="IN", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="inout")],
+        parameters={"V_out": 3.3, "I_max": 1.0}
+    ),
+    "LM337": ComponentDefinition(
+        name="LM337 Negative Regulator", category=ComponentType.POWER, symbol="IC_REG",
+        ports=[Port(name="IN", direction="inout"), Port(name="ADJ", direction="inout"), Port(name="OUT", direction="inout")],
+        parameters={"V_out": -5.0, "I_max": 1.5}
+    ),
+    "TL431": ComponentDefinition(
+        name="TL431 Shunt Reference", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout"), Port(name="REF", direction="in")],
+        parameters={"V_ref": 2.495, "I_min": 1e-3}
+    ),
+    "MCP1700": ComponentDefinition(
+        name="MCP1700 Low-Dropout", category=ComponentType.POWER, symbol="IC_REG",
+        ports=[Port(name="IN", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="inout")],
+        parameters={"V_out": 3.3, "I_max": 0.25, "dropout_V": 0.18}
+    ),
+    "ICL7660": ComponentDefinition(
+        name="ICL7660 Voltage Inverter", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="CAP+", direction="inout"), Port(name="CAP-", direction="inout")],
+        parameters={"V_in": 5.0, "V_out": -5.0}
+    ),
+    "MAX660": ComponentDefinition(
+        name="MAX660 Voltage Converter", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="FC", direction="in"), Port(name="CAP+", direction="inout"), Port(name="CAP-", direction="inout")],
+        parameters={"V_in": 5.0, "V_out": -5.0, "freq": 10e3}
+    ),
+    "IRF520": ComponentDefinition(
+        name="IRF520 Power N-MOS", category=ComponentType.ACTIVE, symbol="M_NMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"V_dss": 100, "I_d": 9.2, "R_ds_on": 0.27}
+    ),
+    "IRF9530": ComponentDefinition(
+        name="IRF9530 Power P-MOS", category=ComponentType.ACTIVE, symbol="M_PMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"V_dss": -100, "I_d": -12, "R_ds_on": 0.3}
+    ),
+    "IRLZ44": ComponentDefinition(
+        name="IRLZ44 Logic-Level N-MOS", category=ComponentType.ACTIVE, symbol="M_NMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"V_dss": 55, "I_d": 47, "R_ds_on": 0.022}
+    ),
+    "TRANSFO_CT": ComponentDefinition(
+        name="Center-Tap Transformer", category=ComponentType.PASSIVE, symbol="XFMR",
+        ports=[Port(name="P1", direction="inout"), Port(name="P2", direction="inout"),
+               Port(name="S1", direction="inout"), Port(name="CT", direction="inout"), Port(name="S2", direction="inout")],
+        parameters={"turns_ratio": 10.0, "V_sec_ct": 12.0}
+    ),
+    "TRANSFO_3PH": ComponentDefinition(
+        name="3-Phase Transformer", category=ComponentType.PASSIVE, symbol="DEFAULT",
+        ports=[Port(name="A1", direction="inout"), Port(name="A2", direction="inout"),
+               Port(name="B1", direction="inout"), Port(name="B2", direction="inout"),
+               Port(name="C1", direction="inout"), Port(name="C2", direction="inout")],
+        parameters={"V_ratio": 1.0, "VA": 1000}
+    ),
+    "CHOKE_CM": ComponentDefinition(
+        name="Common Mode Choke", category=ComponentType.PASSIVE, symbol="IND_FERRITE",
+        ports=[Port(name="L1+", direction="inout"), Port(name="L1-", direction="inout"),
+               Port(name="L2+", direction="inout"), Port(name="L2-", direction="inout")],
+        parameters={"L_cm": 10e-3, "Z_CM": 1000}
+    ),
+    "COUPLER_DIR": ComponentDefinition(
+        name="Directional Coupler", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="IN", direction="inout"), Port(name="OUT", direction="out"),
+               Port(name="CPL", direction="out"), Port(name="ISO", direction="inout")],
+        parameters={"coupling_dB": 10, "directivity_dB": 25}
+    ),
+    "SPLITTER_RF": ComponentDefinition(
+        name="RF Power Splitter", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT1", direction="out"), Port(name="OUT2", direction="out")],
+        parameters={"split_dB": 3, "isolation_dB": 20}
+    ),
+    "MIXER_RF": ComponentDefinition(
+        name="RF Mixer", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="RF", direction="in"), Port(name="LO", direction="in"), Port(name="IF", direction="out")],
+        parameters={"conv_loss_dB": 6, "LO_power_dBm": 7}
+    ),
+    "ATTENUATOR": ComponentDefinition(
+        name="RF Attenuator", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="IN", direction="inout"), Port(name="OUT", direction="inout")],
+        parameters={"atten_dB": 10, "freq_max": 6e9}
+    ),
+    "BALUN": ComponentDefinition(
+        name="Balun", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="BAL", direction="inout"), Port(name="UNBAL", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"Z_ratio": "1:1", "freq": 100e6}
+    ),
+    "ANT_LOOP": ComponentDefinition(
+        name="Loop Antenna", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"freq": 10e6, "turns": 3}
+    ),
+    "ANT_PATCH": ComponentDefinition(
+        name="Patch Antenna", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="FEED", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"freq": 2.4e9, "gain_dBi": 6}
+    ),
+    "ANT_DIPOLE": ComponentDefinition(
+        name="Dipole Antenna", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"freq": 100e6, "Z": 73}
+    ),
+    "ANT_YAGI": ComponentDefinition(
+        name="Yagi Antenna", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="FEED", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"freq": 146e6, "elements": 5, "gain_dBi": 8}
+    ),
+
     # --- EXPERIMENTAL / AVIONICS ---
     "ADSB_TX": ComponentDefinition(
         name="ADS-B Transponder", category=ComponentType.RF, symbol="RF_TX",
