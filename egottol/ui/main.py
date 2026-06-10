@@ -447,6 +447,12 @@ SYMBOLS = {
         ("rect",-14,-16,28,32), ("text",-8,-4,"P"),
         ("line",0,-16,0,-25), ("line",0,16,0,25),
     ],
+    "BUF_TRI": [
+        ("path",[(-14,-14),(-14,14),(14,0)], True),
+        ("line",-22,0,-14,0), ("line",14,0,22,0),
+        ("line",-14,14,-4,14), ("line",-4,14,-4,20),
+        ("text",-8,-20,"EN"),
+    ],
     "DEFAULT": [
         ("rect",-18,-25,36,50), ("text",-6,-4,"IC"),
     ],
@@ -523,6 +529,7 @@ PORT_OFFSETS = {
                    (30,-16,"G"),(30,-8,"DP"),(30,0,"COM")],
     "THERMOCOUPLE":[(0,-25,"+"),  (0,25,"−")],
     "PELTIER":     [(0,-25,"+"),  (0,25,"−")],
+    "BUF_TRI":     [(-22,0,"A"),  (22,0,"Q"),  (-4,20,"EN")],
     "DEFAULT":   [(-18,0,"1"),  (18,0,"2")],
 }
 
@@ -579,6 +586,18 @@ SYMBOL_KEY = {
     "BMP280":"IC_GENERIC","MPU6050":"IC_GENERIC",
     "HC_SR04":"IC_GENERIC","TCRT5000":"IC_GENERIC",
     "LM35":"IC_GENERIC","TMP36":"IC_GENERIC",
+    "BUFFER":"GATE_NOT","BUF_TRI":"BUF_TRI",
+    "SCHMITT_INV":"GATE_NOT","SCHMITT_AND":"GATE_AND",
+    "DECODER_2TO4":"IC_GENERIC","DECODER_4TO16":"IC_GENERIC",
+    "ENCODER_4TO2":"IC_GENERIC","DEMUX_1TO4":"IC_GENERIC",
+    "DEMUX_1TO16":"IC_GENERIC","MUX_4TO1":"IC_GENERIC",
+    "MUX_8TO1":"IC_GENERIC","MUX_16TO1":"IC_GENERIC",
+    "HALF_ADDER":"IC_GENERIC","FULL_ADDER":"IC_GENERIC",
+    "RIPPLE_ADDER":"IC_GENERIC","ALU_4BIT":"IC_GENERIC",
+    "COMP_4BIT":"IC_GENERIC",
+    "JK_FF":"IC_GENERIC","T_FF":"IC_GENERIC","SR_FF":"IC_GENERIC",
+    "COUNTER_BIN":"IC_GENERIC","COUNTER_BCD":"IC_GENERIC",
+    "SHIFT_REG":"IC_GENERIC","REG_8BIT":"IC_GENERIC","LATCH_8BIT":"IC_GENERIC",
 }
 
 

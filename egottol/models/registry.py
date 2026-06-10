@@ -412,6 +412,164 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         parameters={"delay_ns": 10}
     ),
 
+    # --- LOGIC EXPANSION ---
+    "BUFFER": ComponentDefinition(
+        name="Buffer", category=ComponentType.LOGIC, symbol="GATE_NOT",
+        ports=[Port(name="A", direction="in"), Port(name="Q", direction="out")],
+        parameters={"delay_ns": 5}
+    ),
+    "BUF_TRI": ComponentDefinition(
+        name="Tri-State Buffer", category=ComponentType.LOGIC, symbol="BUF_TRI",
+        ports=[Port(name="A", direction="in"), Port(name="EN", direction="in"), Port(name="Q", direction="out")],
+        parameters={"delay_ns": 8}
+    ),
+    "SCHMITT_INV": ComponentDefinition(
+        name="Schmitt Inverter", category=ComponentType.LOGIC, symbol="GATE_NOT",
+        ports=[Port(name="A", direction="in"), Port(name="Q", direction="out")],
+        parameters={"V_T+": 2.0, "V_T-": 0.8, "delay_ns": 10}
+    ),
+    "SCHMITT_AND": ComponentDefinition(
+        name="Schmitt AND", category=ComponentType.LOGIC, symbol="GATE_AND",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="Q", direction="out")],
+        parameters={"V_T+": 2.0, "V_T-": 0.8, "delay_ns": 12}
+    ),
+    "DECODER_2TO4": ComponentDefinition(
+        name="2-to-4 Decoder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[
+            Port(name="A0", direction="in"), Port(name="A1", direction="in"), Port(name="EN", direction="in"),
+            Port(name="Y0", direction="out"), Port(name="Y1", direction="out"),
+            Port(name="Y2", direction="out"), Port(name="Y3", direction="out"),
+        ],
+        parameters={"delay_ns": 15}
+    ),
+    "DECODER_4TO16": ComponentDefinition(
+        name="4-to-16 Decoder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="C", direction="in"), Port(name="D", direction="in"),
+               Port(name="EN", direction="in"), Port(name="Y0", direction="out"), Port(name="Y1", direction="out"),
+               Port(name="Y2", direction="out"), Port(name="Y3", direction="out"), Port(name="Y4", direction="out"),
+               Port(name="Y5", direction="out"), Port(name="Y6", direction="out"), Port(name="Y7", direction="out"),
+               Port(name="Y8", direction="out"), Port(name="Y9", direction="out"), Port(name="Y10", direction="out"),
+               Port(name="Y11", direction="out"), Port(name="Y12", direction="out"), Port(name="Y13", direction="out"),
+               Port(name="Y14", direction="out"), Port(name="Y15", direction="out")],
+        parameters={"delay_ns": 20}
+    ),
+    "ENCODER_4TO2": ComponentDefinition(
+        name="4-to-2 Encoder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="Y0", direction="in"), Port(name="Y1", direction="in"), Port(name="Y2", direction="in"), Port(name="Y3", direction="in"),
+               Port(name="A0", direction="out"), Port(name="A1", direction="out"), Port(name="V", direction="out")],
+        parameters={"delay_ns": 12}
+    ),
+    "DEMUX_1TO4": ComponentDefinition(
+        name="1-to-4 Demux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="in"), Port(name="S0", direction="in"), Port(name="S1", direction="in"),
+               Port(name="Y0", direction="out"), Port(name="Y1", direction="out"), Port(name="Y2", direction="out"), Port(name="Y3", direction="out")],
+        parameters={"delay_ns": 12}
+    ),
+    "DEMUX_1TO16": ComponentDefinition(
+        name="1-to-16 Demux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="in"), Port(name="S", direction="in"),
+               Port(name="Y0", direction="out"), Port(name="Y1", direction="out"),
+               Port(name="Y2", direction="out"), Port(name="Y3", direction="out")],
+        parameters={"bits": 4, "delay_ns": 20}
+    ),
+    "MUX_4TO1": ComponentDefinition(
+        name="4-to-1 Mux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="C", direction="in"), Port(name="D", direction="in"),
+               Port(name="S0", direction="in"), Port(name="S1", direction="in"), Port(name="Q", direction="out")],
+        parameters={"delay_ns": 12}
+    ),
+    "MUX_8TO1": ComponentDefinition(
+        name="8-to-1 Mux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="in"), Port(name="S", direction="in"), Port(name="Q", direction="out")],
+        parameters={"bits": 3, "delay_ns": 18}
+    ),
+    "MUX_16TO1": ComponentDefinition(
+        name="16-to-1 Mux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="in"), Port(name="S", direction="in"), Port(name="Q", direction="out")],
+        parameters={"bits": 4, "delay_ns": 22}
+    ),
+    "HALF_ADDER": ComponentDefinition(
+        name="Half Adder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"),
+               Port(name="S", direction="out"), Port(name="CO", direction="out")],
+        parameters={"delay_ns": 10}
+    ),
+    "FULL_ADDER": ComponentDefinition(
+        name="Full Adder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="CI", direction="in"),
+               Port(name="S", direction="out"), Port(name="CO", direction="out")],
+        parameters={"delay_ns": 15}
+    ),
+    "RIPPLE_ADDER": ComponentDefinition(
+        name="4-bit Ripple Adder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="CI", direction="in"),
+               Port(name="S", direction="out"), Port(name="CO", direction="out")],
+        parameters={"bits": 4, "delay_ns": 40}
+    ),
+    "ALU_4BIT": ComponentDefinition(
+        name="4-bit ALU", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"),
+               Port(name="S", direction="in"), Port(name="F", direction="out"),
+               Port(name="CO", direction="out"), Port(name="Z", direction="out")],
+        parameters={"ops": ["ADD","SUB","AND","OR","XOR","NOT"], "bits": 4}
+    ),
+    "COMP_4BIT": ComponentDefinition(
+        name="4-bit Comparator", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"),
+               Port(name="EQ", direction="out"), Port(name="GT", direction="out"), Port(name="LT", direction="out")],
+        parameters={"bits": 4, "delay_ns": 20}
+    ),
+    "JK_FF": ComponentDefinition(
+        name="JK Flip-Flop", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="J", direction="in"), Port(name="K", direction="in"), Port(name="CLK", direction="in"),
+               Port(name="Q", direction="out"), Port(name="QB", direction="out")],
+        parameters={"delay_ns": 8}
+    ),
+    "T_FF": ComponentDefinition(
+        name="T Flip-Flop", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="T", direction="in"), Port(name="CLK", direction="in"),
+               Port(name="Q", direction="out"), Port(name="QB", direction="out")],
+        parameters={"delay_ns": 8}
+    ),
+    "SR_FF": ComponentDefinition(
+        name="SR Flip-Flop", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="S", direction="in"), Port(name="R", direction="in"), Port(name="CLK", direction="in"),
+               Port(name="Q", direction="out"), Port(name="QB", direction="out")],
+        parameters={"delay_ns": 8}
+    ),
+    "COUNTER_BIN": ComponentDefinition(
+        name="Binary Counter", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="CLK", direction="in"), Port(name="RST", direction="in"),
+               Port(name="Q0", direction="out"), Port(name="Q1", direction="out"),
+               Port(name="Q2", direction="out"), Port(name="Q3", direction="out")],
+        parameters={"bits": 4, "max": 15}
+    ),
+    "COUNTER_BCD": ComponentDefinition(
+        name="BCD Counter", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="CLK", direction="in"), Port(name="RST", direction="in"),
+               Port(name="Q0", direction="out"), Port(name="Q1", direction="out"),
+               Port(name="Q2", direction="out"), Port(name="Q3", direction="out")],
+        parameters={"max": 9}
+    ),
+    "SHIFT_REG": ComponentDefinition(
+        name="8-bit Shift Register", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="D", direction="in"), Port(name="CLK", direction="in"), Port(name="Q0", direction="out"),
+               Port(name="Q1", direction="out"), Port(name="Q2", direction="out"), Port(name="Q3", direction="out"),
+               Port(name="Q4", direction="out"), Port(name="Q5", direction="out"), Port(name="Q6", direction="out"), Port(name="Q7", direction="out")],
+        parameters={"bits": 8, "direction": "right"}
+    ),
+    "REG_8BIT": ComponentDefinition(
+        name="8-bit Register", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="D", direction="in"), Port(name="CLK", direction="in"), Port(name="EN", direction="in"),
+               Port(name="Q", direction="out")],
+        parameters={"bits": 8}
+    ),
+    "LATCH_8BIT": ComponentDefinition(
+        name="8-bit Latch", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="D", direction="in"), Port(name="LE", direction="in"), Port(name="Q", direction="out")],
+        parameters={"bits": 8}
+    ),
+
     # --- SOURCES & POWER ---
     "VSRC": ComponentDefinition(
         name="Voltage Source", category=ComponentType.SOURCE, symbol="VSRC",
