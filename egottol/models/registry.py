@@ -228,6 +228,142 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         parameters={"Vto": -2.0, "Kp": 1e-3}
     ),
 
+    # --- ACTIVE EXPANSION ---
+    "DARLINGTON": ComponentDefinition(
+        name="Darlington NPN", category=ComponentType.ACTIVE, symbol="DARLINGTON",
+        ports=[Port(name="C", direction="inout"), Port(name="B", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"hFE": 10000, "V_ceo": 60.0}
+    ),
+    "JFET_N": ComponentDefinition(
+        name="N-JFET", category=ComponentType.ACTIVE, symbol="JFET_N",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"Vp": -4.0, "Idss": 10e-3}
+    ),
+    "JFET_P": ComponentDefinition(
+        name="P-JFET", category=ComponentType.ACTIVE, symbol="JFET_P",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"Vp": 4.0, "Idss": 10e-3}
+    ),
+    "SCR": ComponentDefinition(
+        name="SCR Thyristor", category=ComponentType.ACTIVE, symbol="SCR",
+        ports=[Port(name="A", direction="inout"), Port(name="G", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"V_drm": 600.0, "I_t": 25.0}
+    ),
+    "TRIAC": ComponentDefinition(
+        name="TRIAC", category=ComponentType.ACTIVE, symbol="TRIAC",
+        ports=[Port(name="MT1", direction="inout"), Port(name="G", direction="inout"), Port(name="MT2", direction="inout")],
+        parameters={"V_drm": 400.0, "I_t": 16.0}
+    ),
+    "DIAC": ComponentDefinition(
+        name="DIAC", category=ComponentType.ACTIVE, symbol="DIAC",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"V_bo": 32.0, "I_bo": 100e-6}
+    ),
+    "IGBT": ComponentDefinition(
+        name="IGBT N-Channel", category=ComponentType.ACTIVE, symbol="IGBT",
+        ports=[Port(name="C", direction="inout"), Port(name="G", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"V_ces": 600.0, "V_ge_th": 5.0, "I_c": 50.0}
+    ),
+    "PHOTOTRIAC": ComponentDefinition(
+        name="Phototriac", category=ComponentType.ACTIVE, symbol="PHOTOTRIAC",
+        ports=[Port(name="AN", direction="inout"), Port(name="CA", direction="inout"), Port(name="MT1", direction="inout"), Port(name="MT2", direction="inout")],
+        parameters={"V_drm": 400.0, "I_t": 1.0}
+    ),
+    "VARACTOR": ComponentDefinition(
+        name="Varactor Diode", category=ComponentType.PASSIVE, symbol="VARACTOR",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"C_j0": 20e-12, "V_br": 30.0}
+    ),
+    "LED_RGB": ComponentDefinition(
+        name="RGB LED", category=ComponentType.PASSIVE, symbol="LED_RGB",
+        ports=[Port(name="R", direction="inout"), Port(name="G", direction="inout"), Port(name="B", direction="inout"), Port(name="C", direction="inout")],
+        parameters={"Vf_red": 2.0, "Vf_grn": 3.0, "Vf_blu": 3.0}
+    ),
+    "LASER_DIODE": ComponentDefinition(
+        name="Laser Diode", category=ComponentType.PASSIVE, symbol="LASER_DIODE",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout"), Port(name="PD", direction="inout")],
+        parameters={"lambda": 780e-9, "P_o": 5e-3}
+    ),
+    "DIODE_SHOCKLEY": ComponentDefinition(
+        name="Shockley Diode", category=ComponentType.ACTIVE, symbol="DIODE",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"V_bo": 20.0}
+    ),
+    "HBT": ComponentDefinition(
+        name="HBT NPN", category=ComponentType.ACTIVE, symbol="Q_NPN",
+        ports=[Port(name="C", direction="inout"), Port(name="B", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"hFE": 500, "fT": 50e9}
+    ),
+    "HEMT": ComponentDefinition(
+        name="HEMT GaN", category=ComponentType.ACTIVE, symbol="M_NMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"Vto": -3.0, "Idss": 5.0, "fT": 100e9}
+    ),
+    "MESFET": ComponentDefinition(
+        name="MESFET N", category=ComponentType.ACTIVE, symbol="M_NMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"Vp": -2.0, "Idss": 0.5}
+    ),
+    "SOLAR_CELL": ComponentDefinition(
+        name="Solar Cell", category=ComponentType.PASSIVE, symbol="SOLAR_CELL",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"V_oc": 0.6, "I_sc": 0.1, "eff": 0.20}
+    ),
+    "LED_7SEG": ComponentDefinition(
+        name="7-Segment LED", category=ComponentType.PASSIVE, symbol="LED_7SEG",
+        ports=[
+            Port(name="A", direction="inout"), Port(name="B", direction="inout"),
+            Port(name="C", direction="inout"), Port(name="D", direction="inout"),
+            Port(name="E", direction="inout"), Port(name="F", direction="inout"),
+            Port(name="G", direction="inout"), Port(name="DP", direction="inout"),
+            Port(name="COM", direction="inout"),
+        ],
+        parameters={"type": "common_cathode", "Vf": 2.0}
+    ),
+    "LED_MATRIX": ComponentDefinition(
+        name="LED Matrix 8x8", category=ComponentType.PASSIVE, symbol="DEFAULT",
+        ports=[Port(name="ROW", direction="inout"), Port(name="COL", direction="inout")],
+        parameters={"rows": 8, "cols": 8}
+    ),
+    "DIODE_BRIDGE_MOD": ComponentDefinition(
+        name="Diode Bridge Module", category=ComponentType.ACTIVE, symbol="BRIDGE_RECT",
+        ports=[
+            Port(name="~1", direction="inout"), Port(name="~2", direction="inout"),
+            Port(name="+", direction="inout"), Port(name="−", direction="inout"),
+        ],
+        parameters={"V_rrm": 600.0, "I_o": 35.0}
+    ),
+    "THERMOCOUPLE": ComponentDefinition(
+        name="Thermocouple", category=ComponentType.SENSOR, symbol="THERMOCOUPLE",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"type": "K", "seebeck": 41e-6}
+    ),
+    "PELTIER": ComponentDefinition(
+        name="Peltier Element", category=ComponentType.ACTIVE, symbol="PELTIER",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"I_max": 6.0, "V_max": 15.4, "Q_max": 50.0}
+    ),
+    "MEMS_ACCEL": ComponentDefinition(
+        name="MEMS Accelerometer", category=ComponentType.SENSOR, symbol="DEFAULT",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="out")],
+        parameters={"range_g": 16, "sensitivity": 0.004}
+    ),
+    "MEMS_GYRO": ComponentDefinition(
+        name="MEMS Gyroscope", category=ComponentType.SENSOR, symbol="DEFAULT",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="out")],
+        parameters={"range_dps": 2000, "sensitivity": 0.07}
+    ),
+    "PHOTO_VOLTAIC": ComponentDefinition(
+        name="Photovoltaic Module", category=ComponentType.PASSIVE, symbol="SOLAR_CELL",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"V_oc": 12.0, "I_sc": 2.0, "P_max": 20.0}
+    ),
+    "CURRENT_MIRROR": ComponentDefinition(
+        name="Current Mirror", category=ComponentType.ACTIVE, symbol="DEFAULT",
+        ports=[Port(name="I_in", direction="in"), Port(name="I_out", direction="out"), Port(name="VCC", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"ratio": 1.0, "I_ref": 1e-3}
+    ),
+
     # --- LOGIC ---
     "AND": ComponentDefinition(
         name="AND Gate", category=ComponentType.LOGIC, symbol="GATE_AND",
