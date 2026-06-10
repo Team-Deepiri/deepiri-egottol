@@ -453,6 +453,31 @@ SYMBOLS = {
         ("line",-14,14,-4,14), ("line",-4,14,-4,20),
         ("text",-8,-20,"EN"),
     ],
+    "QUBIT": [
+        ("circle",-12,-10,24,20), ("text",-4,-4,"|0>"),
+        ("line",0,-10,0,-25), ("line",0,10,0,25),
+    ],
+    "Q_GATE": [
+        ("rect",-14,-14,28,28), ("line",0,-14,0,-25), ("line",0,14,0,25),
+        ("text",-6,-4,"U"),
+    ],
+    "CNOT": [
+        ("circle",-4,-16,8,8), ("line",0,-12,0,-25),
+        ("line",-20,0,20,0), ("circle",18,-4,8,8),
+        ("line",20,4,20,25), ("line",-20,-4,-20,-25),
+    ],
+    "Q_MEASURE": [
+        ("rect",-14,-14,28,28), ("line",0,-14,0,-25), ("line",0,14,0,25),
+        ("text",-12,-4,"M"),
+    ],
+    "Q_RESET": [
+        ("rect",-14,-14,28,28), ("line",0,-14,0,-25), ("line",0,14,0,25),
+        ("text",-12,-4,"|0>"),
+    ],
+    "Q_BARRIER": [
+        ("line",0,-25,0,25),
+        ("line",-4,-25,-4,25), ("line",4,-25,4,25),
+    ],
     "DEFAULT": [
         ("rect",-18,-25,36,50), ("text",-6,-4,"IC"),
     ],
@@ -530,6 +555,12 @@ PORT_OFFSETS = {
     "THERMOCOUPLE":[(0,-25,"+"),  (0,25,"−")],
     "PELTIER":     [(0,-25,"+"),  (0,25,"−")],
     "BUF_TRI":     [(-22,0,"A"),  (22,0,"Q"),  (-4,20,"EN")],
+    "QUBIT":       [(0,-25,"IN"), (0,25,"OUT")],
+    "Q_GATE":      [(0,-25,"IN"), (0,25,"OUT")],
+    "CNOT":        [(-20,-4,"CTRL"),(20,-4,"TGT_IN"),(-20,4,"CTRL_OUT"),(20,4,"TGT_OUT")],
+    "Q_MEASURE":   [(0,-25,"IN"), (0,25,"OUT")],
+    "Q_RESET":     [(0,-25,"IN"), (0,25,"OUT")],
+    "Q_BARRIER":   [(0,-25,"IN"), (0,25,"OUT")],
     "DEFAULT":   [(-18,0,"1"),  (18,0,"2")],
 }
 
@@ -608,6 +639,14 @@ SYMBOL_KEY = {
     "COUPLER_DIR":"DEFAULT","SPLITTER_RF":"DEFAULT","MIXER_RF":"DEFAULT",
     "ATTENUATOR":"DEFAULT","BALUN":"DEFAULT",
     "ANT_LOOP":"DEFAULT","ANT_PATCH":"DEFAULT","ANT_DIPOLE":"DEFAULT","ANT_YAGI":"DEFAULT",
+    "QUBIT":"QUBIT",
+    "HADAMARD":"Q_GATE","PAULI_X":"Q_GATE","PAULI_Y":"Q_GATE","PAULI_Z":"Q_GATE",
+    "S_GATE":"Q_GATE","T_GATE":"Q_GATE",
+    "CNOT":"CNOT","CZ":"CNOT","SWAP":"CNOT","CSWAP":"CNOT","TOFFOLI":"CNOT",
+    "PHASE_SHIFT":"Q_GATE","U1":"Q_GATE","U2":"Q_GATE","U3":"Q_GATE",
+    "RX":"Q_GATE","RY":"Q_GATE","RZ":"Q_GATE",
+    "MEASURE":"Q_MEASURE","RESET":"Q_RESET","BARRIER":"Q_BARRIER",
+    "QFT_BLOCK":"Q_GATE","QUBIT_REG":"DEFAULT","Q_IC":"DEFAULT",
 }
 
 

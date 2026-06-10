@@ -963,6 +963,139 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         parameters={"freq": 146e6, "elements": 5, "gain_dBi": 8}
     ),
 
+    # --- QUANTUM ---
+    "QUBIT": ComponentDefinition(
+        name="Qubit", category=ComponentType.QUANTUM, symbol="QUBIT",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"state": "|0>", "t1": 30e-6, "t2": 20e-6}
+    ),
+    "HADAMARD": ComponentDefinition(
+        name="Hadamard Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[1,1],[1,-1]]/sqrt2"}
+    ),
+    "PAULI_X": ComponentDefinition(
+        name="Pauli-X Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[0,1],[1,0]]"}
+    ),
+    "PAULI_Y": ComponentDefinition(
+        name="Pauli-Y Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[0,-i],[i,0]]"}
+    ),
+    "PAULI_Z": ComponentDefinition(
+        name="Pauli-Z Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[1,0],[0,-1]]"}
+    ),
+    "S_GATE": ComponentDefinition(
+        name="Phase Gate S", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[1,0],[0,i]]"}
+    ),
+    "T_GATE": ComponentDefinition(
+        name="T Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[1,0],[0,exp(i*pi/4)]]"}
+    ),
+    "CNOT": ComponentDefinition(
+        name="CNOT Gate", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="CTRL", direction="in"), Port(name="TGT_IN", direction="in"),
+               Port(name="CTRL_OUT", direction="out"), Port(name="TGT_OUT", direction="out")],
+        parameters={"matrix": "[[1,0,0,0],[0,1,0,0],[0,0,0,1],[0,0,1,0]]"}
+    ),
+    "CZ": ComponentDefinition(
+        name="Controlled-Z Gate", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="CTRL", direction="in"), Port(name="TGT_IN", direction="in"),
+               Port(name="CTRL_OUT", direction="out"), Port(name="TGT_OUT", direction="out")],
+        parameters={"matrix": "[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,-1]]"}
+    ),
+    "SWAP": ComponentDefinition(
+        name="SWAP Gate", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="A_IN", direction="in"), Port(name="B_IN", direction="in"),
+               Port(name="A_OUT", direction="out"), Port(name="B_OUT", direction="out")],
+        parameters={"matrix": "[[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]]"}
+    ),
+    "CSWAP": ComponentDefinition(
+        name="Controlled SWAP (Fredkin)", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="CTRL", direction="in"), Port(name="A_IN", direction="in"), Port(name="B_IN", direction="in"),
+               Port(name="CTRL_OUT", direction="out"), Port(name="A_OUT", direction="out"), Port(name="B_OUT", direction="out")],
+        parameters={"matrix": "[[1,0,0,0,0,0,0,0],[0,1,0,0,0,0,0,0],[0,0,1,0,0,0,0,0],[0,0,0,1,0,0,0,0],[0,0,0,0,1,0,0,0],[0,0,0,0,0,0,1,0],[0,0,0,0,0,1,0,0],[0,0,0,0,0,0,0,1]]"}
+    ),
+    "TOFFOLI": ComponentDefinition(
+        name="Toffoli Gate CCNOT", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="CTRL1", direction="in"), Port(name="CTRL2", direction="in"), Port(name="TGT_IN", direction="in"),
+               Port(name="CTRL1_OUT", direction="out"), Port(name="CTRL2_OUT", direction="out"), Port(name="TGT_OUT", direction="out")],
+        parameters={"matrix": "CCNOT_8x8"}
+    ),
+    "PHASE_SHIFT": ComponentDefinition(
+        name="Phase Shift Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0}
+    ),
+    "U1": ComponentDefinition(
+        name="U1 Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"lambda": 0.0}
+    ),
+    "U2": ComponentDefinition(
+        name="U2 Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"phi": 0.0, "lambda": 0.0}
+    ),
+    "U3": ComponentDefinition(
+        name="U3 Universal Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0, "phi": 0.0, "lambda": 0.0}
+    ),
+    "RX": ComponentDefinition(
+        name="RX Rotation Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0}
+    ),
+    "RY": ComponentDefinition(
+        name="RY Rotation Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0}
+    ),
+    "RZ": ComponentDefinition(
+        name="RZ Rotation Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0}
+    ),
+    "MEASURE": ComponentDefinition(
+        name="Qubit Measurement", category=ComponentType.QUANTUM, symbol="Q_MEASURE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"basis": "Z"}
+    ),
+    "RESET": ComponentDefinition(
+        name="Qubit Reset", category=ComponentType.QUANTUM, symbol="Q_RESET",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"state": "|0>"}
+    ),
+    "BARRIER": ComponentDefinition(
+        name="Quantum Barrier", category=ComponentType.QUANTUM, symbol="Q_BARRIER",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={}
+    ),
+    "QFT_BLOCK": ComponentDefinition(
+        name="QFT Block", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"n_qubits": 4}
+    ),
+    "QUBIT_REG": ComponentDefinition(
+        name="Qubit Register", category=ComponentType.QUANTUM, symbol="DEFAULT",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"n_qubits": 4}
+    ),
+    "Q_IC": ComponentDefinition(
+        name="Quantum IC", category=ComponentType.QUANTUM, symbol="DEFAULT",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"temp_mK": 15, "fridge": "dilution"}
+    ),
+
     # --- EXPERIMENTAL / AVIONICS ---
     "ADSB_TX": ComponentDefinition(
         name="ADS-B Transponder", category=ComponentType.RF, symbol="RF_TX",
