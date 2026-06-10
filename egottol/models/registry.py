@@ -504,6 +504,169 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         parameters={"gain": 200000, "slew_rate": 1400e6}
     ),
 
+    # --- IC BLOCKS EXPANSION ---
+    "LM393": ComponentDefinition(
+        name="LM393 Dual Comparator", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="V-", direction="inout")],
+        parameters={"V_cc": 36.0, "t_response": 1.3e-6}
+    ),
+    "LM311": ComponentDefinition(
+        name="LM311 Single Comparator", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="V-", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"V_cc": 36.0, "t_response": 200e-9}
+    ),
+    "LM324": ComponentDefinition(
+        name="LM324 Quad Op-Amp", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+               Port(name="OUT1", direction="out"), Port(name="IN1+", direction="in"), Port(name="IN1-", direction="in"),
+               Port(name="OUT2", direction="out"), Port(name="IN2+", direction="in"), Port(name="IN2-", direction="in")],
+        parameters={"gain": 100000, "V_cc": 32.0}
+    ),
+    "NE5532": ComponentDefinition(
+        name="NE5532 Dual Op-Amp", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"gain": 100000, "slew_rate": 9e6, "noise_nV": 5}
+    ),
+    "OPA2134": ComponentDefinition(
+        name="OPA2134 Audio Op-Amp", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"gain": 120000, "slew_rate": 20e6, "THD": 0.00008}
+    ),
+    "AD823": ComponentDefinition(
+        name="AD823 Instr Amp", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="REF", direction="inout"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout")],
+        parameters={"gain": 1000, "CMRR": 86}
+    ),
+    "INA128": ComponentDefinition(
+        name="INA128 Precision Instr Amp", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="REF", direction="inout"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout")],
+        parameters={"gain": 10000, "CMRR": 120}
+    ),
+    "LM386": ComponentDefinition(
+        name="LM386 Audio Amp", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="+IN", direction="in"), Port(name="-IN", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="GND", direction="inout"), Port(name="GAIN", direction="inout")],
+        parameters={"gain": 200, "P_out": 0.7}
+    ),
+    "TDA7297": ComponentDefinition(
+        name="TDA7297 Audio Power Amp", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="L_IN", direction="in"), Port(name="R_IN", direction="in"),
+               Port(name="L_OUT", direction="out"), Port(name="R_OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="GND", direction="inout"), Port(name="STBY", direction="in")],
+        parameters={"P_out": 15, "V_cc": 18}
+    ),
+    "MAX232": ComponentDefinition(
+        name="MAX232 RS-232 Driver", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="T1_IN", direction="in"), Port(name="T1_OUT", direction="out"),
+               Port(name="R1_IN", direction="in"), Port(name="R1_OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="V-", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"V_cc": 5.0, "channels": 2}
+    ),
+    "MAX485": ComponentDefinition(
+        name="MAX485 RS-485 Transceiver", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="DI", direction="in"), Port(name="DE", direction="in"), Port(name="RE", direction="in"),
+               Port(name="RO", direction="out"), Port(name="A", direction="inout"), Port(name="B", direction="inout"),
+               Port(name="VCC", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"V_cc": 5.0, "baud": 10e6}
+    ),
+    "MAX31855": ComponentDefinition(
+        name="MAX31855 Thermocouple IF", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="CS", direction="in"), Port(name="SCK", direction="in"), Port(name="SO", direction="out"),
+               Port(name="T+", direction="inout"), Port(name="T-", direction="inout")],
+        parameters={"type": "K", "resolution": 0.25}
+    ),
+    "ADS1115": ComponentDefinition(
+        name="ADS1115 16-bit ADC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="A0", direction="in"), Port(name="A1", direction="in"), Port(name="A2", direction="in"), Port(name="A3", direction="in"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout")],
+        parameters={"sps": 860, "gain": 1}
+    ),
+    "MCP3008": ComponentDefinition(
+        name="MCP3008 10-bit ADC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="VREF", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="CH0", direction="in"), Port(name="CH1", direction="in"), Port(name="CH2", direction="in"), Port(name="CH3", direction="in"),
+               Port(name="CH4", direction="in"), Port(name="CH5", direction="in"), Port(name="CH6", direction="in"), Port(name="CH7", direction="in"),
+               Port(name="CS", direction="in"), Port(name="DIN", direction="in"), Port(name="DOUT", direction="out"), Port(name="CLK", direction="in")],
+        parameters={"sps": 200, "vref": 5.0}
+    ),
+    "DAC0808": ComponentDefinition(
+        name="DAC0808 8-bit DAC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="V-", direction="inout"), Port(name="I_OUT", direction="out"),
+               Port(name="COMP", direction="inout"), Port(name="VREF+", direction="in"), Port(name="VREF-", direction="in"),
+               Port(name="D0", direction="in"), Port(name="D1", direction="in"), Port(name="D2", direction="in"),
+               Port(name="D3", direction="in"), Port(name="D4", direction="in"), Port(name="D5", direction="in"),
+               Port(name="D6", direction="in"), Port(name="D7", direction="in")],
+        parameters={"resolution": 8, "settling": 150e-9}
+    ),
+    "MCP4725": ComponentDefinition(
+        name="MCP4725 12-bit I2C DAC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="OUT", direction="out"), Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="A0", direction="in")],
+        parameters={"resolution": 12, "vref": 5.0}
+    ),
+    "DS1307": ComponentDefinition(
+        name="DS1307 RTC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="SQW", direction="out"), Port(name="X1", direction="inout"), Port(name="X2", direction="inout"),
+               Port(name="VBAT", direction="inout")],
+        parameters={"format": "24h"}
+    ),
+    "DS18B20": ComponentDefinition(
+        name="DS18B20 Temp Sensor", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"), Port(name="DQ", direction="inout")],
+        parameters={"resolution": 12, "accuracy": 0.5}
+    ),
+    "DHT22": ComponentDefinition(
+        name="DHT22 Temp/Humidity", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"), Port(name="DATA", direction="inout")],
+        parameters={"range_T": [-40, 80], "range_RH": [0, 100], "accuracy_T": 0.5}
+    ),
+    "BMP280": ComponentDefinition(
+        name="BMP280 Barometric", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="CSB", direction="in"), Port(name="SDO", direction="inout")],
+        parameters={"range_P": [300, 1100], "accuracy_P": 1.0}
+    ),
+    "MPU6050": ComponentDefinition(
+        name="MPU6050 IMU", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="XDA", direction="inout"), Port(name="XCL", direction="inout"),
+               Port(name="AD0", direction="in"), Port(name="INT", direction="out")],
+        parameters={"accel_range": 16, "gyro_range": 2000}
+    ),
+    "HC_SR04": ComponentDefinition(
+        name="HC-SR04 Ultrasonic", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="TRIG", direction="in"), Port(name="ECHO", direction="out")],
+        parameters={"range_m": 4, "resolution_mm": 3}
+    ),
+    "TCRT5000": ComponentDefinition(
+        name="TCRT5000 IR Sensor", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout"),
+               Port(name="C", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"I_f": 20e-3, "V_ce_max": 30}
+    ),
+    "LM35": ComponentDefinition(
+        name="LM35 Temp Sensor", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="VOUT", direction="out"), Port(name="GND", direction="inout")],
+        parameters={"scale": 0.01, "range_C": [-55, 150]}
+    ),
+    "TMP36": ComponentDefinition(
+        name="TMP36 Temp Sensor", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="VOUT", direction="out"), Port(name="GND", direction="inout")],
+        parameters={"scale": 0.01, "offset_V": 0.5}
+    ),
+
     # --- EXPERIMENTAL / AVIONICS ---
     "ADSB_TX": ComponentDefinition(
         name="ADS-B Transponder", category=ComponentType.RF, symbol="RF_TX",
