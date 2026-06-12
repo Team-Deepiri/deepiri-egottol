@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QList>
 #include <QPointF>
+#include <QGraphicsItem>
 
 QT_BEGIN_NAMESPACE
 class QGraphicsSceneMouseEvent;
@@ -44,6 +45,8 @@ public:
     QList<QGraphicsItem*> selected_items() const;
 
 signals:
+    void activated();
+    void deactivated();
     void selection_changed(const QList<QGraphicsItem*>& items);
 
 public slots:
