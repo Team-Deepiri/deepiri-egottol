@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: python -m pip install --upgrade "poetry==2.3.2"
+
+      - name: Validate Poetry project
+        run: poetry check
+
+      - name: Install Python dependencies
+        run: poetry install --no-root --no-interaction
+
+      - name: Run Python tests
+        run: |
+          if find tests -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then
+            poetry run pytest
+          else
+            echo "No pytest tests found; skipping Python tests."
+          fi
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake build-essential qt6-base-dev libxcb-cursor0
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build C++ core
+        run: cmake --build build --parallel
+
+      - name: Run CMake tests
+        run: ctest --test-dir build --output-on-failure
