@@ -33,7 +33,12 @@ jobs:
         run: poetry install --no-root --no-interaction
 
       - name: Run Python tests
-        run: poetry run pytest
+        run: |
+          if find tests -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then
+            poetry run pytest
+          else
+            echo "No pytest tests found; skipping Python tests."
+          fi
 
       - name: Install native build dependencies
         run: |
