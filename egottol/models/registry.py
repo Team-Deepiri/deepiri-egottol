@@ -66,6 +66,146 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         parameters={"R": 10000, "wiper": 0.5}
     ),
 
+    # --- PASSIVE EXPANSION ---
+    "VARISTOR": ComponentDefinition(
+        name="Varistor", category=ComponentType.PASSIVE, symbol="VARISTOR",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"V_clamp": 18.0, "energy_J": 1.0}
+    ),
+    "THERM_NTC": ComponentDefinition(
+        name="NTC Thermistor", category=ComponentType.PASSIVE, symbol="THERM_NTC",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R_25": 10000.0, "B": 3950.0}
+    ),
+    "THERM_PTC": ComponentDefinition(
+        name="PTC Thermistor", category=ComponentType.PASSIVE, symbol="THERM_PTC",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R_25": 100.0, "trip_current_A": 0.5}
+    ),
+    "TRIMMER": ComponentDefinition(
+        name="Trimmer Pot", category=ComponentType.PASSIVE, symbol="TRIMMER",
+        ports=[Port(name="1", direction="inout"), Port(name="W", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R": 10000.0, "turns": 25}
+    ),
+    "CAP_ELEC": ComponentDefinition(
+        name="Electrolytic Cap", category=ComponentType.PASSIVE, symbol="CAP_ELEC",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"C": 100e-6, "V_rated": 25.0, "esr": 0.5}
+    ),
+    "CAP_CER": ComponentDefinition(
+        name="Ceramic Cap", category=ComponentType.PASSIVE, symbol="CAP_CER",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"C": 100e-9, "V_rated": 50.0, "dielectric": "X7R"}
+    ),
+    "CAP_FILM": ComponentDefinition(
+        name="Film Cap", category=ComponentType.PASSIVE, symbol="CAP_FILM",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"C": 1e-6, "V_rated": 100.0, "tolerance": 0.01}
+    ),
+    "CAP_TANT": ComponentDefinition(
+        name="Tantalum Cap", category=ComponentType.PASSIVE, symbol="CAP_TANT",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"C": 10e-6, "V_rated": 16.0, "esr": 1.0}
+    ),
+    "CAP_TRIM": ComponentDefinition(
+        name="Trimmer Cap", category=ComponentType.PASSIVE, symbol="CAP_TRIM",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"C_min": 5e-12, "C_max": 50e-12}
+    ),
+    "IND_FERRITE": ComponentDefinition(
+        name="Ferrite Bead", category=ComponentType.PASSIVE, symbol="IND_FERRITE",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"Z_100MHz": 600.0, "I_max": 2.0}
+    ),
+    "IND_VAR": ComponentDefinition(
+        name="Variable Inductor", category=ComponentType.PASSIVE, symbol="IND_VAR",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"L_min": 1e-6, "L_max": 100e-6}
+    ),
+    "FUSE": ComponentDefinition(
+        name="Fuse", category=ComponentType.PASSIVE, symbol="FUSE",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"I_rated": 1.0, "V_rated": 250.0, "type": "fast"}
+    ),
+    "FUSE_PTC": ComponentDefinition(
+        name="PTC Resettable Fuse", category=ComponentType.PASSIVE, symbol="FUSE_PTC",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"I_hold": 0.5, "I_trip": 1.0, "R_min": 0.1}
+    ),
+    "CRYSTAL": ComponentDefinition(
+        name="Crystal Oscillator", category=ComponentType.PASSIVE, symbol="CRYSTAL",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"freq": 16e6, "CL": 18e-12, "ESR": 40.0}
+    ),
+    "RESONATOR": ComponentDefinition(
+        name="Ceramic Resonator", category=ComponentType.PASSIVE, symbol="RESONATOR",
+        ports=[Port(name="1", direction="inout"), Port(name="GND", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"freq": 8e6, "CL": 30e-12}
+    ),
+    "BUZZER": ComponentDefinition(
+        name="Piezo Buzzer", category=ComponentType.ELECTROMECHANICAL, symbol="BUZZER",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"freq": 4000, "SPL_dB": 85}
+    ),
+    "RELAY_SPST": ComponentDefinition(
+        name="Relay SPST", category=ComponentType.ELECTROMECHANICAL, symbol="RELAY_SPST",
+        ports=[
+            Port(name="COIL+", direction="inout"), Port(name="COIL−", direction="inout"),
+            Port(name="COM", direction="inout"), Port(name="NO", direction="inout"),
+        ],
+        parameters={"V_coil": 5.0, "R_coil": 70.0, "I_contact": 2.0}
+    ),
+    "RELAY_DPDT": ComponentDefinition(
+        name="Relay DPDT", category=ComponentType.ELECTROMECHANICAL, symbol="RELAY_DPDT",
+        ports=[
+            Port(name="COIL+", direction="inout"), Port(name="COIL−", direction="inout"),
+            Port(name="C1", direction="inout"), Port(name="NO1", direction="inout"), Port(name="NC1", direction="inout"),
+            Port(name="C2", direction="inout"), Port(name="NO2", direction="inout"), Port(name="NC2", direction="inout"),
+        ],
+        parameters={"V_coil": 12.0, "R_coil": 120.0, "I_contact": 5.0}
+    ),
+    "PHOTODIODE": ComponentDefinition(
+        name="Photodiode", category=ComponentType.PASSIVE, symbol="PHOTODIODE",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"lambda_peak": 850e-9, "responsivity": 0.5}
+    ),
+    "PHOTOTRANS": ComponentDefinition(
+        name="Phototransistor", category=ComponentType.ACTIVE, symbol="PHOTOTRANS",
+        ports=[Port(name="C", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"V_ceo": 30.0, "I_c_max": 0.02}
+    ),
+    "OPTOCOUPLER": ComponentDefinition(
+        name="Optocoupler", category=ComponentType.IC_BLOCK, symbol="OPTOCOUPLER",
+        ports=[
+            Port(name="AN", direction="inout"), Port(name="CA", direction="inout"),
+            Port(name="C", direction="inout"), Port(name="E", direction="inout"),
+        ],
+        parameters={"CTR": 1.0, "V_iso": 5000}
+    ),
+    "BRIDGE_RECT": ComponentDefinition(
+        name="Bridge Rectifier", category=ComponentType.PASSIVE, symbol="BRIDGE_RECT",
+        ports=[
+            Port(name="~1", direction="inout"), Port(name="~2", direction="inout"),
+            Port(name="+", direction="inout"), Port(name="−", direction="inout"),
+        ],
+        parameters={"V_rrm": 400.0, "I_o": 1.5}
+    ),
+    "TVS": ComponentDefinition(
+        name="TVS Diode", category=ComponentType.PASSIVE, symbol="TVS",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"V_br": 6.8, "I_pp": 50.0}
+    ),
+    "SCHOTTKY": ComponentDefinition(
+        name="Schottky Diode", category=ComponentType.PASSIVE, symbol="SCHOTTKY",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"V_f": 0.3, "V_rrm": 40.0, "I_o": 1.0}
+    ),
+    "DIODE_TUNNEL": ComponentDefinition(
+        name="Tunnel Diode", category=ComponentType.PASSIVE, symbol="DIODE_TUNNEL",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"I_p": 1e-3, "V_p": 0.065, "C_j": 10e-12}
+    ),
+
     # --- ACTIVE ---
     "NPN": ComponentDefinition(
         name="NPN BJT", category=ComponentType.ACTIVE, symbol="Q_NPN",
@@ -86,6 +226,142 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         name="PMOS MOSFET", category=ComponentType.ACTIVE, symbol="M_PMOS",
         ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
         parameters={"Vto": -2.0, "Kp": 1e-3}
+    ),
+
+    # --- ACTIVE EXPANSION ---
+    "DARLINGTON": ComponentDefinition(
+        name="Darlington NPN", category=ComponentType.ACTIVE, symbol="DARLINGTON",
+        ports=[Port(name="C", direction="inout"), Port(name="B", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"hFE": 10000, "V_ceo": 60.0}
+    ),
+    "JFET_N": ComponentDefinition(
+        name="N-JFET", category=ComponentType.ACTIVE, symbol="JFET_N",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"Vp": -4.0, "Idss": 10e-3}
+    ),
+    "JFET_P": ComponentDefinition(
+        name="P-JFET", category=ComponentType.ACTIVE, symbol="JFET_P",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"Vp": 4.0, "Idss": 10e-3}
+    ),
+    "SCR": ComponentDefinition(
+        name="SCR Thyristor", category=ComponentType.ACTIVE, symbol="SCR",
+        ports=[Port(name="A", direction="inout"), Port(name="G", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"V_drm": 600.0, "I_t": 25.0}
+    ),
+    "TRIAC": ComponentDefinition(
+        name="TRIAC", category=ComponentType.ACTIVE, symbol="TRIAC",
+        ports=[Port(name="MT1", direction="inout"), Port(name="G", direction="inout"), Port(name="MT2", direction="inout")],
+        parameters={"V_drm": 400.0, "I_t": 16.0}
+    ),
+    "DIAC": ComponentDefinition(
+        name="DIAC", category=ComponentType.ACTIVE, symbol="DIAC",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"V_bo": 32.0, "I_bo": 100e-6}
+    ),
+    "IGBT": ComponentDefinition(
+        name="IGBT N-Channel", category=ComponentType.ACTIVE, symbol="IGBT",
+        ports=[Port(name="C", direction="inout"), Port(name="G", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"V_ces": 600.0, "V_ge_th": 5.0, "I_c": 50.0}
+    ),
+    "PHOTOTRIAC": ComponentDefinition(
+        name="Phototriac", category=ComponentType.ACTIVE, symbol="PHOTOTRIAC",
+        ports=[Port(name="AN", direction="inout"), Port(name="CA", direction="inout"), Port(name="MT1", direction="inout"), Port(name="MT2", direction="inout")],
+        parameters={"V_drm": 400.0, "I_t": 1.0}
+    ),
+    "VARACTOR": ComponentDefinition(
+        name="Varactor Diode", category=ComponentType.PASSIVE, symbol="VARACTOR",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"C_j0": 20e-12, "V_br": 30.0}
+    ),
+    "LED_RGB": ComponentDefinition(
+        name="RGB LED", category=ComponentType.PASSIVE, symbol="LED_RGB",
+        ports=[Port(name="R", direction="inout"), Port(name="G", direction="inout"), Port(name="B", direction="inout"), Port(name="C", direction="inout")],
+        parameters={"Vf_red": 2.0, "Vf_grn": 3.0, "Vf_blu": 3.0}
+    ),
+    "LASER_DIODE": ComponentDefinition(
+        name="Laser Diode", category=ComponentType.PASSIVE, symbol="LASER_DIODE",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout"), Port(name="PD", direction="inout")],
+        parameters={"lambda": 780e-9, "P_o": 5e-3}
+    ),
+    "DIODE_SHOCKLEY": ComponentDefinition(
+        name="Shockley Diode", category=ComponentType.ACTIVE, symbol="DIODE",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout")],
+        parameters={"V_bo": 20.0}
+    ),
+    "HBT": ComponentDefinition(
+        name="HBT NPN", category=ComponentType.ACTIVE, symbol="Q_NPN",
+        ports=[Port(name="C", direction="inout"), Port(name="B", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"hFE": 500, "fT": 50e9}
+    ),
+    "HEMT": ComponentDefinition(
+        name="HEMT GaN", category=ComponentType.ACTIVE, symbol="M_NMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"Vto": -3.0, "Idss": 5.0, "fT": 100e9}
+    ),
+    "MESFET": ComponentDefinition(
+        name="MESFET N", category=ComponentType.ACTIVE, symbol="M_NMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"Vp": -2.0, "Idss": 0.5}
+    ),
+    "SOLAR_CELL": ComponentDefinition(
+        name="Solar Cell", category=ComponentType.PASSIVE, symbol="SOLAR_CELL",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"V_oc": 0.6, "I_sc": 0.1, "eff": 0.20}
+    ),
+    "LED_7SEG": ComponentDefinition(
+        name="7-Segment LED", category=ComponentType.PASSIVE, symbol="LED_7SEG",
+        ports=[
+            Port(name="A", direction="inout"), Port(name="B", direction="inout"),
+            Port(name="C", direction="inout"), Port(name="D", direction="inout"),
+            Port(name="E", direction="inout"), Port(name="F", direction="inout"),
+            Port(name="G", direction="inout"), Port(name="DP", direction="inout"),
+            Port(name="COM", direction="inout"),
+        ],
+        parameters={"type": "common_cathode", "Vf": 2.0}
+    ),
+    "LED_MATRIX": ComponentDefinition(
+        name="LED Matrix 8x8", category=ComponentType.PASSIVE, symbol="DEFAULT",
+        ports=[Port(name="ROW", direction="inout"), Port(name="COL", direction="inout")],
+        parameters={"rows": 8, "cols": 8}
+    ),
+    "DIODE_BRIDGE_MOD": ComponentDefinition(
+        name="Diode Bridge Module", category=ComponentType.ACTIVE, symbol="BRIDGE_RECT",
+        ports=[
+            Port(name="~1", direction="inout"), Port(name="~2", direction="inout"),
+            Port(name="+", direction="inout"), Port(name="−", direction="inout"),
+        ],
+        parameters={"V_rrm": 600.0, "I_o": 35.0}
+    ),
+    "THERMOCOUPLE": ComponentDefinition(
+        name="Thermocouple", category=ComponentType.SENSOR, symbol="THERMOCOUPLE",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"type": "K", "seebeck": 41e-6}
+    ),
+    "PELTIER": ComponentDefinition(
+        name="Peltier Element", category=ComponentType.ACTIVE, symbol="PELTIER",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"I_max": 6.0, "V_max": 15.4, "Q_max": 50.0}
+    ),
+    "MEMS_ACCEL": ComponentDefinition(
+        name="MEMS Accelerometer", category=ComponentType.SENSOR, symbol="DEFAULT",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="out")],
+        parameters={"range_g": 16, "sensitivity": 0.004}
+    ),
+    "MEMS_GYRO": ComponentDefinition(
+        name="MEMS Gyroscope", category=ComponentType.SENSOR, symbol="DEFAULT",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="out")],
+        parameters={"range_dps": 2000, "sensitivity": 0.07}
+    ),
+    "PHOTO_VOLTAIC": ComponentDefinition(
+        name="Photovoltaic Module", category=ComponentType.PASSIVE, symbol="SOLAR_CELL",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"V_oc": 12.0, "I_sc": 2.0, "P_max": 20.0}
+    ),
+    "CURRENT_MIRROR": ComponentDefinition(
+        name="Current Mirror", category=ComponentType.ACTIVE, symbol="DEFAULT",
+        ports=[Port(name="I_in", direction="in"), Port(name="I_out", direction="out"), Port(name="VCC", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"ratio": 1.0, "I_ref": 1e-3}
     ),
 
     # --- LOGIC ---
@@ -134,6 +410,164 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
             Port(name="SEL", direction="in"), Port(name="Q", direction="out"),
         ],
         parameters={"delay_ns": 10}
+    ),
+
+    # --- LOGIC EXPANSION ---
+    "BUFFER": ComponentDefinition(
+        name="Buffer", category=ComponentType.LOGIC, symbol="GATE_NOT",
+        ports=[Port(name="A", direction="in"), Port(name="Q", direction="out")],
+        parameters={"delay_ns": 5}
+    ),
+    "BUF_TRI": ComponentDefinition(
+        name="Tri-State Buffer", category=ComponentType.LOGIC, symbol="BUF_TRI",
+        ports=[Port(name="A", direction="in"), Port(name="EN", direction="in"), Port(name="Q", direction="out")],
+        parameters={"delay_ns": 8}
+    ),
+    "SCHMITT_INV": ComponentDefinition(
+        name="Schmitt Inverter", category=ComponentType.LOGIC, symbol="GATE_NOT",
+        ports=[Port(name="A", direction="in"), Port(name="Q", direction="out")],
+        parameters={"V_T+": 2.0, "V_T-": 0.8, "delay_ns": 10}
+    ),
+    "SCHMITT_AND": ComponentDefinition(
+        name="Schmitt AND", category=ComponentType.LOGIC, symbol="GATE_AND",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="Q", direction="out")],
+        parameters={"V_T+": 2.0, "V_T-": 0.8, "delay_ns": 12}
+    ),
+    "DECODER_2TO4": ComponentDefinition(
+        name="2-to-4 Decoder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[
+            Port(name="A0", direction="in"), Port(name="A1", direction="in"), Port(name="EN", direction="in"),
+            Port(name="Y0", direction="out"), Port(name="Y1", direction="out"),
+            Port(name="Y2", direction="out"), Port(name="Y3", direction="out"),
+        ],
+        parameters={"delay_ns": 15}
+    ),
+    "DECODER_4TO16": ComponentDefinition(
+        name="4-to-16 Decoder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="C", direction="in"), Port(name="D", direction="in"),
+               Port(name="EN", direction="in"), Port(name="Y0", direction="out"), Port(name="Y1", direction="out"),
+               Port(name="Y2", direction="out"), Port(name="Y3", direction="out"), Port(name="Y4", direction="out"),
+               Port(name="Y5", direction="out"), Port(name="Y6", direction="out"), Port(name="Y7", direction="out"),
+               Port(name="Y8", direction="out"), Port(name="Y9", direction="out"), Port(name="Y10", direction="out"),
+               Port(name="Y11", direction="out"), Port(name="Y12", direction="out"), Port(name="Y13", direction="out"),
+               Port(name="Y14", direction="out"), Port(name="Y15", direction="out")],
+        parameters={"delay_ns": 20}
+    ),
+    "ENCODER_4TO2": ComponentDefinition(
+        name="4-to-2 Encoder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="Y0", direction="in"), Port(name="Y1", direction="in"), Port(name="Y2", direction="in"), Port(name="Y3", direction="in"),
+               Port(name="A0", direction="out"), Port(name="A1", direction="out"), Port(name="V", direction="out")],
+        parameters={"delay_ns": 12}
+    ),
+    "DEMUX_1TO4": ComponentDefinition(
+        name="1-to-4 Demux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="in"), Port(name="S0", direction="in"), Port(name="S1", direction="in"),
+               Port(name="Y0", direction="out"), Port(name="Y1", direction="out"), Port(name="Y2", direction="out"), Port(name="Y3", direction="out")],
+        parameters={"delay_ns": 12}
+    ),
+    "DEMUX_1TO16": ComponentDefinition(
+        name="1-to-16 Demux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="in"), Port(name="S", direction="in"),
+               Port(name="Y0", direction="out"), Port(name="Y1", direction="out"),
+               Port(name="Y2", direction="out"), Port(name="Y3", direction="out")],
+        parameters={"bits": 4, "delay_ns": 20}
+    ),
+    "MUX_4TO1": ComponentDefinition(
+        name="4-to-1 Mux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="C", direction="in"), Port(name="D", direction="in"),
+               Port(name="S0", direction="in"), Port(name="S1", direction="in"), Port(name="Q", direction="out")],
+        parameters={"delay_ns": 12}
+    ),
+    "MUX_8TO1": ComponentDefinition(
+        name="8-to-1 Mux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="in"), Port(name="S", direction="in"), Port(name="Q", direction="out")],
+        parameters={"bits": 3, "delay_ns": 18}
+    ),
+    "MUX_16TO1": ComponentDefinition(
+        name="16-to-1 Mux", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="in"), Port(name="S", direction="in"), Port(name="Q", direction="out")],
+        parameters={"bits": 4, "delay_ns": 22}
+    ),
+    "HALF_ADDER": ComponentDefinition(
+        name="Half Adder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"),
+               Port(name="S", direction="out"), Port(name="CO", direction="out")],
+        parameters={"delay_ns": 10}
+    ),
+    "FULL_ADDER": ComponentDefinition(
+        name="Full Adder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="CI", direction="in"),
+               Port(name="S", direction="out"), Port(name="CO", direction="out")],
+        parameters={"delay_ns": 15}
+    ),
+    "RIPPLE_ADDER": ComponentDefinition(
+        name="4-bit Ripple Adder", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"), Port(name="CI", direction="in"),
+               Port(name="S", direction="out"), Port(name="CO", direction="out")],
+        parameters={"bits": 4, "delay_ns": 40}
+    ),
+    "ALU_4BIT": ComponentDefinition(
+        name="4-bit ALU", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"),
+               Port(name="S", direction="in"), Port(name="F", direction="out"),
+               Port(name="CO", direction="out"), Port(name="Z", direction="out")],
+        parameters={"ops": ["ADD","SUB","AND","OR","XOR","NOT"], "bits": 4}
+    ),
+    "COMP_4BIT": ComponentDefinition(
+        name="4-bit Comparator", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="in"), Port(name="B", direction="in"),
+               Port(name="EQ", direction="out"), Port(name="GT", direction="out"), Port(name="LT", direction="out")],
+        parameters={"bits": 4, "delay_ns": 20}
+    ),
+    "JK_FF": ComponentDefinition(
+        name="JK Flip-Flop", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="J", direction="in"), Port(name="K", direction="in"), Port(name="CLK", direction="in"),
+               Port(name="Q", direction="out"), Port(name="QB", direction="out")],
+        parameters={"delay_ns": 8}
+    ),
+    "T_FF": ComponentDefinition(
+        name="T Flip-Flop", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="T", direction="in"), Port(name="CLK", direction="in"),
+               Port(name="Q", direction="out"), Port(name="QB", direction="out")],
+        parameters={"delay_ns": 8}
+    ),
+    "SR_FF": ComponentDefinition(
+        name="SR Flip-Flop", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="S", direction="in"), Port(name="R", direction="in"), Port(name="CLK", direction="in"),
+               Port(name="Q", direction="out"), Port(name="QB", direction="out")],
+        parameters={"delay_ns": 8}
+    ),
+    "COUNTER_BIN": ComponentDefinition(
+        name="Binary Counter", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="CLK", direction="in"), Port(name="RST", direction="in"),
+               Port(name="Q0", direction="out"), Port(name="Q1", direction="out"),
+               Port(name="Q2", direction="out"), Port(name="Q3", direction="out")],
+        parameters={"bits": 4, "max": 15}
+    ),
+    "COUNTER_BCD": ComponentDefinition(
+        name="BCD Counter", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="CLK", direction="in"), Port(name="RST", direction="in"),
+               Port(name="Q0", direction="out"), Port(name="Q1", direction="out"),
+               Port(name="Q2", direction="out"), Port(name="Q3", direction="out")],
+        parameters={"max": 9}
+    ),
+    "SHIFT_REG": ComponentDefinition(
+        name="8-bit Shift Register", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="D", direction="in"), Port(name="CLK", direction="in"), Port(name="Q0", direction="out"),
+               Port(name="Q1", direction="out"), Port(name="Q2", direction="out"), Port(name="Q3", direction="out"),
+               Port(name="Q4", direction="out"), Port(name="Q5", direction="out"), Port(name="Q6", direction="out"), Port(name="Q7", direction="out")],
+        parameters={"bits": 8, "direction": "right"}
+    ),
+    "REG_8BIT": ComponentDefinition(
+        name="8-bit Register", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="D", direction="in"), Port(name="CLK", direction="in"), Port(name="EN", direction="in"),
+               Port(name="Q", direction="out")],
+        parameters={"bits": 8}
+    ),
+    "LATCH_8BIT": ComponentDefinition(
+        name="8-bit Latch", category=ComponentType.LOGIC, symbol="IC_GENERIC",
+        ports=[Port(name="D", direction="in"), Port(name="LE", direction="in"), Port(name="Q", direction="out")],
+        parameters={"bits": 8}
     ),
 
     # --- SOURCES & POWER ---
@@ -226,6 +660,587 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         name="OpAmp AD8055", category=ComponentType.IC_BLOCK, symbol="OPAMP",
         ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out")],
         parameters={"gain": 200000, "slew_rate": 1400e6}
+    ),
+
+    # --- IC BLOCKS EXPANSION ---
+    "LM393": ComponentDefinition(
+        name="LM393 Dual Comparator", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="V-", direction="inout")],
+        parameters={"V_cc": 36.0, "t_response": 1.3e-6}
+    ),
+    "LM311": ComponentDefinition(
+        name="LM311 Single Comparator", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="V-", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"V_cc": 36.0, "t_response": 200e-9}
+    ),
+    "LM324": ComponentDefinition(
+        name="LM324 Quad Op-Amp", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+               Port(name="OUT1", direction="out"), Port(name="IN1+", direction="in"), Port(name="IN1-", direction="in"),
+               Port(name="OUT2", direction="out"), Port(name="IN2+", direction="in"), Port(name="IN2-", direction="in")],
+        parameters={"gain": 100000, "V_cc": 32.0}
+    ),
+    "NE5532": ComponentDefinition(
+        name="NE5532 Dual Op-Amp", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"gain": 100000, "slew_rate": 9e6, "noise_nV": 5}
+    ),
+    "OPA2134": ComponentDefinition(
+        name="OPA2134 Audio Op-Amp", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"gain": 120000, "slew_rate": 20e6, "THD": 0.00008}
+    ),
+    "AD823": ComponentDefinition(
+        name="AD823 Instr Amp", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="REF", direction="inout"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout")],
+        parameters={"gain": 1000, "CMRR": 86}
+    ),
+    "INA128": ComponentDefinition(
+        name="INA128 Precision Instr Amp", category=ComponentType.IC_BLOCK, symbol="OPAMP",
+        ports=[Port(name="+", direction="in"), Port(name="-", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="REF", direction="inout"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout")],
+        parameters={"gain": 10000, "CMRR": 120}
+    ),
+    "LM386": ComponentDefinition(
+        name="LM386 Audio Amp", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="+IN", direction="in"), Port(name="-IN", direction="in"), Port(name="OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="GND", direction="inout"), Port(name="GAIN", direction="inout")],
+        parameters={"gain": 200, "P_out": 0.7}
+    ),
+    "TDA7297": ComponentDefinition(
+        name="TDA7297 Audio Power Amp", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="L_IN", direction="in"), Port(name="R_IN", direction="in"),
+               Port(name="L_OUT", direction="out"), Port(name="R_OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="GND", direction="inout"), Port(name="STBY", direction="in")],
+        parameters={"P_out": 15, "V_cc": 18}
+    ),
+    "MAX232": ComponentDefinition(
+        name="MAX232 RS-232 Driver", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="T1_IN", direction="in"), Port(name="T1_OUT", direction="out"),
+               Port(name="R1_IN", direction="in"), Port(name="R1_OUT", direction="out"),
+               Port(name="V+", direction="inout"), Port(name="V-", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"V_cc": 5.0, "channels": 2}
+    ),
+    "MAX485": ComponentDefinition(
+        name="MAX485 RS-485 Transceiver", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="DI", direction="in"), Port(name="DE", direction="in"), Port(name="RE", direction="in"),
+               Port(name="RO", direction="out"), Port(name="A", direction="inout"), Port(name="B", direction="inout"),
+               Port(name="VCC", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"V_cc": 5.0, "baud": 10e6}
+    ),
+    "MAX31855": ComponentDefinition(
+        name="MAX31855 Thermocouple IF", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="CS", direction="in"), Port(name="SCK", direction="in"), Port(name="SO", direction="out"),
+               Port(name="T+", direction="inout"), Port(name="T-", direction="inout")],
+        parameters={"type": "K", "resolution": 0.25}
+    ),
+    "ADS1115": ComponentDefinition(
+        name="ADS1115 16-bit ADC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="A0", direction="in"), Port(name="A1", direction="in"), Port(name="A2", direction="in"), Port(name="A3", direction="in"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout")],
+        parameters={"sps": 860, "gain": 1}
+    ),
+    "MCP3008": ComponentDefinition(
+        name="MCP3008 10-bit ADC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="VREF", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="CH0", direction="in"), Port(name="CH1", direction="in"), Port(name="CH2", direction="in"), Port(name="CH3", direction="in"),
+               Port(name="CH4", direction="in"), Port(name="CH5", direction="in"), Port(name="CH6", direction="in"), Port(name="CH7", direction="in"),
+               Port(name="CS", direction="in"), Port(name="DIN", direction="in"), Port(name="DOUT", direction="out"), Port(name="CLK", direction="in")],
+        parameters={"sps": 200, "vref": 5.0}
+    ),
+    "DAC0808": ComponentDefinition(
+        name="DAC0808 8-bit DAC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="V-", direction="inout"), Port(name="I_OUT", direction="out"),
+               Port(name="COMP", direction="inout"), Port(name="VREF+", direction="in"), Port(name="VREF-", direction="in"),
+               Port(name="D0", direction="in"), Port(name="D1", direction="in"), Port(name="D2", direction="in"),
+               Port(name="D3", direction="in"), Port(name="D4", direction="in"), Port(name="D5", direction="in"),
+               Port(name="D6", direction="in"), Port(name="D7", direction="in")],
+        parameters={"resolution": 8, "settling": 150e-9}
+    ),
+    "MCP4725": ComponentDefinition(
+        name="MCP4725 12-bit I2C DAC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="OUT", direction="out"), Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="A0", direction="in")],
+        parameters={"resolution": 12, "vref": 5.0}
+    ),
+    "DS1307": ComponentDefinition(
+        name="DS1307 RTC", category=ComponentType.IC_BLOCK, symbol="IC_GENERIC",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="SQW", direction="out"), Port(name="X1", direction="inout"), Port(name="X2", direction="inout"),
+               Port(name="VBAT", direction="inout")],
+        parameters={"format": "24h"}
+    ),
+    "DS18B20": ComponentDefinition(
+        name="DS18B20 Temp Sensor", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"), Port(name="DQ", direction="inout")],
+        parameters={"resolution": 12, "accuracy": 0.5}
+    ),
+    "DHT22": ComponentDefinition(
+        name="DHT22 Temp/Humidity", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"), Port(name="DATA", direction="inout")],
+        parameters={"range_T": [-40, 80], "range_RH": [0, 100], "accuracy_T": 0.5}
+    ),
+    "BMP280": ComponentDefinition(
+        name="BMP280 Barometric", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="CSB", direction="in"), Port(name="SDO", direction="inout")],
+        parameters={"range_P": [300, 1100], "accuracy_P": 1.0}
+    ),
+    "MPU6050": ComponentDefinition(
+        name="MPU6050 IMU", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="XDA", direction="inout"), Port(name="XCL", direction="inout"),
+               Port(name="AD0", direction="in"), Port(name="INT", direction="out")],
+        parameters={"accel_range": 16, "gyro_range": 2000}
+    ),
+    "HC_SR04": ComponentDefinition(
+        name="HC-SR04 Ultrasonic", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="TRIG", direction="in"), Port(name="ECHO", direction="out")],
+        parameters={"range_m": 4, "resolution_mm": 3}
+    ),
+    "TCRT5000": ComponentDefinition(
+        name="TCRT5000 IR Sensor", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout"),
+               Port(name="C", direction="inout"), Port(name="E", direction="inout")],
+        parameters={"I_f": 20e-3, "V_ce_max": 30}
+    ),
+    "LM35": ComponentDefinition(
+        name="LM35 Temp Sensor", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="VOUT", direction="out"), Port(name="GND", direction="inout")],
+        parameters={"scale": 0.01, "range_C": [-55, 150]}
+    ),
+    "TMP36": ComponentDefinition(
+        name="TMP36 Temp Sensor", category=ComponentType.SENSOR, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="VOUT", direction="out"), Port(name="GND", direction="inout")],
+        parameters={"scale": 0.01, "offset_V": 0.5}
+    ),
+
+    # --- POWER & RF EXPANSION ---
+    "LM2596": ComponentDefinition(
+        name="LM2596 Buck Converter", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="VIN", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="FB", direction="in"), Port(name="EN", direction="in")],
+        parameters={"V_out": 5.0, "I_max": 3.0, "freq": 150e3}
+    ),
+    "LM2577": ComponentDefinition(
+        name="LM2577 Boost Converter", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="VIN", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="FB", direction="in"), Port(name="EN", direction="in")],
+        parameters={"V_out": 12.0, "I_max": 3.0, "freq": 100e3}
+    ),
+    "XL6009": ComponentDefinition(
+        name="XL6009 Buck-Boost", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="VIN", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="FB", direction="in"), Port(name="EN", direction="in")],
+        parameters={"V_out": 12.0, "I_max": 4.0, "freq": 400e3}
+    ),
+    "TPS7A47": ComponentDefinition(
+        name="TPS7A47 Low-Noise LDO", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="IN", direction="inout"), Port(name="OUT", direction="out"),
+               Port(name="GND", direction="inout"), Port(name="EN", direction="in"), Port(name="NR", direction="inout")],
+        parameters={"V_out": 3.3, "I_max": 1.0, "noise_uV": 0.8}
+    ),
+    "AMS1117": ComponentDefinition(
+        name="AMS1117 3.3V Regulator", category=ComponentType.POWER, symbol="IC_REG",
+        ports=[Port(name="IN", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="inout")],
+        parameters={"V_out": 3.3, "I_max": 1.0}
+    ),
+    "LM337": ComponentDefinition(
+        name="LM337 Negative Regulator", category=ComponentType.POWER, symbol="IC_REG",
+        ports=[Port(name="IN", direction="inout"), Port(name="ADJ", direction="inout"), Port(name="OUT", direction="inout")],
+        parameters={"V_out": -5.0, "I_max": 1.5}
+    ),
+    "TL431": ComponentDefinition(
+        name="TL431 Shunt Reference", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="A", direction="inout"), Port(name="K", direction="inout"), Port(name="REF", direction="in")],
+        parameters={"V_ref": 2.495, "I_min": 1e-3}
+    ),
+    "MCP1700": ComponentDefinition(
+        name="MCP1700 Low-Dropout", category=ComponentType.POWER, symbol="IC_REG",
+        ports=[Port(name="IN", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="inout")],
+        parameters={"V_out": 3.3, "I_max": 0.25, "dropout_V": 0.18}
+    ),
+    "ICL7660": ComponentDefinition(
+        name="ICL7660 Voltage Inverter", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="CAP+", direction="inout"), Port(name="CAP-", direction="inout")],
+        parameters={"V_in": 5.0, "V_out": -5.0}
+    ),
+    "MAX660": ComponentDefinition(
+        name="MAX660 Voltage Converter", category=ComponentType.POWER, symbol="IC_GENERIC",
+        ports=[Port(name="V+", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="VOUT", direction="out"), Port(name="FC", direction="in"), Port(name="CAP+", direction="inout"), Port(name="CAP-", direction="inout")],
+        parameters={"V_in": 5.0, "V_out": -5.0, "freq": 10e3}
+    ),
+    "IRF520": ComponentDefinition(
+        name="IRF520 Power N-MOS", category=ComponentType.ACTIVE, symbol="M_NMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"V_dss": 100, "I_d": 9.2, "R_ds_on": 0.27}
+    ),
+    "IRF9530": ComponentDefinition(
+        name="IRF9530 Power P-MOS", category=ComponentType.ACTIVE, symbol="M_PMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"V_dss": -100, "I_d": -12, "R_ds_on": 0.3}
+    ),
+    "IRLZ44": ComponentDefinition(
+        name="IRLZ44 Logic-Level N-MOS", category=ComponentType.ACTIVE, symbol="M_NMOS",
+        ports=[Port(name="D", direction="inout"), Port(name="G", direction="inout"), Port(name="S", direction="inout")],
+        parameters={"V_dss": 55, "I_d": 47, "R_ds_on": 0.022}
+    ),
+    "TRANSFO_CT": ComponentDefinition(
+        name="Center-Tap Transformer", category=ComponentType.PASSIVE, symbol="XFMR",
+        ports=[Port(name="P1", direction="inout"), Port(name="P2", direction="inout"),
+               Port(name="S1", direction="inout"), Port(name="CT", direction="inout"), Port(name="S2", direction="inout")],
+        parameters={"turns_ratio": 10.0, "V_sec_ct": 12.0}
+    ),
+    "TRANSFO_3PH": ComponentDefinition(
+        name="3-Phase Transformer", category=ComponentType.PASSIVE, symbol="DEFAULT",
+        ports=[Port(name="A1", direction="inout"), Port(name="A2", direction="inout"),
+               Port(name="B1", direction="inout"), Port(name="B2", direction="inout"),
+               Port(name="C1", direction="inout"), Port(name="C2", direction="inout")],
+        parameters={"V_ratio": 1.0, "VA": 1000}
+    ),
+    "CHOKE_CM": ComponentDefinition(
+        name="Common Mode Choke", category=ComponentType.PASSIVE, symbol="IND_FERRITE",
+        ports=[Port(name="L1+", direction="inout"), Port(name="L1-", direction="inout"),
+               Port(name="L2+", direction="inout"), Port(name="L2-", direction="inout")],
+        parameters={"L_cm": 10e-3, "Z_CM": 1000}
+    ),
+    "COUPLER_DIR": ComponentDefinition(
+        name="Directional Coupler", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="IN", direction="inout"), Port(name="OUT", direction="out"),
+               Port(name="CPL", direction="out"), Port(name="ISO", direction="inout")],
+        parameters={"coupling_dB": 10, "directivity_dB": 25}
+    ),
+    "SPLITTER_RF": ComponentDefinition(
+        name="RF Power Splitter", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT1", direction="out"), Port(name="OUT2", direction="out")],
+        parameters={"split_dB": 3, "isolation_dB": 20}
+    ),
+    "MIXER_RF": ComponentDefinition(
+        name="RF Mixer", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="RF", direction="in"), Port(name="LO", direction="in"), Port(name="IF", direction="out")],
+        parameters={"conv_loss_dB": 6, "LO_power_dBm": 7}
+    ),
+    "ATTENUATOR": ComponentDefinition(
+        name="RF Attenuator", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="IN", direction="inout"), Port(name="OUT", direction="inout")],
+        parameters={"atten_dB": 10, "freq_max": 6e9}
+    ),
+    "BALUN": ComponentDefinition(
+        name="Balun", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="BAL", direction="inout"), Port(name="UNBAL", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"Z_ratio": "1:1", "freq": 100e6}
+    ),
+    "ANT_LOOP": ComponentDefinition(
+        name="Loop Antenna", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"freq": 10e6, "turns": 3}
+    ),
+    "ANT_PATCH": ComponentDefinition(
+        name="Patch Antenna", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="FEED", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"freq": 2.4e9, "gain_dBi": 6}
+    ),
+    "ANT_DIPOLE": ComponentDefinition(
+        name="Dipole Antenna", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"freq": 100e6, "Z": 73}
+    ),
+    "ANT_YAGI": ComponentDefinition(
+        name="Yagi Antenna", category=ComponentType.RF, symbol="DEFAULT",
+        ports=[Port(name="FEED", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"freq": 146e6, "elements": 5, "gain_dBi": 8}
+    ),
+
+    # --- QUANTUM ---
+    "QUBIT": ComponentDefinition(
+        name="Qubit", category=ComponentType.QUANTUM, symbol="QUBIT",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"state": "|0>", "t1": 30e-6, "t2": 20e-6}
+    ),
+    "HADAMARD": ComponentDefinition(
+        name="Hadamard Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[1,1],[1,-1]]/sqrt2"}
+    ),
+    "PAULI_X": ComponentDefinition(
+        name="Pauli-X Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[0,1],[1,0]]"}
+    ),
+    "PAULI_Y": ComponentDefinition(
+        name="Pauli-Y Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[0,-i],[i,0]]"}
+    ),
+    "PAULI_Z": ComponentDefinition(
+        name="Pauli-Z Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[1,0],[0,-1]]"}
+    ),
+    "S_GATE": ComponentDefinition(
+        name="Phase Gate S", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[1,0],[0,i]]"}
+    ),
+    "T_GATE": ComponentDefinition(
+        name="T Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"matrix": "[[1,0],[0,exp(i*pi/4)]]"}
+    ),
+    "CNOT": ComponentDefinition(
+        name="CNOT Gate", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="CTRL", direction="in"), Port(name="TGT_IN", direction="in"),
+               Port(name="CTRL_OUT", direction="out"), Port(name="TGT_OUT", direction="out")],
+        parameters={"matrix": "[[1,0,0,0],[0,1,0,0],[0,0,0,1],[0,0,1,0]]"}
+    ),
+    "CZ": ComponentDefinition(
+        name="Controlled-Z Gate", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="CTRL", direction="in"), Port(name="TGT_IN", direction="in"),
+               Port(name="CTRL_OUT", direction="out"), Port(name="TGT_OUT", direction="out")],
+        parameters={"matrix": "[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,-1]]"}
+    ),
+    "SWAP": ComponentDefinition(
+        name="SWAP Gate", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="A_IN", direction="in"), Port(name="B_IN", direction="in"),
+               Port(name="A_OUT", direction="out"), Port(name="B_OUT", direction="out")],
+        parameters={"matrix": "[[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]]"}
+    ),
+    "CSWAP": ComponentDefinition(
+        name="Controlled SWAP (Fredkin)", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="CTRL", direction="in"), Port(name="A_IN", direction="in"), Port(name="B_IN", direction="in"),
+               Port(name="CTRL_OUT", direction="out"), Port(name="A_OUT", direction="out"), Port(name="B_OUT", direction="out")],
+        parameters={"matrix": "[[1,0,0,0,0,0,0,0],[0,1,0,0,0,0,0,0],[0,0,1,0,0,0,0,0],[0,0,0,1,0,0,0,0],[0,0,0,0,1,0,0,0],[0,0,0,0,0,0,1,0],[0,0,0,0,0,1,0,0],[0,0,0,0,0,0,0,1]]"}
+    ),
+    "TOFFOLI": ComponentDefinition(
+        name="Toffoli Gate CCNOT", category=ComponentType.QUANTUM, symbol="CNOT",
+        ports=[Port(name="CTRL1", direction="in"), Port(name="CTRL2", direction="in"), Port(name="TGT_IN", direction="in"),
+               Port(name="CTRL1_OUT", direction="out"), Port(name="CTRL2_OUT", direction="out"), Port(name="TGT_OUT", direction="out")],
+        parameters={"matrix": "CCNOT_8x8"}
+    ),
+    "PHASE_SHIFT": ComponentDefinition(
+        name="Phase Shift Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0}
+    ),
+    "U1": ComponentDefinition(
+        name="U1 Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"lambda": 0.0}
+    ),
+    "U2": ComponentDefinition(
+        name="U2 Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"phi": 0.0, "lambda": 0.0}
+    ),
+    "U3": ComponentDefinition(
+        name="U3 Universal Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0, "phi": 0.0, "lambda": 0.0}
+    ),
+    "RX": ComponentDefinition(
+        name="RX Rotation Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0}
+    ),
+    "RY": ComponentDefinition(
+        name="RY Rotation Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0}
+    ),
+    "RZ": ComponentDefinition(
+        name="RZ Rotation Gate", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"theta": 0.0}
+    ),
+    "MEASURE": ComponentDefinition(
+        name="Qubit Measurement", category=ComponentType.QUANTUM, symbol="Q_MEASURE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"basis": "Z"}
+    ),
+    "RESET": ComponentDefinition(
+        name="Qubit Reset", category=ComponentType.QUANTUM, symbol="Q_RESET",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"state": "|0>"}
+    ),
+    "BARRIER": ComponentDefinition(
+        name="Quantum Barrier", category=ComponentType.QUANTUM, symbol="Q_BARRIER",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={}
+    ),
+    "QFT_BLOCK": ComponentDefinition(
+        name="QFT Block", category=ComponentType.QUANTUM, symbol="Q_GATE",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"n_qubits": 4}
+    ),
+    "QUBIT_REG": ComponentDefinition(
+        name="Qubit Register", category=ComponentType.QUANTUM, symbol="DEFAULT",
+        ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"n_qubits": 4}
+    ),
+    "Q_IC": ComponentDefinition(
+        name="Quantum IC", category=ComponentType.QUANTUM, symbol="DEFAULT",
+        ports=[Port(name="VDD", direction="inout"), Port(name="GND", direction="inout"),
+               Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
+        parameters={"temp_mK": 15, "fridge": "dilution"}
+    ),
+
+    # --- CONNECTORS ---
+    "CONN_2PIN": ComponentDefinition(
+        name="2-Pin Connector", category=ComponentType.CONNECTOR, symbol="CONN_2PIN",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rated_A": 3}
+    ),
+    "CONN_3PIN": ComponentDefinition(
+        name="3-Pin Connector", category=ComponentType.CONNECTOR, symbol="CONN_3PIN",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout"), Port(name="3", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rated_A": 3}
+    ),
+    "CONN_4PIN": ComponentDefinition(
+        name="4-Pin Connector", category=ComponentType.CONNECTOR, symbol="CONN_4PIN",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout"),
+               Port(name="3", direction="inout"), Port(name="4", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rated_A": 3}
+    ),
+    "CONN_8PIN": ComponentDefinition(
+        name="8-Pin Connector", category=ComponentType.CONNECTOR, symbol="CONN_8PIN",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout"),
+               Port(name="3", direction="inout"), Port(name="4", direction="inout"),
+               Port(name="5", direction="inout"), Port(name="6", direction="inout"),
+               Port(name="7", direction="inout"), Port(name="8", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rated_A": 3}
+    ),
+    "CONN_DB9": ComponentDefinition(
+        name="DB9 Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout"), Port(name="3", direction="inout"),
+               Port(name="4", direction="inout"), Port(name="5", direction="inout"), Port(name="6", direction="inout"),
+               Port(name="7", direction="inout"), Port(name="8", direction="inout"), Port(name="9", direction="inout")],
+        parameters={"type": "DE-9"}
+    ),
+    "CONN_USB": ComponentDefinition(
+        name="USB Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="VBUS", direction="inout"), Port(name="D-", direction="inout"),
+               Port(name="D+", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"type": "USB-A", "ver": 2.0}
+    ),
+    "CONN_HDMI": ComponentDefinition(
+        name="HDMI Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="TMDS", direction="inout"), Port(name="CEC", direction="inout"),
+               Port(name="SCL", direction="inout"), Port(name="SDA", direction="inout"),
+               Port(name="+5V", direction="inout"), Port(name="HPD", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"type": "HDMI-A", "ver": 2.0}
+    ),
+    "CONN_RCA": ComponentDefinition(
+        name="RCA Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="SIG", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"color": "red"}
+    ),
+    "CONN_BNC": ComponentDefinition(
+        name="BNC Connector", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="CENTER", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"Z": 50}
+    ),
+    "CONN_JACK": ComponentDefinition(
+        name="Audio Jack", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="TIP", direction="inout"), Port(name="RING", direction="inout"), Port(name="SLEEVE", direction="inout")],
+        parameters={"size_mm": 3.5, "poles": 3}
+    ),
+    "HEADER_2X5": ComponentDefinition(
+        name="2x5 Pin Header", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="P1", direction="inout"), Port(name="P2", direction="inout"), Port(name="P3", direction="inout"),
+               Port(name="P4", direction="inout"), Port(name="P5", direction="inout"),
+               Port(name="P6", direction="inout"), Port(name="P7", direction="inout"), Port(name="P8", direction="inout"),
+               Port(name="P9", direction="inout"), Port(name="P10", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rows": 2}
+    ),
+    "HEADER_2X8": ComponentDefinition(
+        name="2x8 Pin Header", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="P1", direction="inout"), Port(name="P2", direction="inout"), Port(name="P3", direction="inout"),
+               Port(name="P4", direction="inout"), Port(name="P5", direction="inout"), Port(name="P6", direction="inout"),
+               Port(name="P7", direction="inout"), Port(name="P8", direction="inout"),
+               Port(name="P9", direction="inout"), Port(name="P10", direction="inout"),
+               Port(name="P11", direction="inout"), Port(name="P12", direction="inout"),
+               Port(name="P13", direction="inout"), Port(name="P14", direction="inout"),
+               Port(name="P15", direction="inout"), Port(name="P16", direction="inout")],
+        parameters={"pitch_mm": 2.54, "rows": 2}
+    ),
+    "JUMPER": ComponentDefinition(
+        name="Jumper Wire", category=ComponentType.CONNECTOR, symbol="DEFAULT",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"length_mm": 10, "color": "red"}
+    ),
+    "TEST_POINT": ComponentDefinition(
+        name="Test Point", category=ComponentType.CONNECTOR, symbol="TEST_POINT",
+        ports=[Port(name="TP", direction="inout")],
+        parameters={"type": "loop"}
+    ),
+    "MOTOR_DC": ComponentDefinition(
+        name="DC Motor", category=ComponentType.ELECTROMECHANICAL, symbol="MOTOR_DC",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"V_nom": 12.0, "I_stall": 1.0, "RPM": 3000}
+    ),
+    "MOTOR_STEPPER": ComponentDefinition(
+        name="Stepper Motor", category=ComponentType.ELECTROMECHANICAL, symbol="DEFAULT",
+        ports=[Port(name="A+", direction="inout"), Port(name="A-", direction="inout"),
+               Port(name="B+", direction="inout"), Port(name="B-", direction="inout")],
+        parameters={"steps_rev": 200, "V_nom": 12.0, "I_phase": 0.5}
+    ),
+    "MOTOR_SERVO": ComponentDefinition(
+        name="Servo Motor", category=ComponentType.ELECTROMECHANICAL, symbol="DEFAULT",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"), Port(name="PWM", direction="in")],
+        parameters={"torque_kgcm": 5.0, "speed_sec60": 0.12}
+    ),
+    "SOLENOID": ComponentDefinition(
+        name="Solenoid", category=ComponentType.ELECTROMECHANICAL, symbol="IND",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"V_nom": 12.0, "R_coil": 10.0, "stroke_mm": 10}
+    ),
+    "FAN": ComponentDefinition(
+        name="Cooling Fan", category=ComponentType.ELECTROMECHANICAL, symbol="DEFAULT",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout")],
+        parameters={"V_nom": 12.0, "CFM": 50, "dB": 25}
+    ),
+    "SPEAKER": ComponentDefinition(
+        name="Speaker", category=ComponentType.ELECTROMECHANICAL, symbol="SPEAKER",
+        ports=[Port(name="+", direction="inout"), Port(name="−", direction="inout")],
+        parameters={"Z": 8, "P_rated": 5, "freq": [20, 20000]}
+    ),
+    "MICROPHONE": ComponentDefinition(
+        name="Electret Microphone", category=ComponentType.SENSOR, symbol="MICROPHONE",
+        ports=[Port(name="OUT", direction="out"), Port(name="GND", direction="inout")],
+        parameters={"sensitivity_dB": -44, "Z": 2.2e3}
+    ),
+    "TRANSFO_AUDIO": ComponentDefinition(
+        name="Audio Transformer", category=ComponentType.PASSIVE, symbol="XFMR",
+        ports=[Port(name="P1", direction="inout"), Port(name="P2", direction="inout"),
+               Port(name="S1", direction="inout"), Port(name="S2", direction="inout")],
+        parameters={"Z_ratio": "600:600", "freq": [20, 20000]}
+    ),
+    "HALL_SENSOR": ComponentDefinition(
+        name="Hall Effect Sensor", category=ComponentType.SENSOR, symbol="DEFAULT",
+        ports=[Port(name="VCC", direction="inout"), Port(name="GND", direction="inout"), Port(name="OUT", direction="out")],
+        parameters={"sensitivity": 2.5e-3, "B_max": 0.1}
+    ),
+    "CURRENT_SENSE": ComponentDefinition(
+        name="Current Sense Resistor", category=ComponentType.PASSIVE, symbol="R",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R": 0.01, "tolerance": 0.01, "P_rated": 3}
+    ),
+    "SHUNT": ComponentDefinition(
+        name="Precision Shunt", category=ComponentType.PASSIVE, symbol="R",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R": 0.001, "tolerance": 0.001, "I_rated": 100}
     ),
 
     # --- EXPERIMENTAL / AVIONICS ---

@@ -14,6 +14,10 @@ class ComponentType(str, Enum):
     EXPERIMENTAL = "experimental"
     UQE_BRIDGE = "uqe_bridge"
     GPU_COMPUTE = "gpu_compute"
+    QUANTUM = "quantum"
+    SENSOR = "sensor"
+    ELECTROMECHANICAL = "electromechanical"
+    CONNECTOR = "connector"
 
 class Port(BaseModel):
     name: str
@@ -78,3 +82,19 @@ class NeuralSignalProcessor(Component):
 class BehavioralSuperNode(Component):
     type: ComponentType = ComponentType.MATH
     name: str = "Behavioral_Node"
+
+# --- Quantum ---
+class QuantumGate(Component):
+    type: ComponentType = ComponentType.QUANTUM
+
+# --- Sensors ---
+class Sensor(Component):
+    type: ComponentType = ComponentType.SENSOR
+
+# --- Electromechanical ---
+class Electromechanical(Component):
+    type: ComponentType = ComponentType.ELECTROMECHANICAL
+
+# --- Connectors ---
+class Connector(Component):
+    type: ComponentType = ComponentType.CONNECTOR
