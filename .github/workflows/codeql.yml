@@ -13,8 +13,12 @@ permissions:
 
 jobs:
   analyze:
-    name: Analyze (cpp-c)
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [cpp, python]
 
     steps:
       - name: Checkout repository
@@ -22,11 +26,36 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install system dependencies (cpp)
+        if: matrix.language == 'cpp'
+        run: sudo apt-get update -qq && sudo apt-get install -y qt6-base-dev cmake build-essential
+
+      - name: Create build stubs (cpp)
+        if: matrix.language == 'cpp'
+        run: |
+          test -f models/device.cpp || printf '#include "device.h"\nnamespace deepiri {}\n' > models/device.cpp
+          test -f tests/CMakeLists.txt || echo "# Tests placeholder" > tests/CMakeLists.txt
+
+      - name: Configure CMake (cpp)
+        if: matrix.language == 'cpp'
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install pydantic numpy scipy
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: cpp,c
+          languages: ${{ matrix.language }}
           config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
