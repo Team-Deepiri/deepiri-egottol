@@ -1,3 +1,4 @@
+from egottol.engines.analog.ac_analysis import ACAnalysisEngine
 from egottol.engines.analog.gilbert_cell import GilbertCell
 from egottol.engines.analog.hopfield import HopfieldNetwork
 from egottol.engines.analog.ising import IsingMachine, IsingResult
@@ -7,6 +8,7 @@ from egottol.engines.analog.opamp_neuron import OpAmpNeuronLayer
 from egottol.engines.analog.ota import OTACell
 
 __all__ = [
+    "ACAnalysisEngine",
     "NonlinearMNASolver",
     "OpAmpNeuronLayer",
     "HopfieldNetwork",

@@ -18,6 +18,7 @@ from PyQt6.QtGui import (
 )
 
 from egottol.engines.discovery import ServiceDiscovery
+from egottol.engines.gpu_mesh import GPUMeshClient
 from egottol.models.registry import COMPONENT_LIBRARY
 from egottol.models.base import Circuit, Component, Wire, ComponentType, Port
 from egottol.ui.copilot_panel import (
@@ -26,6 +27,8 @@ from egottol.ui.copilot_panel import (
     analyze_spikes,
     run_eii_pipeline,
 )
+from egottol.ui.weight_import_dialog import open_weight_import_dialog
+from egottol.ui.gpu_mesh_panel import GPUMeshDockWidget
 
 GRID = 20
 
@@ -1172,6 +1175,8 @@ class EgottolApp(QMainWindow):
         self._sim_cfg  = dict(self._DEFAULT_CFG)
         self._last_sim_result = {}
         self.discovery = ServiceDiscovery()
+        self.gpu_mesh_client = GPUMeshClient(discovery=self.discovery)
+        self._use_community_gpu = False
         self._scene    = SchematicScene()
         self._view     = SchematicView(self._scene)
         self._setup_ui()
@@ -1221,6 +1226,14 @@ class EgottolApp(QMainWindow):
         svc_dock = QDockWidget("Services", self); svc_dock.setWidget(svc_w)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, svc_dock)
 
+        self._gpu_mesh_dock = GPUMeshDockWidget(
+            discovery=self.discovery,
+            on_community_toggle=self._set_community_gpu,
+            parent=self,
+        )
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._gpu_mesh_dock)
+        self.tabifyDockWidget(svc_dock, self._gpu_mesh_dock)
+
         # Waveform + console
         self._plotter = pg.PlotWidget(background="#12121e")
         self._plotter.setLabel("left","Voltage (V)"); self._plotter.setLabel("bottom","Node")
@@ -1245,7 +1258,13 @@ class EgottolApp(QMainWindow):
         )
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._copilot_dock)
         self.tabifyDockWidget(svc_dock, self._copilot_dock)
-        self._copilot_dock.raise_()
+        svc_dock.raise_()
+
+    def _set_community_gpu(self, enabled: bool) -> None:
+        self._use_community_gpu = enabled
+        self.gpu_mesh_client.prefer_remote = enabled
+        mode = "community GPU mesh" if enabled else "local"
+        self._log(f"Crossbar compute: {mode}")
 
     def _last_sim_results(self):
         return getattr(self, "_last_sim_result", {})
@@ -1254,6 +1273,14 @@ class EgottolApp(QMainWindow):
         mb = self.menuBar()
         mb.setStyleSheet("background:#2a2a42;color:#f8f8f2;")
 
+        file_menu = mb.addMenu("File")
+        act_import_weights = QAction("Import AI Weights…", self)
+        act_import_weights.setToolTip(
+            "Load .onnx / .egt-weights / .json / .npy onto INFERENCE_ENGINE or EII_PIPELINE"
+        )
+        act_import_weights.triggered.connect(self._import_ai_weights)
+        file_menu.addAction(act_import_weights)
+
         view_menu = mb.addMenu("View")
         self._copilot_panel_action = QAction("Copilot Panel", self)
         self._copilot_panel_action.setCheckable(True)
@@ -1261,6 +1288,13 @@ class EgottolApp(QMainWindow):
         self._copilot_panel_action.triggered.connect(self._copilot_dock.setVisible)
         self._copilot_dock.visibilityChanged.connect(self._copilot_panel_action.setChecked)
         view_menu.addAction(self._copilot_panel_action)
+
+        self._gpu_mesh_panel_action = QAction("GPU Mesh Panel", self)
+        self._gpu_mesh_panel_action.setCheckable(True)
+        self._gpu_mesh_panel_action.setChecked(self._gpu_mesh_dock.isVisible())
+        self._gpu_mesh_panel_action.triggered.connect(self._gpu_mesh_dock.setVisible)
+        self._gpu_mesh_dock.visibilityChanged.connect(self._gpu_mesh_panel_action.setChecked)
+        view_menu.addAction(self._gpu_mesh_panel_action)
 
         settings_menu = mb.addMenu("Settings")
         act_ai = QAction("AI Provider Settings", self)
@@ -1284,6 +1318,9 @@ class EgottolApp(QMainWindow):
     def _run_eii_pipeline(self):
         run_eii_pipeline(self._scene._circuit, log_fn=self._log)
 
+    def _import_ai_weights(self):
+        open_weight_import_dialog(self._scene, log_fn=self._log, parent=self)
+
     def _insert_eii_block(self):
         center = self._view.mapToScene(self._view.viewport().rect().center())
         item = self._scene._drop_component("EII_PIPELINE", snap(center.x()), snap(center.y()))
@@ -1298,6 +1335,7 @@ class EgottolApp(QMainWindow):
         def act(label, tip, fn):
             a = QAction(label, self); a.setToolTip(tip); a.triggered.connect(fn); tb.addAction(a)
         act("▶ DC",    "Run DC operating point",  self._run_dc)
+        act("∿ AC",    "Run AC / Bode analysis",   self._run_ac)
         act("⟳ Tran", "Run transient simulation", self._run_transient)
         act("⚙ Cfg",  "Simulation settings",      self._open_sim_config)
         tb.addSeparator()
@@ -1326,6 +1364,8 @@ class EgottolApp(QMainWindow):
             ("HOPFIELD_NET","HOP","Hopfield Network"),("ISING_CELL","ISING","Ising Cell"),
         ]:
             act(lbl, tip, lambda k=key: self._scene.set_place_mode(k))
+        tb.addSeparator()
+        act("Wgt", "Import AI weights (.onnx / .egt-weights / .json / .npy)", self._import_ai_weights)
         tb.addSeparator()
         act("🗑","Clear canvas",    self._confirm_clear)
         act("−","Zoom out",         lambda: self._view.scale(1/1.2,1/1.2))
@@ -1361,6 +1401,7 @@ class EgottolApp(QMainWindow):
             nodes.append(node.split(":")[-1])
             volts.append(v)
         self._plotter.clear()
+        self._plotter.setLogMode(x=False, y=False)
         self._plotter.setLabel("bottom","Node"); self._plotter.setLabel("left","Voltage (V)")
         bar = pg.BarGraphItem(x=list(range(len(volts))),height=volts,width=0.6,brush="#50fa7b")
         self._plotter.addItem(bar)
@@ -1382,6 +1423,7 @@ class EgottolApp(QMainWindow):
         self._last_sim_result = {"mode": "transient", "waveform": transient}
         t = np.array([s["t"] for s in transient]) if transient else np.arange(0, t_stop, dt)
         self._plotter.clear()
+        self._plotter.setLogMode(x=False, y=False)
         self._plotter.setLabel("bottom", "Time (ms)")
         self._plotter.setLabel("left", "Voltage (V)")
         if transient:
@@ -1401,7 +1443,52 @@ class EgottolApp(QMainWindow):
             self._fit()
 
     def _run_ac(self):
-        self._log("AC analysis via analog engine")
+        import numpy as np
+
+        from egottol.engines.analog.ac_analysis import ACAnalysisEngine
+
+        self._log("─── AC Analysis ───────────────────────")
+        freq_start = self._sim_cfg.get("ac_start", 1.0)
+        freq_stop = self._sim_cfg.get("ac_stop", 1e6)
+        points = int(self._sim_cfg.get("ac_pts", 20))
+        try:
+            engine = ACAnalysisEngine(self._scene._circuit)
+            result = engine.solve_ac(freq_start, freq_stop, points)
+        except Exception as exc:
+            self._log(f"ERROR: {exc}")
+            return
+
+        self._last_sim_result = {"mode": "ac", **result}
+        freqs = result["frequencies"]
+        nodes = result["nodes"]
+        if not nodes:
+            self._log("No nodes in AC result — circuit may have no wired nodes.")
+            return
+
+        plot_node = next(
+            (k for k in nodes if "GND" not in k and ":G" not in k),
+            next(iter(nodes)),
+        )
+        mag = nodes[plot_node]["magnitude"]
+
+        self._plotter.clear()
+        self._plotter.setLogMode(x=True, y=False)
+        self._plotter.setLabel("bottom", "Frequency (Hz)")
+        self._plotter.setLabel("left", "|H(jω)|")
+        self._plotter.plot(
+            freqs,
+            mag,
+            pen=pg.mkPen(color="#8be9fd", width=2),
+        )
+        self._log(
+            f"  node={plot_node}  f=[{freq_start:.3g}, {freq_stop:.3g}] Hz  "
+            f"pts={len(freqs)}  ref={result['reference_ac_v']:.3g} V"
+        )
+        for node, data in list(nodes.items())[: self._sim_cfg.get("max_nodes", 20)]:
+            peak = float(np.max(data["magnitude"]))
+            self._log(f"  {node:42s}  peak |H| = {peak:.4f}")
+        if self._sim_cfg.get("auto_fit") and self._scene.items():
+            self._fit()
 
     def _open_sim_config(self):
         dlg = SimConfigDialog(self._sim_cfg, self)

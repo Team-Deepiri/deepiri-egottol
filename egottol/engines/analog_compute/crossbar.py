@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from egottol.engines.gpu_mesh import GPUMeshClient
 
 
 @dataclass
@@ -28,10 +31,14 @@ class CrossbarEngine:
         conductance: Optional[np.ndarray] = None,
         config: Optional[CrossbarConfig] = None,
         rng: Optional[np.random.Generator] = None,
+        use_gpu: bool = False,
+        gpu_client: Optional["GPUMeshClient"] = None,
     ):
         self.config = config or CrossbarConfig(rows=rows, cols=cols)
         self.rows = self.config.rows
         self.cols = self.config.cols
+        self.use_gpu = use_gpu
+        self._gpu_client = gpu_client
         self.rng = rng or np.random.default_rng(0)
         if conductance is not None:
             self.G = np.asarray(conductance, dtype=float).reshape(self.rows, self.cols)
@@ -46,16 +53,26 @@ class CrossbarEngine:
             v = np.pad(v, (0, self.rows - v.size))
         v = v[: self.rows]
 
-        currents = self.G @ v
+        currents = self._matmul(v)
         if self.config.ir_drop > 0:
             row_currents = self.G.sum(axis=1) * v
             v_eff = v - self.config.ir_drop * row_currents
-            currents = self.G @ v_eff
+            currents = self._matmul(v_eff)
 
         if self.config.read_noise_std > 0:
             currents = currents + self.rng.normal(0.0, self.config.read_noise_std, self.cols)
 
         return currents
+
+    def _matmul(self, voltages: np.ndarray) -> np.ndarray:
+        if self.use_gpu:
+            client = self._gpu_client
+            if client is None:
+                from egottol.engines.gpu_mesh import GPUMeshClient
+
+                client = GPUMeshClient()
+            return client.solve_crossbar(self.G, voltages)
+        return self.G @ voltages
 
     def apply_stdp_delta(self, delta: np.ndarray) -> None:
         """Apply accumulated STDP weight updates to conductance matrix."""
