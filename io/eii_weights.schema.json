@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deepiri.dev/schemas/eii_weights.schema.json",
+  "title": "Egottol EII Readout Weights (.egt-weights)",
+  "description": "Digital readout weights for the Ψ inference operator in an EII pipeline.",
+  "type": "object",
+  "required": ["format", "backend", "embedding_dim", "output_dim", "weights"],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "egt-weights-v1"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable label for this weight set."
+    },
+    "backend": {
+      "type": "string",
+      "enum": ["digital_linear", "digital_softmax", "digital_mlp", "energy_based"],
+      "description": "Ψ backend that consumes this file."
+    },
+    "head": {
+      "type": "string",
+      "enum": ["linear", "softmax", "mlp"],
+      "default": "linear"
+    },
+    "embedding_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Input dimension d of embedding z."
+    },
+    "output_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of output classes or actuation channels."
+    },
+    "weights": {
+      "type": "object",
+      "required": ["W"],
+      "properties": {
+        "W": {
+          "type": "array",
+          "description": "Readout matrix W with shape [output_dim, embedding_dim].",
+          "items": {
+            "type": "array",
+            "items": {"type": "number"}
+          },
+          "minItems": 1
+        },
+        "b": {
+          "type": "array",
+          "description": "Bias vector b with length output_dim.",
+          "items": {"type": "number"}
+        },
+        "W1": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {"type": "number"}
+          },
+          "description": "MLP hidden layer (backend digital_mlp only)."
+        },
+        "b1": {
+          "type": "array",
+          "items": {"type": "number"}
+        },
+        "W2": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {"type": "number"}
+          }
+        },
+        "b2": {
+          "type": "array",
+          "items": {"type": "number"}
+        },
+        "L": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {"type": "number"}
+          },
+          "description": "Quadratic penalty matrix for energy_based backend."
+        }
+      },
+      "additionalProperties": false
+    },
+    "temperature": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "default": 1.0,
+      "description": "Softmax temperature T_soft."
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "trained_on": {"type": "string"},
+        "benchmark": {"type": "string"},
+        "classes": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

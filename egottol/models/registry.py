@@ -1252,6 +1252,134 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
     "NSP_AI": ComponentDefinition(
         name="Neural Signal Processor", category=ComponentType.EXPERIMENTAL, symbol="AI_BLOCK",
         ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
-        parameters={"model": "signal_cleaner_v1.pth"}
+        parameters={"mode": "denoise", "window": 32, "threshold": 0.15, "model": "signal_cleaner_v1.pth"}
+    ),
+
+    # --- ANALOG COMPUTE / EII ---
+    "MEMRISTOR": ComponentDefinition(
+        name="Memristor", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R_on": 100.0, "R_off": 10000.0, "D": 10e-9, "mu_v": 1e-14}
+    ),
+    "CROSSBAR": ComponentDefinition(
+        name="Memristor Crossbar", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="R0", direction="inout"), Port(name="R1", direction="inout"),
+            Port(name="R2", direction="inout"), Port(name="R3", direction="inout"),
+            Port(name="C0", direction="inout"), Port(name="C1", direction="inout"),
+            Port(name="C2", direction="inout"), Port(name="C3", direction="inout"),
+        ],
+        parameters={"rows": 4, "cols": 4, "read_noise": 1e-9, "IR_drop": 0.01}
+    ),
+    "LIF_NEURON": ComponentDefinition(
+        name="LIF Neuron", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="I_IN", direction="in"), Port(name="V_MEM", direction="out"),
+            Port(name="SPIKE", direction="out"), Port(name="GND", direction="inout"),
+        ],
+        parameters={"tau_m": 20e-3, "v_thresh": 1.0, "v_reset": 0.0, "refractory": 2e-3}
+    ),
+    "MZI_MESH": ComponentDefinition(
+        name="MZI Photonic Mesh", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="IN0", direction="in"), Port(name="IN1", direction="in"),
+            Port(name="IN2", direction="in"), Port(name="IN3", direction="in"),
+            Port(name="OUT0", direction="out"), Port(name="OUT1", direction="out"),
+            Port(name="OUT2", direction="out"), Port(name="OUT3", direction="out"),
+        ],
+        parameters={"n_modes": 4, "phases": [], "responsivity": 0.5}
+    ),
+    "IMPULSE_DETECTOR": ComponentDefinition(
+        name="Impulse Detector", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="VIN0", direction="in"), Port(name="VIN1", direction="in"),
+            Port(name="VIN2", direction="in"), Port(name="VIN3", direction="in"),
+            Port(name="EVT", direction="out"),
+        ],
+        parameters={"mode": "threshold", "threshold": 0.5, "num_channels": 4, "refractory_tau": 2e-3}
+    ),
+    "INFERENCE_ENCODER": ComponentDefinition(
+        name="Encoding Manifold", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="EVENTS", direction="in"), Port(name="PROBE", direction="in"),
+            Port(name="EMBED", direction="out"),
+        ],
+        parameters={"mode": "filter", "embedding_dim": 8, "window_T": 10e-3, "filter_tau": [1e-3, 5e-3, 20e-3]}
+    ),
+    "INFERENCE_ENGINE": ComponentDefinition(
+        name="Inference Engine", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="EMBED", direction="in"), Port(name="PRED", direction="out"),
+            Port(name="CONF", direction="out"),
+        ],
+        parameters={"backend": "digital", "num_classes": 4, "adc_bits": 8, "temperature": 1.0}
+    ),
+    "EII_PIPELINE": ComponentDefinition(
+        name="EII Pipeline", category=ComponentType.ANALOG_COMPUTE, symbol="AI_BLOCK",
+        ports=[
+            Port(name="VIN", direction="in"), Port(name="IIN", direction="in"),
+            Port(name="CONTROL", direction="out"), Port(name="PRED", direction="out"),
+        ],
+        parameters={"dt": 1e-4, "window_T": 10e-3, "detector_mode": "threshold", "inference_backend": "digital"}
+    ),
+    "OTA": ComponentDefinition(
+        name="Operational Transconductance Amp", category=ComponentType.ANALOG_COMPUTE, symbol="OPAMP",
+        ports=[
+            Port(name="+", direction="in"), Port(name="-", direction="in"),
+            Port(name="I_OUT", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"gm": 1e-3, "v_offset": 0.0, "I_bias": 10e-6}
+    ),
+    "GILBERT_MULT": ComponentDefinition(
+        name="Gilbert Cell Multiplier", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="X", direction="in"), Port(name="Y", direction="in"),
+            Port(name="OUT", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"gain": 1.0, "I_tail": 1e-3, "linear_range": 0.5}
+    ),
+    "OPAMP_NEURON": ComponentDefinition(
+        name="Op-Amp Neuron", category=ComponentType.ANALOG_COMPUTE, symbol="OPAMP",
+        ports=[
+            Port(name="I_IN", direction="in"), Port(name="V_MEM", direction="out"),
+            Port(name="SPIKE", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"tau_m": 20e-3, "v_thresh": 1.0, "v_reset": 0.0, "gain": 1e5}
+    ),
+    "HOPFIELD_NET": ComponentDefinition(
+        name="Hopfield Network", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="IN0", direction="in"), Port(name="IN1", direction="in"),
+            Port(name="IN2", direction="in"), Port(name="IN3", direction="in"),
+            Port(name="OUT0", direction="out"), Port(name="OUT1", direction="out"),
+            Port(name="OUT2", direction="out"), Port(name="OUT3", direction="out"),
+        ],
+        parameters={"n_neurons": 4, "beta": 1.0, "weights": [], "patterns": []}
+    ),
+    "ISING_CELL": ComponentDefinition(
+        name="Ising Spin Cell", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="H", direction="in"), Port(name="J_N", direction="inout"),
+            Port(name="J_E", direction="inout"), Port(name="J_S", direction="inout"), Port(name="J_W", direction="inout"),
+            Port(name="SPIN", direction="out"),
+        ],
+        parameters={"J": 1.0, "h": 0.0, "temperature": 1.0, "spin": 1.0}
+    ),
+    "ANALOG_SAMPLE_HOLD": ComponentDefinition(
+        name="Analog Sample & Hold", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="VIN", direction="in"), Port(name="HOLD", direction="in"),
+            Port(name="VOUT", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"acquisition_time": 1e-6, "droprate_dB": 60, "hold_cap": 100e-12}
+    ),
+    "WINNER_TAKE_ALL": ComponentDefinition(
+        name="Winner-Take-All Network", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="IN0", direction="in"), Port(name="IN1", direction="in"),
+            Port(name="IN2", direction="in"), Port(name="IN3", direction="in"),
+            Port(name="WIN", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"n_inputs": 4, "I_bias": 1e-6, "lateral_gain": 0.8}
     ),
 }

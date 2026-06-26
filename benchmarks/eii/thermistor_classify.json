@@ -1,0 +1,147 @@
+{
+  "id": "eii-bench-thermistor-classify",
+  "name": "Thermistor Overtemperature Classifier",
+  "components": [
+    {
+      "id": "VDD",
+      "name": "Voltage Source",
+      "type": "source",
+      "ports": [
+        {"name": "+", "direction": "out", "value": 5.0},
+        {"name": "−", "direction": "out", "value": 0.0}
+      ],
+      "parameters": {"v_dc": 5.0}
+    },
+    {
+      "id": "R1",
+      "name": "Resistor",
+      "type": "passive",
+      "ports": [
+        {"name": "1", "direction": "inout"},
+        {"name": "2", "direction": "inout"}
+      ],
+      "parameters": {"R": 10000.0}
+    },
+    {
+      "id": "NTC1",
+      "name": "NTC Thermistor",
+      "type": "passive",
+      "ports": [
+        {"name": "1", "direction": "inout"},
+        {"name": "2", "direction": "inout"}
+      ],
+      "parameters": {"R_25": 10000.0, "B": 3950.0},
+      "metadata": {"role": "sensor", "node": "V_sensor"}
+    },
+    {
+      "id": "GND",
+      "name": "Ground",
+      "type": "power",
+      "ports": [{"name": "G", "direction": "inout", "value": 0.0}],
+      "parameters": {}
+    },
+    {
+      "id": "LIF1",
+      "name": "LIF Neuron",
+      "type": "experimental",
+      "ports": [
+        {"name": "IN", "direction": "in"},
+        {"name": "OUT", "direction": "out"}
+      ],
+      "parameters": {
+        "C_m": 1e-9,
+        "g_L": 1e-6,
+        "E_L": 0.0,
+        "theta": 0.65,
+        "V_reset": 0.1,
+        "tau_ref": 2e-3
+      },
+      "metadata": {"eii_channel": 0}
+    },
+    {
+      "id": "DET1",
+      "name": "Impulse Detector",
+      "type": "experimental",
+      "ports": [{"name": "IN", "direction": "in"}],
+      "parameters": {
+        "mode": "threshold",
+        "theta": 0.65,
+        "channel": 0
+      },
+      "metadata": {"eii_role": "impulse_detector"}
+    },
+    {
+      "id": "ENC1",
+      "name": "Inference Encoder",
+      "type": "experimental",
+      "ports": [{"name": "IN", "direction": "in"}],
+      "parameters": {
+        "mode": "rate",
+        "window_T": 0.05,
+        "embedding_dim": 1
+      },
+      "metadata": {"eii_role": "inference_encoder", "phi_mode": "rate"}
+    },
+    {
+      "id": "INF1",
+      "name": "Inference Engine",
+      "type": "experimental",
+      "ports": [
+        {"name": "IN", "direction": "in"},
+        {"name": "OUT", "direction": "out"}
+      ],
+      "parameters": {
+        "backend": "digital",
+        "head": "linear",
+        "weights_file": "thermistor_classify.egt-weights"
+      },
+      "metadata": {"eii_role": "inference_engine", "psi_backend": "digital"}
+    },
+    {
+      "id": "ACT1",
+      "name": "Feedback Actuator",
+      "type": "experimental",
+      "ports": [{"name": "IN", "direction": "in"}],
+      "parameters": {
+        "mode": "digital",
+        "threshold": 0.5,
+        "targets": ["RLY1", "BZ1"]
+      },
+      "metadata": {"eii_role": "feedback_actuator", "gamma_mode": "digital"}
+    },
+    {
+      "id": "RLY1",
+      "name": "Relay SPST",
+      "type": "electromechanical",
+      "ports": [
+        {"name": "COIL+", "direction": "in"},
+        {"name": "COIL−", "direction": "in"},
+        {"name": "NO", "direction": "out"},
+        {"name": "COM", "direction": "inout"}
+      ],
+      "parameters": {"V_coil": 5.0, "R_coil": 120.0}
+    },
+    {
+      "id": "BZ1",
+      "name": "Piezo Buzzer",
+      "type": "electromechanical",
+      "ports": [
+        {"name": "+", "direction": "in"},
+        {"name": "−", "direction": "in"}
+      ],
+      "parameters": {"f_nom": 4000.0, "V_rated": 5.0}
+    }
+  ],
+  "wires": [
+    {"id": "w1", "from_component": "VDD", "from_port": "+", "to_component": "R1", "to_port": "1"},
+    {"id": "w2", "from_component": "R1", "from_port": "2", "to_component": "NTC1", "to_port": "1"},
+    {"id": "w3", "from_component": "NTC1", "from_port": "2", "to_component": "GND", "to_port": "G"},
+    {"id": "w4", "from_component": "NTC1", "from_port": "1", "to_component": "LIF1", "to_port": "IN"},
+    {"id": "w5", "from_component": "LIF1", "from_port": "OUT", "to_component": "DET1", "to_port": "IN"},
+    {"id": "w6", "from_component": "DET1", "from_port": "IN", "to_component": "ENC1", "to_port": "IN"},
+    {"id": "w7", "from_component": "ENC1", "from_port": "IN", "to_component": "INF1", "to_port": "IN"},
+    {"id": "w8", "from_component": "INF1", "from_port": "OUT", "to_component": "ACT1", "to_port": "IN"},
+    {"id": "w9", "from_component": "ACT1", "from_port": "IN", "to_component": "RLY1", "to_port": "COIL+"},
+    {"id": "w10", "from_component": "ACT1", "from_port": "IN", "to_component": "BZ1", "to_port": "+"}
+  ]
+}

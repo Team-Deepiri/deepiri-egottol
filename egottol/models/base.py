@@ -18,6 +18,7 @@ class ComponentType(str, Enum):
     SENSOR = "sensor"
     ELECTROMECHANICAL = "electromechanical"
     CONNECTOR = "connector"
+    ANALOG_COMPUTE = "analog_compute"
 
 class Port(BaseModel):
     name: str
