@@ -20,6 +20,11 @@ from PyQt6.QtGui import (
 from egottol.engines.discovery import ServiceDiscovery
 from egottol.models.registry import COMPONENT_LIBRARY
 from egottol.models.base import Circuit, Component, Wire, ComponentType, Port
+from egottol.ui.copilot_panel import (
+    CopilotDockWidget,
+    CopilotSettingsDialog,
+    run_eii_pipeline,
+)
 
 GRID = 20
 
@@ -1137,10 +1142,12 @@ class EgottolApp(QMainWindow):
         self.setStyle(QStyleFactory.create("Fusion"))
         self._apply_dark_palette()
         self._sim_cfg  = dict(self._DEFAULT_CFG)
+        self._last_sim_result = {}
         self.discovery = ServiceDiscovery()
         self._scene    = SchematicScene()
         self._view     = SchematicView(self._scene)
         self._setup_ui()
+        self._setup_menubar()
         self._setup_toolbar()
         self._setup_statusbar()
         QTimer.singleShot(0, lambda: self._view.centerOn(0, 0))
@@ -1197,6 +1204,52 @@ class EgottolApp(QMainWindow):
         btm_dock = QDockWidget("Waveform / Console", self); btm_dock.setWidget(bottom)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, btm_dock)
 
+        self._copilot_dock = CopilotDockWidget(
+            get_circuit_fn=lambda: self._scene._circuit,
+            get_sim_results_fn=self._last_sim_results,
+            parent=self,
+        )
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._copilot_dock)
+        self.tabifyDockWidget(svc_dock, self._copilot_dock)
+        self._copilot_dock.raise_()
+
+    def _last_sim_results(self):
+        return getattr(self, "_last_sim_result", {})
+
+    def _setup_menubar(self):
+        mb = self.menuBar()
+        mb.setStyleSheet("background:#2a2a42;color:#f8f8f2;")
+
+        view_menu = mb.addMenu("View")
+        self._copilot_panel_action = QAction("Copilot Panel", self)
+        self._copilot_panel_action.setCheckable(True)
+        self._copilot_panel_action.setChecked(self._copilot_dock.isVisible())
+        self._copilot_panel_action.triggered.connect(self._copilot_dock.setVisible)
+        self._copilot_dock.visibilityChanged.connect(self._copilot_panel_action.setChecked)
+        view_menu.addAction(self._copilot_panel_action)
+
+        settings_menu = mb.addMenu("Settings")
+        act_ai = QAction("AI Provider Settings", self)
+        act_ai.triggered.connect(self._open_copilot_settings)
+        settings_menu.addAction(act_ai)
+
+        sim_menu = mb.addMenu("Simulation")
+        act_eii = QAction("Run EII Pipeline", self)
+        act_eii.triggered.connect(self._run_eii_pipeline)
+        sim_menu.addAction(act_eii)
+
+    def _open_copilot_settings(self):
+        dlg = CopilotSettingsDialog(parent=self)
+        if dlg.exec():
+            self._copilot_dock.reload_settings(dlg.settings)
+            self._log(
+                f"Copilot: {dlg.settings.selected_provider} / "
+                f"{dlg.settings.get_model()}"
+            )
+
+    def _run_eii_pipeline(self):
+        run_eii_pipeline(self._scene._circuit, log_fn=self._log)
+
     def _setup_toolbar(self):
         tb = self.addToolBar("Main"); tb.setMovable(False)
         tb.setStyleSheet("background:#2a2a42;color:#f8f8f2;spacing:3px;")
@@ -1244,6 +1297,7 @@ class EgottolApp(QMainWindow):
     def _run_dc(self):
         self._log("─── DC Analysis ───────────────────────")
         result = self._scene.run_simulation()
+        self._last_sim_result = result if isinstance(result, dict) else {}
         if not result:
             self._log("No results — circuit empty or under-constrained."); return
         if "error" in result:
@@ -1268,6 +1322,7 @@ class EgottolApp(QMainWindow):
         dt     = self._sim_cfg.get("t_step",1e-6)
         t = np.arange(0, t_stop, dt)
         result = self._scene.run_simulation()
+        self._last_sim_result = result if isinstance(result, dict) else {}
         vscale = 5.0
         if result and "error" not in result:
             vals = [abs(v) for v in result.values() if abs(v) > 0.01]

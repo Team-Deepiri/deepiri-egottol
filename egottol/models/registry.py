@@ -1254,4 +1254,72 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
         ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
         parameters={"model": "signal_cleaner_v1.pth"}
     ),
+
+    # --- ANALOG COMPUTE / EII ---
+    "MEMRISTOR": ComponentDefinition(
+        name="Memristor", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[Port(name="1", direction="inout"), Port(name="2", direction="inout")],
+        parameters={"R_on": 100.0, "R_off": 10000.0, "D": 10e-9, "mu_v": 1e-14}
+    ),
+    "CROSSBAR": ComponentDefinition(
+        name="Memristor Crossbar", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="R0", direction="inout"), Port(name="R1", direction="inout"),
+            Port(name="R2", direction="inout"), Port(name="R3", direction="inout"),
+            Port(name="C0", direction="inout"), Port(name="C1", direction="inout"),
+            Port(name="C2", direction="inout"), Port(name="C3", direction="inout"),
+        ],
+        parameters={"rows": 4, "cols": 4, "read_noise": 1e-9, "IR_drop": 0.01}
+    ),
+    "LIF_NEURON": ComponentDefinition(
+        name="LIF Neuron", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="I_IN", direction="in"), Port(name="V_MEM", direction="out"),
+            Port(name="SPIKE", direction="out"), Port(name="GND", direction="inout"),
+        ],
+        parameters={"tau_m": 20e-3, "v_thresh": 1.0, "v_reset": 0.0, "refractory": 2e-3}
+    ),
+    "MZI_MESH": ComponentDefinition(
+        name="MZI Photonic Mesh", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="IN0", direction="in"), Port(name="IN1", direction="in"),
+            Port(name="IN2", direction="in"), Port(name="IN3", direction="in"),
+            Port(name="OUT0", direction="out"), Port(name="OUT1", direction="out"),
+            Port(name="OUT2", direction="out"), Port(name="OUT3", direction="out"),
+        ],
+        parameters={"n_modes": 4, "phases": [], "responsivity": 0.5}
+    ),
+    "IMPULSE_DETECTOR": ComponentDefinition(
+        name="Impulse Detector", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="VIN0", direction="in"), Port(name="VIN1", direction="in"),
+            Port(name="VIN2", direction="in"), Port(name="VIN3", direction="in"),
+            Port(name="EVT", direction="out"),
+        ],
+        parameters={"mode": "threshold", "threshold": 0.5, "num_channels": 4, "refractory_tau": 2e-3}
+    ),
+    "INFERENCE_ENCODER": ComponentDefinition(
+        name="Encoding Manifold", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="EVENTS", direction="in"), Port(name="PROBE", direction="in"),
+            Port(name="EMBED", direction="out"),
+        ],
+        parameters={"mode": "filter", "embedding_dim": 8, "window_T": 10e-3, "filter_tau": [1e-3, 5e-3, 20e-3]}
+    ),
+    "INFERENCE_ENGINE": ComponentDefinition(
+        name="Inference Engine", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="EMBED", direction="in"), Port(name="PRED", direction="out"),
+            Port(name="CONF", direction="out"),
+        ],
+        parameters={"backend": "digital", "num_classes": 4, "adc_bits": 8, "temperature": 1.0}
+    ),
+    "EII_PIPELINE": ComponentDefinition(
+        name="EII Pipeline", category=ComponentType.ANALOG_COMPUTE, symbol="AI_BLOCK",
+        ports=[
+            Port(name="VIN", direction="in"), Port(name="IIN", direction="in"),
+            Port(name="CONTROL", direction="out"), Port(name="PRED", direction="out"),
+        ],
+        parameters={"dt": 1e-4, "window_T": 10e-3, "detector_mode": "threshold", "inference_backend": "digital"}
+    ),
 }

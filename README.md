@@ -45,6 +45,54 @@ A native VHDL lexer and parser allows hardware description files to be loaded di
 - Embedded SPICE-style console supporting `.tran`, `.ac`, `.step`, and `.dc` directives
 - Component property editor with live parameter validation
 
+### EII Pipeline (Electrical Impulse Inference)
+
+EII treats detected electrical events as information and runs a closed **Φ → Ψ → Γ** loop each simulation window:
+
+- **Impulse detectors** — threshold, differentiator, comparator, RF envelope, memristor switch
+- **Encoding manifold Φ** — rate, latency, filter, population, or continuous embeddings
+- **Inference engine Ψ** — analog crossbar readout, digital linear/MLP head, or energy-based classifier
+- **Feedback actuator Γ** — DAC drive, STDP weight updates, digital relay control, optical phase shift
+
+Formal spec: [`docs/eii-math.md`](docs/eii-math.md). Example benchmark circuit: [`benchmarks/eii/thermistor_classify.json`](benchmarks/eii/thermistor_classify.json). Readout weights use the open [`.egt-weights` schema](io/eii_weights.schema.json).
+
+```bash
+# Optional GPU offload for large crossbar readouts
+poetry install -E gpu
+
+# Run Python EII unit tests
+poetry run pytest tests/test_eii.py -q
+```
+
+### Egottol Copilot
+
+Schematic-aware AI assistant in the PyQt6 UI (View → Copilot). Copilot reads circuit context, runs simulation tools, and can insert EII pipelines from natural language.
+
+**API key setup** (pick one or more providers):
+
+1. **In-app** — open Copilot → gear icon → enter keys per provider → Save.
+2. **Config file** — `~/.config/egottol/copilot.json` (written by the settings dialog).
+3. **Environment variables** (fallback when a key is not stored):
+
+| Provider | Variable |
+|----------|----------|
+| OpenAI | `OPENAI_API_KEY` |
+| Anthropic | `ANTHROPIC_API_KEY` |
+| Gemini | `GEMINI_API_KEY` |
+| OpenRouter | `OPENROUTER_API_KEY` |
+| Ollama (local) | `OLLAMA_API_KEY` (optional) |
+
+```bash
+export OPENAI_API_KEY="sk-..."
+poetry run python -m egottol.ui.main
+```
+
+Local inference without cloud keys: select **Ollama** and run `ollama serve` with your model pulled. Copilot falls back to a rule-based backend when no LLM is configured.
+
+```bash
+poetry run pytest tests/test_copilot_settings.py -q
+```
+
 ### UQE Quantum Bridge
 
 Exports circuits as `QuantumCircuit` objects for use with the Universal Quantum Engine:
