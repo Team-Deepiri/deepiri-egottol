@@ -1,16 +1,26 @@
 import asyncio
 import aiohttp
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
+MESH_KERNELS: List[str] = [
+    "analog_matmul",
+    "crossbar_solve",
+    "mzi_mesh_fft",
+    "spike_batch",
+]
+
+
 class ServiceDiscovery:
-    """Detects and monitors deepiri infrastructure services (zepGPU, UQE)."""
+    """Detects and monitors deepiri infrastructure services (zepGPU, GPU mesh, UQE)."""
     
     DEFAULT_ENDPOINTS = {
         "zepgpu": "http://localhost:8000/api/v1/health",
-        "uqe": "http://localhost:8080/api/v1/health" # Assuming standard UQE server port
+        "gpu_mesh": "http://localhost:8000/api/v1/mesh/health",
+        "uqe": "http://localhost:8080/api/v1/health",  # Assuming standard UQE server port
     }
 
     def __init__(self):
@@ -43,5 +53,19 @@ class ServiceDiscovery:
     def get_manifest(self) -> Dict[str, Any]:
         return {
             "status": self.status,
-            "specs": self.specs
+            "specs": self.specs,
+            "kernels": self.list_kernels(),
         }
+
+    @staticmethod
+    def list_kernels() -> List[str]:
+        return list(MESH_KERNELS)
+
+    def get_service_base_url(self, service: str) -> Optional[str]:
+        endpoint = self.DEFAULT_ENDPOINTS.get(service)
+        if not endpoint:
+            return None
+        parsed = urlparse(endpoint)
+        if not parsed.scheme or not parsed.netloc:
+            return None
+        return f"{parsed.scheme}://{parsed.netloc}"

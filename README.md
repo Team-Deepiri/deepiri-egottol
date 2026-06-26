@@ -90,6 +90,25 @@ Beyond classic MNA, egottol simulates **analog neural hardware** and couples it 
 poetry run pytest tests/test_analog_ai_integration.py tests/test_ai_engines.py -q
 ```
 
+### Third Wave: AC, RTL Shadow, ONNX Import, GPU Mesh
+
+| Feature | Module | What it does |
+|---------|--------|--------------|
+| **AC / Bode analysis** | `engines/analog/ac_analysis.py` | Small-signal sweep, \|H(jω)\| and phase per node; toolbar **∿ AC** |
+| **RTL shadow** | `engines/rtl_shadow.py`, `vhdl/pim_peripheral.vhd` | VHDL index, Verilog netlist export, Verilator runner + Python cycle fallback, AXI4-Lite PIM bus |
+| **ONNX / weight import** | `engines/ai/onnx_import.py`, `ui/weight_import_dialog.py` | Import `.onnx`, `.egt-weights`, `.json`, `.npy` → apply to `INFERENCE_ENGINE` / `EII_PIPELINE` |
+| **Community GPU mesh** | `engines/gpu_mesh.py`, `ui/gpu_mesh_panel.py` | zepGPU discovery, `analog_matmul` / `crossbar_solve` / `mzi_mesh_fft` / `spike_batch` tasks, CuPy→NumPy fallback |
+
+```bash
+# Optional ONNX import
+poetry install -E ai
+
+# Optional GPU offload
+poetry install -E gpu
+
+poetry run pytest tests/test_ac_analysis.py tests/test_rtl_shadow.py tests/test_onnx_import.py tests/test_gpu_mesh.py -q
+```
+
 ### Egottol Copilot
 
 Schematic-aware AI assistant in the PyQt6 UI (View → Copilot). Copilot reads circuit context, runs simulation tools, and can insert EII pipelines from natural language.
