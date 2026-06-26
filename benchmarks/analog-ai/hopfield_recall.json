@@ -1,0 +1,31 @@
+{
+  "id": "hopfield_recall",
+  "name": "Hopfield 4-neuron pattern recall",
+  "description": "Store two orthogonal patterns and recall from noisy cue via HOPFIELD_NET + EII",
+  "components": [
+    {
+      "id": "HF1",
+      "name": "Hopfield Network",
+      "type": "analog_compute",
+      "metadata": {"registry_key": "HOPFIELD_NET"},
+      "parameters": {
+        "n_neurons": 4,
+        "patterns": [[1, 1, -1, -1], [-1, -1, 1, 1]]
+      },
+      "ports": []
+    },
+    {
+      "id": "EII1",
+      "name": "EII Pipeline",
+      "type": "analog_compute",
+      "metadata": {"registry_key": "EII_PIPELINE"},
+      "parameters": {
+        "detector_mode": "threshold",
+        "inference_backend": "hopfield",
+        "window_T": 0.005
+      },
+      "ports": []
+    }
+  ],
+  "wires": []
+}

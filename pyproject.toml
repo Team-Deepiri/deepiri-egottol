@@ -16,7 +16,19 @@ dependencies = [
     "aiohttp (>=3.13.5,<4.0.0)"
 ]
 
+[project.optional-dependencies]
+ai = []
+gpu = ["cupy"]
+rtl = []
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.1.1,<10.0.0)"
+]
