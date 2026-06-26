@@ -64,9 +64,37 @@ poetry install -E gpu
 poetry run pytest tests/test_eii.py -q
 ```
 
+### Analog-AI Compute Stack
+
+Beyond classic MNA, egottol simulates **analog neural hardware** and couples it to AI inference:
+
+| Engine | Module | Capability |
+|--------|--------|------------|
+| Nonlinear MNA | `engines/analog/nonlinear_mna.py` | Newton–Raphson DC/transient with diodes, memristors, op-amps |
+| Op-amp neurons | `engines/analog/opamp_neuron.py` | Tanh/sigmoid analog neuron layers via OTA summation |
+| Hopfield net | `engines/analog/hopfield.py` | Associative memory, energy minimization, pattern recall |
+| Ising machine | `engines/analog/ising.py` | Simulated annealing on spin couplings (QUBO-style) |
+| OTA / Gilbert | `engines/analog/ota.py`, `gilbert_cell.py` | Transconductance amps, four-quadrant analog multiply |
+| Noise models | `engines/analog/noise.py` | Johnson thermal + 1/f flicker injection |
+| Echo-state reservoir | `engines/ai/reservoir.py` | Sparse reservoir + ridge-regression readout |
+| NSP | `engines/ai/nsp.py` | Denoise, FFT classify, anomaly detect (`NSP_AI` block) |
+| Auto-tuner | `engines/ai/auto_tune.py` | Fit component params to measured waveforms |
+
+**Schematic components:** `MEMRISTOR`, `CROSSBAR`, `LIF_NEURON`, `MZI_MESH`, `OTA`, `GILBERT_MULT`, `OPAMP_NEURON`, `HOPFIELD_NET`, `ISING_CELL`, `WINNER_TAKE_ALL`, `ANALOG_SAMPLE_HOLD`, plus full EII chain.
+
+**Toolbar:** Analog/AI section (MEM, XBAR, LIF, MZI, EII, NSP, HOP, ISING). Transient sim uses `NonlinearMNASolver` when nonlinear devices are present.
+
+**Inference backends** (EII Ψ): `analog`, `digital`, `energy_based`, `reservoir`, `hopfield`.
+
+```bash
+poetry run pytest tests/test_analog_ai_integration.py tests/test_ai_engines.py -q
+```
+
 ### Egottol Copilot
 
 Schematic-aware AI assistant in the PyQt6 UI (View → Copilot). Copilot reads circuit context, runs simulation tools, and can insert EII pipelines from natural language.
+
+**Copilot tools:** place components, run DC/transient/logic sim, explain waveforms, insert EII stack, run EII sim, tune analog-AI params, analyze spike rasters, optimize crossbar weights, run NSP denoise/classify, auto-tune circuit params to target waveforms.
 
 **API key setup** (pick one or more providers):
 

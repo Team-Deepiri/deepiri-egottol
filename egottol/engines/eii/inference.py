@@ -23,6 +23,51 @@ class InferenceEngine:
         self.weights = weights
         self.bias = bias
         self.conductance = conductance
+        self._reservoir = None
+        self._hopfield = None
+        if self.config.backend == InferenceBackend.RESERVOIR:
+            self._init_reservoir()
+        elif self.config.backend == InferenceBackend.HOPFIELD:
+            self._init_hopfield()
+
+    def _init_reservoir(self) -> None:
+        from egottol.engines.ai.reservoir import EchoStateReservoir, ReservoirConfig
+
+        cfg = ReservoirConfig(
+            n_reservoir=self.config.reservoir_size,
+            spectral_radius=self.config.reservoir_spectral_radius,
+            leak_rate=self.config.reservoir_leak,
+            ridge_alpha=self.config.reservoir_ridge_alpha,
+            input_scaling=self.config.reservoir_input_scaling,
+            sparsity=self.config.reservoir_sparsity,
+        )
+        self._reservoir = EchoStateReservoir(cfg)
+        if self.weights.size > 0 and self.weights.ndim == 2:
+            dim = self.weights.shape[1]
+            n = cfg.n_reservoir
+            self._reservoir._ensure_input_weights(dim)
+            win = np.zeros((n, dim))
+            rows = min(n, dim)
+            win[:rows, :rows] = np.eye(rows) * cfg.input_scaling
+            self._reservoir.w_in = win
+            readout = np.zeros((n, self.weights.shape[0]))
+            readout[:rows, :] = self.weights[:, :rows].T
+            self._reservoir._readout = readout
+
+    def _init_hopfield(self) -> None:
+        from egottol.engines.ai.hopfield_infer import HopfieldConfig, HopfieldInference
+
+        patterns = self.config.hopfield_patterns
+        if patterns is None and self.weights.size > 0:
+            patterns = self.weights.tolist()
+        if not patterns:
+            dim = max(self.weights.shape[1] if self.weights.ndim == 2 else 4, 2)
+            patterns = [np.ones(dim).tolist(), (-np.ones(dim)).tolist()]
+        cfg = HopfieldConfig(
+            max_iters=self.config.hopfield_max_iters,
+            beta=self.config.hopfield_beta,
+        )
+        self._hopfield = HopfieldInference(np.asarray(patterns, dtype=float), cfg)
 
     def infer(self, z: np.ndarray) -> Tuple[np.ndarray, float]:
         z = np.asarray(z, dtype=float).reshape(-1)
@@ -30,7 +75,21 @@ class InferenceEngine:
             return self._infer_analog(z)
         if self.config.backend == InferenceBackend.ENERGY_BASED:
             return self._infer_energy_based(z)
+        if self.config.backend == InferenceBackend.RESERVOIR:
+            return self._infer_reservoir(z)
+        if self.config.backend == InferenceBackend.HOPFIELD:
+            return self._infer_hopfield(z)
         return self._infer_digital(z)
+
+    def _infer_reservoir(self, z: np.ndarray) -> Tuple[np.ndarray, float]:
+        if self._reservoir is None:
+            self._init_reservoir()
+        return self._reservoir.infer_embedding(z)
+
+    def _infer_hopfield(self, z: np.ndarray) -> Tuple[np.ndarray, float]:
+        if self._hopfield is None:
+            self._init_hopfield()
+        return self._hopfield.infer(z)
 
     def _infer_analog(self, z: np.ndarray) -> Tuple[np.ndarray, float]:
         g = self._match_conductance(z)

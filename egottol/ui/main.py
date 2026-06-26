@@ -23,6 +23,7 @@ from egottol.models.base import Circuit, Component, Wire, ComponentType, Port
 from egottol.ui.copilot_panel import (
     CopilotDockWidget,
     CopilotSettingsDialog,
+    analyze_spikes,
     run_eii_pipeline,
 )
 
@@ -522,6 +523,10 @@ SYMBOLS = {
         ("line",-8,-12,8,-12), ("line",-8,-14,8,-14),
         ("line",-8,-16,8,-16), ("line",-8,-18,8,-18),
     ],
+    "AI_BLOCK": [
+        ("rect",-18,-22,36,44), ("text",-8,-4,"AI"),
+        ("line",-30,0,-18,0), ("line",18,0,30,0),
+    ],
     "DEFAULT": [
         ("rect",-18,-25,36,50), ("text",-6,-4,"IC"),
     ],
@@ -615,6 +620,23 @@ PORT_OFFSETS = {
     "MOTOR_DC":    [(0,-25,"+"),  (0,25,"−")],
     "SPEAKER":     [(0,-25,"+"),  (0,25,"−")],
     "MICROPHONE":  [(0,-25,"OUT"),(0,25,"GND")],
+    "MEMRISTOR":       [(0,-25,"1"),  (0,25,"2")],
+    "CROSSBAR":        [(-30,-20,"R0"),(-30,-6,"R1"),(-30,8,"R2"),(-30,22,"R3"),
+                        (30,-20,"C0"),(30,-6,"C1"),(30,8,"C2"),(30,22,"C3")],
+    "LIF_NEURON":      [(-30,0,"I_IN"),(30,-12,"V_MEM"),(30,12,"SPIKE"),(0,25,"GND")],
+    "MZI_MESH":        [(-30,-16,"IN0"),(-30,-4,"IN1"),(-30,8,"IN2"),(-30,20,"IN3"),
+                        (30,-16,"OUT0"),(30,-4,"OUT1"),(30,8,"OUT2"),(30,20,"OUT3")],
+    "IMPULSE_DETECTOR":[(-30,-12,"VIN0"),(-30,0,"VIN1"),(-30,12,"VIN2"),(-30,24,"VIN3"),(30,0,"EVT")],
+    "INFERENCE_ENCODER":[(-30,0,"EVENTS"),(0,25,"PROBE"),(30,0,"EMBED")],
+    "INFERENCE_ENGINE":[(-30,0,"EMBED"),(30,-8,"PRED"),(30,8,"CONF")],
+    "EII_PIPELINE":    [(-30,-8,"VIN"),(-30,8,"IIN"),(30,-8,"CONTROL"),(30,8,"PRED")],
+    "OTA":             [(-18,0,"1"),  (18,0,"2")],
+    "GILBERT_MULT":    [(-18,0,"1"),  (18,0,"2")],
+    "OPAMP_NEURON":    [(-18,0,"1"),  (18,0,"2")],
+    "HOPFIELD_NET":    [(-18,0,"1"),  (18,0,"2")],
+    "ISING_CELL":      [(-18,0,"1"),  (18,0,"2")],
+    "ANALOG_SAMPLE_HOLD":[(-18,0,"1"),(18,0,"2")],
+    "WINNER_TAKE_ALL": [(-18,0,"1"),  (18,0,"2")],
     "DEFAULT":   [(-18,0,"1"),  (18,0,"2")],
 }
 
@@ -636,7 +658,13 @@ SYMBOL_KEY = {
     "OPAMP":"OPAMP",
     "555":"IC_555",
     "7805":"IC_GENERIC","LM317":"IC_GENERIC",
-    "ADSB_TX":"DEFAULT","NSP_AI":"DEFAULT",
+    "ADSB_TX":"DEFAULT","NSP_AI":"AI_BLOCK",
+    "MEMRISTOR":"DEFAULT","CROSSBAR":"DEFAULT","LIF_NEURON":"DEFAULT",
+    "MZI_MESH":"DEFAULT","IMPULSE_DETECTOR":"DEFAULT",
+    "INFERENCE_ENCODER":"DEFAULT","INFERENCE_ENGINE":"DEFAULT",
+    "EII_PIPELINE":"AI_BLOCK","OTA":"DEFAULT","GILBERT_MULT":"DEFAULT",
+    "OPAMP_NEURON":"DEFAULT","HOPFIELD_NET":"DEFAULT","ISING_CELL":"DEFAULT",
+    "ANALOG_SAMPLE_HOLD":"DEFAULT","WINNER_TAKE_ALL":"DEFAULT",
     "VARISTOR":"VARISTOR","THERM_NTC":"THERM_NTC","THERM_PTC":"THERM_PTC",
     "TRIMMER":"TRIMMER",
     "CAP_ELEC":"CAP_ELEC","CAP_CER":"CAP_CER","CAP_FILM":"CAP_FILM",
@@ -1207,6 +1235,12 @@ class EgottolApp(QMainWindow):
         self._copilot_dock = CopilotDockWidget(
             get_circuit_fn=lambda: self._scene._circuit,
             get_sim_results_fn=self._last_sim_results,
+            insert_eii_fn=self._insert_eii_block,
+            run_eii_fn=self._run_eii_pipeline,
+            analyze_spikes_fn=lambda: analyze_spikes(
+                self._scene._circuit, log_fn=self._log
+            ),
+            log_fn=self._log,
             parent=self,
         )
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._copilot_dock)
@@ -1250,6 +1284,14 @@ class EgottolApp(QMainWindow):
     def _run_eii_pipeline(self):
         run_eii_pipeline(self._scene._circuit, log_fn=self._log)
 
+    def _insert_eii_block(self):
+        center = self._view.mapToScene(self._view.viewport().rect().center())
+        item = self._scene._drop_component("EII_PIPELINE", snap(center.x()), snap(center.y()))
+        if item:
+            self._log(f"Inserted {item.comp_id} at ({snap(center.x())}, {snap(center.y())})")
+        else:
+            self._log("Failed to insert EII_PIPELINE — component not in library.")
+
     def _setup_toolbar(self):
         tb = self.addToolBar("Main"); tb.setMovable(False)
         tb.setStyleSheet("background:#2a2a42;color:#f8f8f2;spacing:3px;")
@@ -1271,6 +1313,17 @@ class EgottolApp(QMainWindow):
             ("AND","AND","AND Gate"),("OR","OR","OR Gate"),
             ("NOT","NOT","Inverter"),("XOR","XOR","XOR Gate"),
             ("DFF","DFF","D Flip-Flop"),("LM741","OpAmp","Op-Amp"),
+        ]:
+            act(lbl, tip, lambda k=key: self._scene.set_place_mode(k))
+        tb.addSeparator()
+        analog_label = QLabel("Analog/AI")
+        analog_label.setStyleSheet("color:#6272a4;font-family:monospace;padding:0 6px;")
+        tb.addWidget(analog_label)
+        for key, lbl, tip in [
+            ("MEMRISTOR","MEM","Memristor"),("CROSSBAR","XBAR","Memristor Crossbar"),
+            ("LIF_NEURON","LIF","LIF Neuron"),("MZI_MESH","MZI","MZI Photonic Mesh"),
+            ("EII_PIPELINE","EII","EII Pipeline"),("NSP_AI","NSP","Neural Signal Processor"),
+            ("HOPFIELD_NET","HOP","Hopfield Network"),("ISING_CELL","ISING","Ising Cell"),
         ]:
             act(lbl, tip, lambda k=key: self._scene.set_place_mode(k))
         tb.addSeparator()
@@ -1318,20 +1371,37 @@ class EgottolApp(QMainWindow):
     def _run_transient(self):
         self._log("─── Transient ─────────────────────────")
         import numpy as np
-        t_stop = self._sim_cfg.get("t_stop",1e-3)
-        dt     = self._sim_cfg.get("t_step",1e-6)
-        t = np.arange(0, t_stop, dt)
-        result = self._scene.run_simulation()
-        self._last_sim_result = result if isinstance(result, dict) else {}
-        vscale = 5.0
-        if result and "error" not in result:
-            vals = [abs(v) for v in result.values() if abs(v) > 0.01]
-            if vals: vscale = max(vals)
-        y = vscale * np.sin(2*3.14159*1000*t)
+        t_stop = self._sim_cfg.get("t_stop", 1e-3)
+        dt = self._sim_cfg.get("t_step", 1e-6)
+        try:
+            from egottol.engines.analog import NonlinearMNASolver as TransientSolver
+        except ImportError:
+            from egottol.engines.solver import AdvancedMNASolver as TransientSolver
+        solver = TransientSolver(self._scene._circuit)
+        transient = solver.solve_transient(t_stop, dt)
+        self._last_sim_result = {"mode": "transient", "waveform": transient}
+        t = np.array([s["t"] for s in transient]) if transient else np.arange(0, t_stop, dt)
         self._plotter.clear()
-        self._plotter.setLabel("bottom","Time (ms)"); self._plotter.setLabel("left","Voltage (V)")
-        self._plotter.plot(t*1e3, y, pen=pg.mkPen(color="#ff79c6",width=2))
-        self._log(f"  t_stop={t_stop*1e3:.3f}ms  dt={dt*1e6:.3f}µs  pts={len(t)}")
+        self._plotter.setLabel("bottom", "Time (ms)")
+        self._plotter.setLabel("left", "Voltage (V)")
+        if transient:
+            sample = transient[0]["v"]
+            node = next(iter(sample), None)
+            if node:
+                y = np.array([s["v"].get(node, 0.0) for s in transient])
+                self._plotter.plot(
+                    t * 1e3, y, pen=pg.mkPen(color="#ff79c6", width=2)
+                )
+                self._log(f"  node={node}  t_stop={t_stop*1e3:.3f}ms  dt={dt*1e6:.3f}µs  pts={len(t)}")
+            else:
+                self._log("  No nodes in transient result.")
+        else:
+            self._log("  Empty transient result — circuit may have no wired nodes.")
+        if self._sim_cfg.get("auto_fit") and self._scene.items():
+            self._fit()
+
+    def _run_ac(self):
+        self._log("AC analysis via analog engine")
 
     def _open_sim_config(self):
         dlg = SimConfigDialog(self._sim_cfg, self)

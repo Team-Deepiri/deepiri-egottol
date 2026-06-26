@@ -25,6 +25,8 @@ class InferenceBackend(str, Enum):
     ANALOG = "analog"
     DIGITAL = "digital"
     ENERGY_BASED = "energy_based"
+    RESERVOIR = "reservoir"
+    HOPFIELD = "hopfield"
 
 
 class DigitalHead(str, Enum):
@@ -78,6 +80,15 @@ class InferenceEngineConfig(BaseModel):
     ebm_lambda: float = 0.01
     ebm_iterations: int = 50
     ebm_learning_rate: float = 0.1
+    reservoir_size: int = 100
+    reservoir_spectral_radius: float = 0.9
+    reservoir_leak: float = 0.3
+    reservoir_ridge_alpha: float = 1e-6
+    reservoir_input_scaling: float = 1.0
+    reservoir_sparsity: float = 0.1
+    hopfield_max_iters: int = 20
+    hopfield_beta: float = 1.0
+    hopfield_patterns: Optional[List[List[float]]] = None
 
 
 class FeedbackActuatorConfig(BaseModel):

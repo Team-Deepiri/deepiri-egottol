@@ -13,6 +13,23 @@ from egottol.assistant.settings import CopilotSettings
 from egottol.assistant.tools import COPILOT_TOOLS, ToolExecutor
 from egottol.models.base import Circuit
 
+_CIRCUIT_MUTATING_TOOLS = frozenset({
+    "place_component",
+    "insert_eii_pipeline",
+    "suggest_analog_ai_stack",
+    "tune_analog_ai",
+    "optimize_crossbar",
+    "auto_tune_circuit",
+})
+
+_SIM_UPDATING_TOOLS = frozenset({
+    "run_sim",
+    "run_eii_sim",
+    "run_nsp",
+    "analyze_spikes",
+    "auto_tune_circuit",
+})
+
 
 @dataclass
 class CopilotResponse:
@@ -107,9 +124,9 @@ class Copilot:
             for tc in response.tool_calls:
                 result = await self.executor.execute(tc.name, tc.arguments)
                 tool_results.append({"tool": tc.name, "arguments": tc.arguments, "result": result})
-                if tc.name in ("place_component", "insert_eii_pipeline"):
+                if tc.name in _CIRCUIT_MUTATING_TOOLS:
                     circuit_changed = True
-                if tc.name == "run_sim" and result.get("ok"):
+                if tc.name in _SIM_UPDATING_TOOLS and result.get("ok"):
                     self.sim_results = self.executor.sim_results
 
                 messages.append(

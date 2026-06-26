@@ -1252,7 +1252,7 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
     "NSP_AI": ComponentDefinition(
         name="Neural Signal Processor", category=ComponentType.EXPERIMENTAL, symbol="AI_BLOCK",
         ports=[Port(name="IN", direction="in"), Port(name="OUT", direction="out")],
-        parameters={"model": "signal_cleaner_v1.pth"}
+        parameters={"mode": "denoise", "window": 32, "threshold": 0.15, "model": "signal_cleaner_v1.pth"}
     ),
 
     # --- ANALOG COMPUTE / EII ---
@@ -1321,5 +1321,65 @@ COMPONENT_LIBRARY: Dict[str, ComponentDefinition] = {
             Port(name="CONTROL", direction="out"), Port(name="PRED", direction="out"),
         ],
         parameters={"dt": 1e-4, "window_T": 10e-3, "detector_mode": "threshold", "inference_backend": "digital"}
+    ),
+    "OTA": ComponentDefinition(
+        name="Operational Transconductance Amp", category=ComponentType.ANALOG_COMPUTE, symbol="OPAMP",
+        ports=[
+            Port(name="+", direction="in"), Port(name="-", direction="in"),
+            Port(name="I_OUT", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"gm": 1e-3, "v_offset": 0.0, "I_bias": 10e-6}
+    ),
+    "GILBERT_MULT": ComponentDefinition(
+        name="Gilbert Cell Multiplier", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="X", direction="in"), Port(name="Y", direction="in"),
+            Port(name="OUT", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"gain": 1.0, "I_tail": 1e-3, "linear_range": 0.5}
+    ),
+    "OPAMP_NEURON": ComponentDefinition(
+        name="Op-Amp Neuron", category=ComponentType.ANALOG_COMPUTE, symbol="OPAMP",
+        ports=[
+            Port(name="I_IN", direction="in"), Port(name="V_MEM", direction="out"),
+            Port(name="SPIKE", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"tau_m": 20e-3, "v_thresh": 1.0, "v_reset": 0.0, "gain": 1e5}
+    ),
+    "HOPFIELD_NET": ComponentDefinition(
+        name="Hopfield Network", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="IN0", direction="in"), Port(name="IN1", direction="in"),
+            Port(name="IN2", direction="in"), Port(name="IN3", direction="in"),
+            Port(name="OUT0", direction="out"), Port(name="OUT1", direction="out"),
+            Port(name="OUT2", direction="out"), Port(name="OUT3", direction="out"),
+        ],
+        parameters={"n_neurons": 4, "beta": 1.0, "weights": [], "patterns": []}
+    ),
+    "ISING_CELL": ComponentDefinition(
+        name="Ising Spin Cell", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="H", direction="in"), Port(name="J_N", direction="inout"),
+            Port(name="J_E", direction="inout"), Port(name="J_S", direction="inout"), Port(name="J_W", direction="inout"),
+            Port(name="SPIN", direction="out"),
+        ],
+        parameters={"J": 1.0, "h": 0.0, "temperature": 1.0, "spin": 1.0}
+    ),
+    "ANALOG_SAMPLE_HOLD": ComponentDefinition(
+        name="Analog Sample & Hold", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="VIN", direction="in"), Port(name="HOLD", direction="in"),
+            Port(name="VOUT", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"acquisition_time": 1e-6, "droprate_dB": 60, "hold_cap": 100e-12}
+    ),
+    "WINNER_TAKE_ALL": ComponentDefinition(
+        name="Winner-Take-All Network", category=ComponentType.ANALOG_COMPUTE, symbol="DEFAULT",
+        ports=[
+            Port(name="IN0", direction="in"), Port(name="IN1", direction="in"),
+            Port(name="IN2", direction="in"), Port(name="IN3", direction="in"),
+            Port(name="WIN", direction="out"), Port(name="V+", direction="inout"), Port(name="V-", direction="inout"),
+        ],
+        parameters={"n_inputs": 4, "I_bias": 1e-6, "lateral_gain": 0.8}
     ),
 }

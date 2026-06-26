@@ -237,7 +237,16 @@ class CopilotSettingsDialog(QDialog):
 class CopilotDockWidget(QDockWidget):
     settings_changed = pyqtSignal(CopilotSettings)
 
-    def __init__(self, get_circuit_fn=None, get_sim_results_fn=None, parent=None):
+    def __init__(
+        self,
+        get_circuit_fn=None,
+        get_sim_results_fn=None,
+        insert_eii_fn=None,
+        run_eii_fn=None,
+        analyze_spikes_fn=None,
+        log_fn=None,
+        parent=None,
+    ):
         super().__init__("Copilot", parent)
         self.setObjectName("CopilotDock")
         self.setAllowedAreas(
@@ -245,6 +254,10 @@ class CopilotDockWidget(QDockWidget):
         )
         self._get_circuit = get_circuit_fn or (lambda: None)
         self._get_sim_results = get_sim_results_fn or (lambda: {})
+        self._insert_eii_fn = insert_eii_fn
+        self._run_eii_fn = run_eii_fn
+        self._analyze_spikes_fn = analyze_spikes_fn
+        self._log_fn = log_fn
         self.settings = CopilotSettings.load()
         circuit = self._get_circuit() or _empty_circuit()
         self._copilot = Copilot(
@@ -253,6 +266,7 @@ class CopilotDockWidget(QDockWidget):
             sim_results=self._get_sim_results(),
         )
         self._chat_worker: _AsyncWorker | None = None
+        self._tool_worker: _AsyncWorker | None = None
         self._build_ui()
         self._refresh_provider_label()
 
@@ -274,6 +288,18 @@ class CopilotDockWidget(QDockWidget):
         header.addWidget(self._provider_lbl, stretch=1)
         header.addWidget(settings_btn)
         layout.addLayout(header)
+
+        actions = QHBoxLayout()
+        for label, tip, slot in [
+            ("Insert EII", "Insert EII pipeline on schematic", self._quick_insert_eii),
+            ("Run EII", "Run EII pipeline simulation", self._quick_run_eii),
+            ("Analyze Spikes", "Analyze spike activity in circuit", self._quick_analyze_spikes),
+        ]:
+            btn = QPushButton(label)
+            btn.setToolTip(tip)
+            btn.clicked.connect(slot)
+            actions.addWidget(btn)
+        layout.addLayout(actions)
 
         self._history = QTextEdit()
         self._history.setReadOnly(True)
@@ -363,6 +389,70 @@ class CopilotDockWidget(QDockWidget):
     def _on_chat_error(self, err: str):
         self._history.append(f'<span style="color:{COLORS["error"]}">Error: {err}</span>')
 
+    def _append_action_log(self, msg: str):
+        self._history.append(f'<span style="color:{COLORS["muted"]}">Action:</span> {msg}')
+        if self._log_fn:
+            self._log_fn(msg)
+
+    def _quick_insert_eii(self):
+        if self._insert_eii_fn:
+            self._insert_eii_fn()
+            self._append_action_log("Inserted EII pipeline block.")
+            return
+        if self._tool_worker and self._tool_worker.isRunning():
+            return
+        self._copilot.update_context(
+            circuit=self._get_circuit() or _empty_circuit(),
+            sim_results=self._get_sim_results(),
+        )
+        self._append_action_log("Inserting EII pipeline via copilot tools…")
+        self._tool_worker = _AsyncWorker(self._insert_eii_via_tool)
+        self._tool_worker.finished_ok.connect(self._on_insert_eii_result)
+        self._tool_worker.finished_err.connect(
+            lambda err: self._append_action_log(f"Insert EII failed: {err}")
+        )
+        self._tool_worker.start()
+
+    def _insert_eii_via_tool(self):
+        import asyncio
+
+        self._copilot.update_context(
+            circuit=self._get_circuit() or _empty_circuit(),
+            sim_results=self._get_sim_results(),
+        )
+        return asyncio.run(
+            self._copilot.executor.execute(
+                "insert_eii_pipeline",
+                {"pipeline_type": "neural_signal"},
+            )
+        )
+
+    def _on_insert_eii_result(self, result):
+        if result.get("ok"):
+            comp_id = result.get("component_id", "?")
+            self._append_action_log(f"EII pipeline inserted ({comp_id}).")
+        else:
+            self._append_action_log(f"Insert EII failed: {result.get('error', 'unknown error')}")
+
+    def _quick_run_eii(self):
+        circuit = self._get_circuit() or _empty_circuit()
+        if self._run_eii_fn:
+            self._run_eii_fn()
+            self._append_action_log("EII pipeline run requested.")
+            return
+        ok = run_eii_pipeline(circuit, log_fn=self._append_action_log)
+        if ok:
+            self._append_action_log("EII pipeline completed.")
+
+    def _quick_analyze_spikes(self):
+        if self._analyze_spikes_fn:
+            self._analyze_spikes_fn()
+            return
+        analyze_spikes(
+            self._get_circuit() or _empty_circuit(),
+            log_fn=self._append_action_log,
+        )
+
 
 _EII_REGISTRY_KEYS = frozenset({
     "IMPULSE_DETECTOR", "INFERENCE_ENCODER", "INFERENCE_ENGINE",
@@ -421,3 +511,47 @@ def run_eii_pipeline(circuit, log_fn=print) -> bool:
     except Exception as exc:
         log_fn(f"EII error: {exc}")
         return False
+
+
+_SPIKE_COMPONENT_KEYS = frozenset({
+    "LIF_NEURON", "IMPULSE_DETECTOR", "NSP_AI", "EII_PIPELINE",
+    "INFERENCE_ENCODER", "INFERENCE_ENGINE", "CROSSBAR", "MZI_MESH",
+})
+
+
+def analyze_spikes(circuit, log_fn=print) -> bool:
+    if circuit is None:
+        log_fn("No circuit loaded.")
+        return False
+
+    spike_components = []
+    for comp in getattr(circuit, "components", []):
+        meta = comp.metadata or {}
+        key = meta.get("key") or meta.get("registry_key") or comp.id.split("_")[0]
+        name = getattr(comp, "name", "").lower()
+        if key in _SPIKE_COMPONENT_KEYS or "spike" in name or "neuron" in name:
+            spike_components.append(comp.id)
+
+    if not spike_components:
+        log_fn("No spike-related components found in circuit.")
+        return False
+
+    log_fn(f"─── Spike Analysis ───────────────────")
+    log_fn(f"  Components: {', '.join(spike_components)}")
+
+    try:
+        from egottol.engines.analog_compute.spiking import SpikingEngine
+
+        engine = SpikingEngine(n_neurons=min(4, len(spike_components) or 1))
+        dt = 1e-4
+        drive = np.full(engine.n, 0.6)
+        total = 0
+        for _ in range(100):
+            _, spikes = engine.step(drive, dt)
+            total += len(spikes)
+        log_fn(f"  Probe simulation: {total} spikes in 10 ms window")
+    except ImportError:
+        log_fn("  Analog spiking engine not installed — component inventory only.")
+
+    log_fn(f"  Spike-related blocks: {len(spike_components)}")
+    return True
