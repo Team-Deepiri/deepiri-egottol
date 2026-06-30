@@ -1,52 +1,27 @@
 #pragma once
 
-#include <QWidget>
-#include <QColor>
-#include <QString>
+#include <memory>
+#include <string>
 #include <vector>
-
-QT_BEGIN_NAMESPACE
-class QTimer;
-class QPaintEvent;
-QT_END_NAMESPACE
 
 namespace deepiri {
 
-class WaveformPlotter : public QWidget {
-    Q_OBJECT
+class SimulationData;
 
+class WaveformPlotter {
 public:
-    explicit WaveformPlotter(QWidget* parent = nullptr);
-    ~WaveformPlotter() override;
+  WaveformPlotter();
+  ~WaveformPlotter();
 
-    struct Trace {
-        QString name;
-        QColor color;
-        std::vector<double> timePoints;
-        std::vector<double> values;
-    };
+  void setData(std::shared_ptr<SimulationData> data);
+  void addSignal(const std::string &name);
+  void removeSignal(const std::string &name);
 
-    void clear();
-    void setTrace(const QString& name, const std::vector<double>& timePoints,
-                  const std::vector<double>& values, const QColor& color = QColor());
-
-    // Animates the sweep from 0% to 100% of the traces over durationMs,
-    // like an oscilloscope trigger sweep, instead of drawing the full
-    // buffer instantly.
-    void animateSweep(int durationMs = 900);
-
-protected:
-    void paintEvent(QPaintEvent* event) override;
+  void render();
 
 private:
-    void drawGrid(class QPainter& painter);
-    void drawTraces(class QPainter& painter);
-
-    std::vector<Trace> traces_;
-    double sweepFraction_ = 1.0;
-    QTimer* sweepTimer_ = nullptr;
-    qint64 sweepStartMs_ = 0;
-    int sweepDurationMs_ = 900;
+  class Impl;
+  std::unique_ptr<Impl> pImpl;
 };
 
-}
+} // namespace deepiri

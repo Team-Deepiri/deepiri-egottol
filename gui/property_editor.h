@@ -1,38 +1,29 @@
 #pragma once
 
-#include <QWidget>
-
-QT_BEGIN_NAMESPACE
-class QFormLayout;
-class QLineEdit;
-class QLabel;
-QT_END_NAMESPACE
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace deepiri {
 
-class ComponentItem;
-
-// Shows the label and pin list of the currently selected schematic component,
-// and lets the label be edited live.
-class PropertyEditor : public QWidget {
-    Q_OBJECT
-
+class PropertyEditor {
 public:
-    explicit PropertyEditor(QWidget* parent = nullptr);
-    ~PropertyEditor() override;
+  PropertyEditor();
+  ~PropertyEditor();
 
-public slots:
-    void setComponent(ComponentItem* component);
-    void clearComponent();
+  void setObject(void *obj);
+  void *getObject() const;
+
+  void addProperty(const std::string &name, const std::string &type);
+  void setPropertyValue(const std::string &name, const std::string &value);
+  std::string getPropertyValue(const std::string &name) const;
+
+  std::vector<std::string> getPropertyNames() const;
 
 private:
-    void rebuild();
-
-    ComponentItem* component_ = nullptr;
-    QFormLayout* form_ = nullptr;
-    QLabel* typeLabel_ = nullptr;
-    QLineEdit* labelEdit_ = nullptr;
-    QLabel* pinsLabel_ = nullptr;
+  class Impl;
+  std::unique_ptr<Impl> pImpl;
 };
 
-}
+} // namespace deepiri

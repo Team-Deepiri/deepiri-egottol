@@ -3,52 +3,78 @@
 #include <QMainWindow>
 #include <memory>
 
-QT_BEGIN_NAMESPACE
-class QGraphicsItem;
-QT_END_NAMESPACE
+class QToolBar;
+class QStatusBar;
+class QLabel;
+class QDockWidget;
 
 namespace deepiri {
 
 class SchematicScene;
 class SchematicView;
-class SelectionTool;
+class SchematicDocument;
+class ComponentPalette;
+class ConsolePanel;
+class WaveformPanel;
 class WireTool;
-class PropertyEditor;
-class WaveformPlotter;
-class SimulationController;
-class SimulationData;
+class SelectionTool;
 
+/**
+ * MainWindow — C++ equivalent of Python EgottolApp (egottol/ui/main.py).
+ *
+ * STAGE 1 responsibilities (this file):
+ *   - Assemble central schematic view + docks + toolbar + status bar
+ *   - Route palette/toolbar actions to place mode on SchematicScene
+ *   - Log stub messages for DC/Transient until Stage 5/6
+ *
+ * YOU IMPLEMENT next (see scope.md):
+ *   - runDcAnalysis()        → Stage 5 (schematic_to_circuit + MNASolver)
+ *   - runTransientAnalysis() → Stage 6
+ *   - openSimConfig()        → Stage 6 SimConfigDialog
+ *   - probeServices()        → Stage 9 ServiceDiscovery port
+ */
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget* parent = nullptr);
+    explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow() override;
 
-    void setSimulationData(std::shared_ptr<SimulationData> data);
+    SchematicScene* schematicScene() const;
+    SchematicDocument* document() const;
 
 private slots:
-    void onSceneSelectionChanged();
-    void insertComponent(int componentType);
-    void runDemoDcOperatingPoint();
-    void runDemoTransient();
-    void runDemoAcAnalysis();
-    void runDemoEiiPipeline();
-    void parseSampleVhdl();
-    void decodeSampleAdsb();
+    void onComponentRequested(const QString& registryKey);
+    void onPlaceModeChanged(const QString& modeText);
+    void runDcAnalysis();
+    void runTransientAnalysis();
+    void openSimConfig();
+    void clearCanvas();
+    void zoomIn();
+    void zoomOut();
+    void zoomFit();
 
 private:
-    void buildMenusAndToolbars();
-    void buildDocks();
+    void applyDarkTheme();
+    void setupCentralView();
+    void setupDocks();
+    void setupToolbar();
+    void setupStatusBar();
+    void setupTools();
 
     SchematicScene* scene_ = nullptr;
     SchematicView* view_ = nullptr;
-    SelectionTool* selectionTool_ = nullptr;
-    WireTool* wireTool_ = nullptr;
-    PropertyEditor* propertyEditor_ = nullptr;
-    WaveformPlotter* waveformPlotter_ = nullptr;
-    SimulationController* simController_ = nullptr;
-    std::shared_ptr<SimulationData> simData_;
+    SchematicDocument* document_ = nullptr;
+
+    ComponentPalette* palette_ = nullptr;
+    ConsolePanel* console_ = nullptr;
+    WaveformPanel* waveform_ = nullptr;
+
+    WireTool* wire_tool_ = nullptr;
+    SelectionTool* selection_tool_ = nullptr;
+
+    QLabel* mode_label_ = nullptr;
+    QDockWidget* services_dock_ = nullptr;
 };
 
-}
+} // namespace deepiri

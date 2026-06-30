@@ -101,19 +101,22 @@ void SchematicView::handle_zoom_out() {
 }
 
 void SchematicView::wheelEvent(QWheelEvent* event) {
-    if (event->modifiers() & Qt::ControlModifier) {
-        if (event->angleDelta().y() > 0) {
-            zoom_in();
-        } else {
-            zoom_out();
-        }
-        event->accept();
+    // Python: scroll wheel always zooms (no Ctrl required)
+    if (event->angleDelta().y() > 0) {
+        zoom_in();
     } else {
-        QGraphicsView::wheelEvent(event);
+        zoom_out();
     }
+    event->accept();
 }
 
 void SchematicView::keyPressEvent(QKeyEvent* event) {
+    if (event->key() == Qt::Key_Escape) {
+        if (SchematicScene* scene = schematic_scene())
+            scene->handle_escape();
+        event->accept();
+        return;
+    }
     if (event->key() == Qt::Key_Plus || event->key() == Qt::Key_Equal) {
         zoom_in();
     } else if (event->key() == Qt::Key_Minus) {
@@ -121,6 +124,8 @@ void SchematicView::keyPressEvent(QKeyEvent* event) {
     } else if (event->key() == Qt::Key_0) {
         zoom_reset();
     } else if (event->key() == Qt::Key_1) {
+        zoom_fit();
+    } else if (event->key() == Qt::Key_Space) {
         zoom_fit();
     } else {
         QGraphicsView::keyPressEvent(event);

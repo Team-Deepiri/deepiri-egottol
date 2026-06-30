@@ -104,6 +104,14 @@ if(Qt6_FOUND AND ENABLE_QT)
         gui/waveform_plotter.cpp
         gui/property_editor.cpp
         gui/simulation_controller.cpp
+        gui/schematic_document.cpp
+        gui/component_factory.cpp
+        gui/component_palette.cpp
+        gui/symbol_renderer.cpp
+        gui/port_layout.cpp
+        gui/console_panel.cpp
+        gui/waveform_panel.cpp
+        gui/schematic_to_circuit.cpp
     )
 endif()
 
@@ -207,6 +215,7 @@ if(BUILD_PYTHON_BINDINGS)
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/egottol"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/egottol"
     )
+
 endif()
 
 enable_testing()

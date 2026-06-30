@@ -235,6 +235,14 @@ public:
     QString label() const;
     void set_label(const QString& label);
 
+    /** Registry key from palette, e.g. "RES". */
+    QString registry_key() const;
+    void set_registry_key(const QString& key);
+
+    /** Draw key for SymbolRenderer / PortLayout, e.g. "R", "GATE_AND". */
+    QString symbol_key() const;
+    void set_symbol_key(const QString& key);
+
     QList<Pin> pins() const;
     void add_pin(const Pin& pin);
     QPointF pin_position(const QString& name) const;

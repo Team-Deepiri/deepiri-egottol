@@ -55,7 +55,7 @@ Stages are ordered; later stages depend on earlier ones.
 - **Bottom dock — Waveform / Console:** horizontal splitter with plot placeholder + read-only console.
 - **Toolbar:** actions mirroring Python (DC, Transient, Config, quick-place R/C/L/V/I/GND/VCC, gates, clear, zoom).
 - **Status bar:** mode label (`SELECT`, `PLACE: Resistor`, …) and shortcut hints.
-- **Dark Fusion-style palette** via `gui/ui_theme.h` (colors aligned with Python `COLORS` dict).
+- **Dark Fusion-style palette** via `gui/egottol_theme.h` (colors aligned with Python `COLORS` dict).
 
 #### 1.2 Scene & view behavior
 
@@ -327,7 +327,7 @@ Stages are ordered; later stages depend on earlier ones.
 | ----------------- | --------------------------------------------------------- |
 | App entry         | `gui/main.cpp`                                            |
 | Window shell      | `gui/main_window.h/cpp`                                   |
-| Theme/colors      | `gui/ui_theme.h`                                          |
+| Theme/colors      | `gui/egottol_theme.h`                                     |
 | Canvas            | `gui/schematic_view.h/cpp`, `gui/scene.h/cpp`             |
 | Components        | `gui/component_item.h/cpp`, `gui/component_factory.h/cpp` |
 | Symbols/ports     | `gui/symbol_renderer.h/cpp`, `gui/port_layout.h/cpp`      |
