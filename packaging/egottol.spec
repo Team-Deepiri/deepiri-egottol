@@ -3,10 +3,11 @@
 
 from __future__ import annotations
 
+import glob
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_submodules
 
 ROOT = Path(SPECPATH).resolve().parent.parent
 
@@ -16,6 +17,11 @@ datas = [
     (str(ROOT / "egottol" / "vhdl"), "egottol/vhdl"),
 ]
 
+native_binaries: list[tuple[str, str]] = []
+for pattern in ("_native*.so", "_native*.pyd", "_native*.dylib"):
+    for path in glob.glob(str(ROOT / "egottol" / pattern)):
+        native_binaries.append((path, "egottol"))
+
 hiddenimports = [
     "PyQt6.QtCore",
     "PyQt6.QtGui",
@@ -23,13 +29,15 @@ hiddenimports = [
     "pyqtgraph",
     "numpy",
     "scipy",
+    "egottol._native",
+    "egottol.native_bridge",
 ]
 hiddenimports += collect_submodules("pyqtgraph")
 
 a = Analysis(
     [str(ROOT / "packaging" / "egottol_entry.py")],
     pathex=[str(ROOT)],
-    binaries=[],
+    binaries=native_binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

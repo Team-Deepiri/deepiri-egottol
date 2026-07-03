@@ -16,9 +16,9 @@ pip install poetry pyinstaller
 poetry config virtualenvs.in-project true
 poetry install --no-root --no-interaction
 
-echo "==> Configuring native C++ core (validates release toolchain)"
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
+echo "==> Building native C++ core + Python extension"
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_PYTHON_BINDINGS=ON
+cmake --build build --parallel --target _native
 
 echo "==> Running PyInstaller"
 poetry run pyinstaller packaging/egottol.spec --noconfirm --clean
