@@ -35,6 +35,11 @@ except ImportError:
     HopfieldNetwork = None  # type: ignore[misc, assignment]
 
 try:
+    from egottol.engines.analog.ac_analysis import ACAnalysisEngine
+except ImportError:
+    ACAnalysisEngine = None  # type: ignore[misc, assignment]
+
+try:
     from egottol.engines.analog.ising import IsingMachine
 except ImportError:
     IsingMachine = None  # type: ignore[misc, assignment]
@@ -48,6 +53,14 @@ except ImportError:
     EIIPipeline = None  # type: ignore[misc, assignment]
     EIIPipelineConfig = None  # type: ignore[misc, assignment]
     _EII_AVAILABLE = False
+
+try:
+    from egottol.engines.rtl_shadow import RTLShadowEngine
+
+    _RTL_SHADOW_AVAILABLE = True
+except ImportError:
+    RTLShadowEngine = None  # type: ignore[misc, assignment]
+    _RTL_SHADOW_AVAILABLE = False
 
 
 class MultiDomainOrchestrator:
@@ -68,8 +81,10 @@ class MultiDomainOrchestrator:
         self.nsp = self._init_nsp()
         self.hopfield = self._init_hopfield()
         self.ising = self._init_ising()
+        self.rtl_shadow = self._init_rtl_shadow()
         self.t = 0.0
         self._dc_result: Dict[str, float] = {}
+        self._ac_result: Dict[str, Any] = {}
         self._transient_history: List[Dict[str, Any]] = []
         self._last_spikes: List[Dict[str, Any]] = []
         self._last_nsp_output: Optional[np.ndarray] = None
@@ -154,6 +169,22 @@ class MultiDomainOrchestrator:
                 return IsingMachine(n, coupling=coupling)
         return None
 
+    def _init_rtl_shadow(self):
+        if not _RTL_SHADOW_AVAILABLE or RTLShadowEngine is None:
+            return None
+        trigger_keys = {"RTL_SHADOW", "PIM_PERIPHERAL", "CROSSBAR"}
+        if not any(
+            c.metadata.get("registry_key") in trigger_keys
+            or c.type == ComponentType.LOGIC
+            for c in self.circuit.components
+        ):
+            return None
+        try:
+            return RTLShadowEngine(self.circuit)
+        except Exception as exc:
+            logger.warning("Failed to initialize RTL shadow engine: %s", exc)
+            return None
+
     @property
     def eii_available(self) -> bool:
         return self.eii is not None
@@ -168,6 +199,26 @@ class MultiDomainOrchestrator:
         if self.hopfield is not None:
             self._dc_result["hopfield:energy"] = float(self.hopfield.energy())
         return dict(self._dc_result)
+
+    def run_ac(self, freq_start: float, freq_stop: float, points: int) -> Dict[str, Any]:
+        """Small-signal AC sweep using the active MNA solver node map."""
+        if ACAnalysisEngine is None:
+            raise RuntimeError("ACAnalysisEngine is not available")
+        engine = ACAnalysisEngine(self.circuit, solver=self.mna)
+        result = engine.solve_ac(freq_start, freq_stop, points)
+        self._ac_result = {
+            "frequencies": result["frequencies"].tolist(),
+            "dc_op": result["dc_op"],
+            "reference_ac_v": result["reference_ac_v"],
+            "nodes": {
+                name: {
+                    "magnitude": data["magnitude"].tolist(),
+                    "phase_deg": data["phase_deg"].tolist(),
+                }
+                for name, data in result["nodes"].items()
+            },
+        }
+        return dict(self._ac_result)
 
     def _run_nsp_on_probe(self, probe: np.ndarray, sample_rate: float = 1e6) -> Dict[str, Any]:
         if self.nsp is None:
@@ -226,6 +277,15 @@ class MultiDomainOrchestrator:
                 snapshot["eii"] = eii_out
             except Exception as exc:
                 logger.warning("EII step failed: %s", exc)
+
+        if self.rtl_shadow is not None:
+            try:
+                snapshot["rtl_shadow"] = self.rtl_shadow.step(
+                    cycles=1,
+                    crossbar_currents=ac_state.crossbar_currents.tolist(),
+                )
+            except Exception as exc:
+                logger.warning("RTL shadow step failed: %s", exc)
 
         self._transient_history.append(snapshot)
         return snapshot
@@ -287,6 +347,7 @@ class MultiDomainOrchestrator:
     def reset(self) -> None:
         self.t = 0.0
         self._dc_result.clear()
+        self._ac_result.clear()
         self._transient_history.clear()
         self._last_spikes.clear()
         self._last_nsp_output = None

@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ai = []
+ai = ["onnxruntime (>=1.17.0,<2.0.0)", "onnx (>=1.15.0,<2.0.0)"]
 gpu = ["cupy"]
 rtl = []
 
