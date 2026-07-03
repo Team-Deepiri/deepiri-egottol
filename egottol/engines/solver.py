@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Dict
 from egottol.models.base import Circuit, ComponentType
+from egottol.native_bridge import native_available, solve_linear
 
 
 class AdvancedMNASolver:
@@ -8,6 +9,7 @@ class AdvancedMNASolver:
         self.circuit = circuit
         self.node_map: Dict[str, int] = {}
         self.dim = 0
+        self.uses_native_core = native_available()
 
     def _build_node_map(self):
         nodes = set()
@@ -100,10 +102,16 @@ class AdvancedMNASolver:
         b[0] = 0
         A += np.eye(total) * 1e-12
 
-        try:
-            x = np.linalg.solve(A, b)
-        except np.linalg.LinAlgError:
-            x = np.zeros(total)
+        if self.uses_native_core:
+            try:
+                x = solve_linear(A, b)
+            except Exception:
+                x = np.linalg.solve(A, b)
+        else:
+            try:
+                x = np.linalg.solve(A, b)
+            except np.linalg.LinAlgError:
+                x = np.zeros(total)
 
         inv_map = {v: k for k, v in self.node_map.items()}
         return {inv_map[i]: float(x[i]) for i in range(n)}
