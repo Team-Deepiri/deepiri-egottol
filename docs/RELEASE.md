@@ -48,7 +48,8 @@ curl -I "$BASE/Egottol-latest-setup.exe"
 
 ## Notes
 
-- CI builds the C++ core with CMake (same as `setup.sh` / main CI) before PyInstaller runs.
+- CI builds the C++ core and **`egottol._native`** pybind11 extension (`-DBUILD_PYTHON_BINDINGS=ON`) before PyInstaller runs. DC MNA solves use `deepiri::Matrix` from the native module when bundled.
+- Dev install: `cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_PYTHON_BINDINGS=ON && cmake --build build --target _native`
 - The frozen app bundles VHDL assets and `io/eii_weights.schema.json` for RTL/EII features.
 - Optional deps (`onnxruntime`, `cupy`) are excluded from the frozen bundle to reduce size.
 - v1 builds are **unsigned**; expect Gatekeeper / SmartScreen prompts.
