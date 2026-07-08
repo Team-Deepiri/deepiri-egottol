@@ -16,19 +16,56 @@ class AdvancedMNASolver:
         for wire in self.circuit.wires:
             nodes.add(wire.from_component + ":" + wire.from_port)
             nodes.add(wire.to_component + ":" + wire.to_port)
-        sorted_nodes = sorted(nodes)
-        gnd_node = next(
-            (n for n in sorted_nodes if "GND" in n or ":G" in n), sorted_nodes[0] if sorted_nodes else None
-        )
+
+        # Merge pins connected by wires into electrical nets.
+        parent = {node: node for node in nodes}
+
+        def find(node: str) -> str:
+            while parent[node] != node:
+                parent[node] = parent[parent[node]]
+                node = parent[node]
+            return node
+
+        def union(a: str, b: str):
+            ra = find(a)
+            rb = find(b)
+            if ra != rb:
+                parent[rb] = ra
+
+        for wire in self.circuit.wires:
+            a = wire.from_component + ":" + wire.from_port
+            b = wire.to_component + ":" + wire.to_port
+            union(a, b)
+
+        groups = {}
+        for node in sorted(nodes):
+            root = find(node)
+            groups.setdefault(root, []).append(node)
+
+        # Any net containing a ground-like pin is assigned index 0.
+        ground_root = None
+        for root, members in groups.items():
+            if any("GND" in member or ":G" in member for member in members):
+                ground_root = root
+                break
+
+        root_to_index = {}
         idx = 0
-        self.node_map = {}
-        if gnd_node:
-            self.node_map[gnd_node] = 0
+        if ground_root is not None:
+            root_to_index[ground_root] = 0
             idx = 1
-        for n in sorted_nodes:
-            if n not in self.node_map:
-                self.node_map[n] = idx
+
+        for root in sorted(groups.keys()):
+            if root not in root_to_index:
+                root_to_index[root] = idx
                 idx += 1
+
+        self.node_map = {}
+        for root, members in groups.items():
+            node_idx = root_to_index[root]
+            for member in members:
+                self.node_map[member] = node_idx
+
         self.dim = idx
 
     def _node(self, comp_id: str, port: str) -> int:
