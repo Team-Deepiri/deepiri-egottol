@@ -38,6 +38,7 @@ Exec=Egottol
 Icon=egottol
 Categories=Science;Engineering;
 EOF
+  cp "$ROOT/packaging/egottol.svg" "$APPDIR/egottol.svg"
   curl -fsSL -o /tmp/appimagetool.AppImage \
     https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
   chmod +x /tmp/appimagetool.AppImage
