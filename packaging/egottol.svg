@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Egottol">
+  <rect width="256" height="256" rx="48" fill="#0B1F2A"/>
+  <g fill="none" stroke="#3DDC97" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M48 128h48l24-40 32 80 24-40h32"/>
+    <circle cx="48" cy="128" r="10" fill="#3DDC97" stroke="none"/>
+    <circle cx="208" cy="128" r="10" fill="#3DDC97" stroke="none"/>
+    <circle cx="120" cy="88" r="8" fill="#7EB8FF" stroke="none"/>
+    <circle cx="152" cy="168" r="8" fill="#7EB8FF" stroke="none"/>
+  </g>
+</svg>
