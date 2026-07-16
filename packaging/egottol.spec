@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
 
-ROOT = Path(SPECPATH).resolve().parent.parent
+ROOT = Path(SPECPATH).resolve().parent
 
 datas = [
     (str(ROOT / "io" / "eii_weights.schema.json"), "io"),
