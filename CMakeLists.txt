@@ -9,6 +9,7 @@ set(CMAKE_AUTOUIC ON)
 
 option(ENABLE_QT "Build Qt GUI" ON)
 option(ENABLE_AVIONICS "Build avionics" ON)
+option(BUILD_PYTHON_BINDINGS "Build pybind11 module egottol._native" OFF)
 
 find_package(Qt6 COMPONENTS Core Gui Widgets Network QUIET)
 
@@ -92,6 +93,10 @@ set(INFRA_SOURCES
 
 add_library(deepiri_core STATIC ${CORE_SOURCES})
 target_include_directories(deepiri_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+if(BUILD_PYTHON_BINDINGS)
+    # Required on Linux: static .a objects must be PIC to link into the _native .so
+    set_target_properties(deepiri_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
 
 add_library(deepiri_models STATIC ${MODELS_SOURCES})
 target_link_libraries(deepiri_models PUBLIC deepiri_core)
@@ -114,6 +119,29 @@ if(Qt6_FOUND AND ENABLE_QT)
     )
     
     # No standalone C++ executable — app is launched via Python (egottol.ui.main)
+endif()
+
+if(BUILD_PYTHON_BINDINGS)
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+
+    include(FetchContent)
+    FetchContent_Declare(
+        pybind11
+        GIT_REPOSITORY https://github.com/pybind/pybind11.git
+        GIT_TAG v2.13.6
+    )
+    FetchContent_MakeAvailable(pybind11)
+
+    pybind11_add_module(_native bindings/pybind_module.cpp)
+    target_include_directories(_native PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/core)
+    target_link_libraries(_native PRIVATE deepiri_core)
+    target_compile_features(_native PRIVATE cxx_std_20)
+
+    set_target_properties(_native PROPERTIES
+        OUTPUT_NAME "_native"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/egottol"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/egottol"
+    )
 endif()
 
 enable_testing()

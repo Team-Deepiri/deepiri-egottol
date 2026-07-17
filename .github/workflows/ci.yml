@@ -32,24 +32,18 @@ jobs:
       - name: Install Python dependencies
         run: poetry install --no-root --no-interaction
 
-      - name: Run Python tests
-        run: |
-          if find tests -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then
-            poetry run pytest
-          else
-            echo "No pytest tests found; skipping Python tests."
-          fi
-
       - name: Install native build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake build-essential qt6-base-dev libxcb-cursor0
+          sudo apt-get install -y cmake build-essential qt6-base-dev libxcb-cursor0 python3-dev
 
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build C++ core
-        run: cmake --build build --parallel
+      - name: Build C++ core and Python extension
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_PYTHON_BINDINGS=ON
+          cmake --build build --parallel
 
       - name: Run CMake tests
         run: ctest --test-dir build --output-on-failure
+
+      - name: Run Python tests
+        run: poetry run pytest

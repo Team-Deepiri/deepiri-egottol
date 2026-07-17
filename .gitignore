@@ -1,4 +1,9 @@
 build/
+dist/
+release/
 __pycache__/
 *.pyc
 *.pyo
+egottol/_native*.so
+egottol/_native*.pyd
+egottol/_native*.dylib
