@@ -1,6 +1,8 @@
 #include "newton_raphson.h"
 #include "matrix.h"
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 namespace deepiri {
 
@@ -63,7 +65,16 @@ NewtonRaphson::Result NewtonRaphson::solve(
             return result;
         }
 
-        std::vector<double> delta = computeCorrection(x, fval, jacobian);
+        std::vector<double> delta;
+        try {
+            delta = computeCorrection(x, fval, jacobian);
+        } catch (const std::exception& e) {
+            result.solution = x;
+            result.residual = maxResidual;
+            result.converged = false;
+            result.errorMessage = std::string("Jacobian solve failed: ") + e.what();
+            return result;
+        }
 
         double stepSize = damping_;
         x_new.resize(x.size());

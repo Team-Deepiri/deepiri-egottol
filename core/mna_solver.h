@@ -34,6 +34,7 @@ private:
 
     size_t buildStampMatrix(
         std::vector<std::vector<double>>& stamp,
+        std::vector<double>& auxRHS,
         const std::vector<std::shared_ptr<Device>>& devices,
         const std::map<std::string, size_t>& nodeMap,
         size_t numNodes

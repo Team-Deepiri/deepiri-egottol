@@ -46,18 +46,6 @@ std::vector<std::vector<double>> DCOperatingPoint::buildJacobian(
     return jacobian;
 }
 
-bool DCOperatingPoint::checkConvergence(
-    const std::vector<double>& state,
-    const std::vector<double>& prevState
-) {
-    double maxDiff = 0.0;
-    for (size_t i = 0; i < state.size(); ++i) {
-        double diff = std::abs(state[i] - prevState[i]);
-        if (diff > maxDiff) maxDiff = diff;
-    }
-    return maxDiff < tolerance_;
-}
-
 DCOpResult DCOperatingPoint::solve(
     size_t numUnknowns,
     const std::vector<std::shared_ptr<Device>>& devices
