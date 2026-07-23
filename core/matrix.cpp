@@ -249,11 +249,13 @@ std::vector<double> Matrix::solveGaussian(const std::vector<double>& b) const {
     }
 
     std::vector<double> x(n, 0.0);
-    for (int i = n - 1; i >= 0; --i) {
-        x[i] = (bb[i] - a[i * n + i] * x[i]) / a[i * n + i];
-        for (size_t j = i + 1; j < n; ++j) {
-            x[i] -= a[i * n + j] * x[j];
+    for (int i = static_cast<int>(n) - 1; i >= 0; --i) {
+        const size_t row = static_cast<size_t>(i);
+        double sum = bb[row];
+        for (size_t j = row + 1; j < n; ++j) {
+            sum -= a[row * n + j] * x[j];
         }
+        x[row] = sum / a[row * n + row];
     }
 
     return x;
