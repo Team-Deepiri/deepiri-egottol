@@ -1,5 +1,6 @@
 #include "transient.h"
 #include "../models/device.h"
+#include "convergence.h"
 #include <cmath>
 #include <iostream>
 
@@ -71,24 +72,10 @@ std::vector<double> Transient::computeDerivatives(
                 sum += G[i][j] * state[j];
             }
         }
-        if (std::abs(sum) > 1e-12) {
-            deriv[i] = rhs[i] - sum;
-        }
+        deriv[i] = rhs[i] - sum;
     }
 
     return deriv;
-}
-
-bool Transient::checkConvergence(
-    const std::vector<double>& state,
-    const std::vector<double>& prevState
-) {
-    double maxDiff = 0.0;
-    for (size_t i = 0; i < state.size(); ++i) {
-        double diff = std::abs(state[i] - prevState[i]);
-        if (diff > maxDiff) maxDiff = diff;
-    }
-    return maxDiff < tolerance_;
 }
 
 TransientResult Transient::simulate(
@@ -125,7 +112,7 @@ TransientResult Transient::simulate(
         std::vector<double> dyCurrent = deriv;
         std::vector<double> yNext = integrator_->step(state, dyCurrent, dyCurrent, t, h);
 
-        if (!checkConvergence(yNext, state)) {
+        if (!checkConvergence(yNext, state, tolerance_)) {
             h *= 0.5;
             if (h < 1e-12) {
                 result.converged = false;
