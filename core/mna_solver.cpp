@@ -1,5 +1,6 @@
 #include "mna_solver.h"
 #include "../models/device.h"
+#include "../models/vsrc.h"
 #include "matrix.h"
 #include <iostream>
 #include <stdexcept>
@@ -10,13 +11,14 @@ MNASolver::MNASolver() : solverMethod_("LU") {}
 
 size_t MNASolver::buildStampMatrix(
     std::vector<std::vector<double>>& stamp,
+    std::vector<double>& auxRHS,
     const std::vector<std::shared_ptr<Device>>& devices,
     const std::map<std::string, size_t>& nodeMap,
     size_t numNodes
 ) {
     size_t auxCount = 0;
     for (auto& device : devices) {
-        if (device->type() == "Vsrc" || device->type() == "Vsrc") {
+        if (device->type() == "Vsrc") {
             auxCount++;
         }
     }
@@ -26,6 +28,7 @@ size_t MNASolver::buildStampMatrix(
         matrixSize,
         std::vector<double>(matrixSize, 0.0)
     );
+    auxRHS.assign(auxCount, 0.0);
 
     size_t vsIndex = 0;
     for (auto& device : devices) {
@@ -35,14 +38,18 @@ size_t MNASolver::buildStampMatrix(
         size_t np = device->nodeP();
         size_t nn = device->nodeN();
 
-        if (np > 0 && np <= numNodes) {
-            for (size_t i = 0; i < g.size() && (np - 1) < stamp.size(); ++i) {
-                if (nn > 0 && nn <= numNodes) {
-                    stamp[np - 1][np - 1] += g[i][0];
-                    stamp[nn - 1][nn - 1] += g[i][1];
-                    stamp[np - 1][nn - 1] -= g[i][0];
-                    stamp[nn - 1][np - 1] -= g[i][1];
-                }
+        bool npValid = np > 0 && np <= numNodes;
+        bool nnValid = nn > 0 && nn <= numNodes;
+        if ((npValid || nnValid) && g.size() >= 2 && g[0].size() >= 2 && g[1].size() >= 2) {
+            if (npValid) {
+                stamp[np - 1][np - 1] += g[0][0];
+            }
+            if (nnValid) {
+                stamp[nn - 1][nn - 1] += g[1][1];
+            }
+            if (npValid && nnValid) {
+                stamp[np - 1][nn - 1] += g[0][1];
+                stamp[nn - 1][np - 1] += g[1][0];
             }
         }
 
@@ -55,6 +62,9 @@ size_t MNASolver::buildStampMatrix(
             if (nn > 0 && nn <= numNodes) {
                 stamp[auxRow][nn - 1] = -1.0;
                 stamp[nn - 1][auxRow] = -1.0;
+            }
+            if (auto* vsrc = dynamic_cast<Vsrc*>(device.get())) {
+                auxRHS[vsIndex] = vsrc->getVoltage(0.0);
             }
             vsIndex++;
         }
@@ -103,7 +113,8 @@ MNASolver::Solution MNASolver::solve(
     }
 
     std::vector<std::vector<double>> stamp;
-    size_t auxCount = buildStampMatrix(stamp, devices, nodeMap, numNodes);
+    std::vector<double> auxRHS;
+    size_t auxCount = buildStampMatrix(stamp, auxRHS, devices, nodeMap, numNodes);
 
     size_t matrixSize = numNodes + auxCount;
     std::vector<double> rhs(matrixSize, 0.0);
@@ -119,6 +130,10 @@ MNASolver::Solution MNASolver::solve(
         if (nn > 0 && nn <= numNodes) {
             rhs[nn - 1] += current[1];
         }
+    }
+
+    for (size_t i = 0; i < auxCount; ++i) {
+        rhs[numNodes + i] = auxRHS[i];
     }
 
     Matrix A(matrixSize, matrixSize);

@@ -48,11 +48,6 @@ private:
         double t
     );
 
-    bool checkConvergence(
-        const std::vector<double>& state,
-        const std::vector<double>& prevState
-    );
-
     void initializeState(
         std::vector<double>& state,
         const std::vector<double>& ic,

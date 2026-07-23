@@ -1,38 +1,65 @@
 #include "property_editor.h"
+#include "component_item.h"
+
+#include <QFormLayout>
+#include <QLineEdit>
+#include <QLabel>
+#include <QStringList>
 
 namespace deepiri {
 
-class PropertyEditor::Impl {
-public:
-    void* object = nullptr;
-    std::map<std::string, std::string> propertyTypes;
-    std::map<std::string, std::string> propertyValues;
-};
+PropertyEditor::PropertyEditor(QWidget* parent) : QWidget(parent) {
+    form_ = new QFormLayout(this);
 
-PropertyEditor::PropertyEditor() : pImpl(std::make_unique<Impl>()) {}
+    typeLabel_ = new QLabel("—", this);
+    labelEdit_ = new QLineEdit(this);
+    pinsLabel_ = new QLabel("—", this);
+    pinsLabel_->setWordWrap(true);
+
+    form_->addRow("Type", typeLabel_);
+    form_->addRow("Label", labelEdit_);
+    form_->addRow("Pins", pinsLabel_);
+
+    connect(labelEdit_, &QLineEdit::editingFinished, this, [this]() {
+        if (component_) {
+            component_->set_label(labelEdit_->text());
+        }
+    });
+
+    clearComponent();
+}
+
 PropertyEditor::~PropertyEditor() = default;
 
-void PropertyEditor::setObject(void* obj) { pImpl->object = obj; }
-void* PropertyEditor::getObject() const { return pImpl->object; }
-
-void PropertyEditor::addProperty(const std::string& name, const std::string& type) {
-    pImpl->propertyTypes[name] = type;
+void PropertyEditor::setComponent(ComponentItem* component) {
+    component_ = component;
+    rebuild();
 }
 
-void PropertyEditor::setPropertyValue(const std::string& name, const std::string& value) {
-    pImpl->propertyValues[name] = value;
+void PropertyEditor::clearComponent() {
+    component_ = nullptr;
+    rebuild();
 }
 
-std::string PropertyEditor::getPropertyValue(const std::string& name) const {
-    auto it = pImpl->propertyValues.find(name);
-    if (it != pImpl->propertyValues.end()) return it->second;
-    return "";
-}
+void PropertyEditor::rebuild() {
+    bool hasComponent = component_ != nullptr;
+    labelEdit_->setEnabled(hasComponent);
 
-std::vector<std::string> PropertyEditor::getPropertyNames() const {
-    std::vector<std::string> names;
-    for (const auto& p : pImpl->propertyTypes) names.push_back(p.first);
-    return names;
+    if (!hasComponent) {
+        typeLabel_->setText("No component selected");
+        labelEdit_->setText("");
+        pinsLabel_->setText("—");
+        return;
+    }
+
+    typeLabel_->setText(QString("Component type #%1").arg(static_cast<int>(component_->component_type())));
+    labelEdit_->setText(component_->label());
+
+    QStringList pinNames;
+    for (const auto& pin : component_->pins()) {
+        pinNames << pin.name;
+    }
+    pinsLabel_->setText(pinNames.isEmpty() ? "(none)" : pinNames.join(", "));
 }
 
 }

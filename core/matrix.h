@@ -16,8 +16,18 @@ public:
 
     size_t rows() const { return rows_; }
     size_t cols() const { return cols_; }
-    double& at(size_t i, size_t j) { return data_[i * cols_ + j]; }
-    const double& at(size_t i, size_t j) const { return data_[i * cols_ + j]; }
+    double& at(size_t i, size_t j) {
+        if (i >= rows_ || j >= cols_) {
+            throw std::out_of_range("Matrix::at index out of range");
+        }
+        return data_[i * cols_ + j];
+    }
+    const double& at(size_t i, size_t j) const {
+        if (i >= rows_ || j >= cols_) {
+            throw std::out_of_range("Matrix::at index out of range");
+        }
+        return data_[i * cols_ + j];
+    }
 
     Matrix transpose() const;
     Matrix operator+(const Matrix& other) const;

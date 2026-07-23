@@ -21,8 +21,23 @@ ai = ["onnxruntime (>=1.17.0,<2.0.0)", "onnx (>=1.15.0,<2.0.0)"]
 gpu = ["cupy"]
 rtl = []
 
+[tool.poetry]
+package-mode = false
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -30,5 +45,7 @@ build-backend = "poetry.core.masonry.api"
 
 [dependency-groups]
 dev = [
-    "pytest (>=9.1.1,<10.0.0)"
+    "pytest (>=9.1.1,<10.0.0)",
+    "ruff (>=0.15.22,<0.16.0)",
+    "mypy (>=2.3.0,<3.0.0)"
 ]

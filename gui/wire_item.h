@@ -1,6 +1,6 @@
 #pragma once
 
-#include <QGraphicsItem>
+#include <QGraphicsObject>
 #include <QString>
 #include <QList>
 #include <QPointF>
@@ -12,7 +12,12 @@ QT_END_NAMESPACE
 
 namespace deepiri {
 
-class WireItem : public QGraphicsItem {
+// QGraphicsObject (not QGraphicsItem) so points_changed() below is a real,
+// emittable Qt signal rather than a plain declaration with no moc-generated
+// definition.
+class WireItem : public QGraphicsObject {
+    Q_OBJECT
+
 public:
     explicit WireItem(QGraphicsItem* parent = nullptr);
     WireItem(const QPointF& start, const QPointF& end, QGraphicsItem* parent = nullptr);
