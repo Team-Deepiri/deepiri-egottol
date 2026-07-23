@@ -46,7 +46,9 @@ py::array_t<double> solve_linear(py::array_t<double> a_arr, py::array_t<double> 
     try {
         solution = matrix.solveGaussian(rhs);
     } catch (const std::exception& exc) {
-        throw std::runtime_error(std::string("egottol._native: solve failed: ") + exc.what());
+        throw std::runtime_error(
+           std::string("egottol._native: solve failed: ") + exc.what()
+      );
     }
 
     py::array_t<double> out(n);
