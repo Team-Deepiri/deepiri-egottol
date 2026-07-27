@@ -62,23 +62,31 @@ Unlike standard LTspice which is analog-first, **egottol** uses a **Multi-Domain
 ## 5. Implementation Roadmap
 
 ### Phase 1: The Foundation
-- [ ] Logic Gate engine (Event-driven).
-- [ ] Poetry project setup + Pydantic models for Components.
-- [ ] VHDL Full Adder implementation.
+- [x] Logic Gate engine (Event-driven) — `logic/event_queue.*`, `logic/logic_gate.*`.
+- [x] Poetry project setup + Pydantic models for Components.
+- [x] VHDL Full Adder implementation — `vhdl/full_adder.vhd`, native `logic/vhdl_parser.*`.
 
 ### Phase 2: The UI (Schematic Editor)
-- [ ] PyQt6 Canvas for component dragging.
-- [ ] Wire routing engine.
-- [ ] Component library palette.
+- [x] PyQt6 Canvas for component dragging — `egottol/ui/main.py` (original Python app).
+- [x] Wire routing engine — implemented natively in `gui/wire_tool.cpp`/`wire_item.cpp` too.
+- [x] Component library palette — 220+ `ComponentType` entries in `gui/component_item.h`.
 
 ### Phase 3: The Solver
-- [ ] Basic MNA (Modified Nodal Analysis) solver.
-- [ ] zepGPU bridge for matrix operations.
-- [ ] ADS-B packet decoder node.
+- [x] Basic MNA (Modified Nodal Analysis) solver — `core/mna_solver.*` (DC), `core/transient.*`.
+- [ ] AC/Bode small-signal solver — in progress natively (`core/ac_analysis.*`), was Python-only.
+- [ ] zepGPU bridge for matrix operations — Python-only (`egottol/engines/gpu_mesh.py`); kept as a networking sidecar, not ported to C++ (aiohttp/cloudpickle have no clean native equivalent).
+- [x] ADS-B packet decoder node — `avionics/adsb_decoder.cpp`.
 
 ### Phase 4: The Bridge
-- [ ] `to_uqe()` export logic.
-- [ ] Automated schematic to Mermaid export (vizult-style).
+- [ ] `to_uqe()` export logic — not yet started.
+- [ ] Automated schematic to Mermaid export (vizult-style) — not yet started.
+
+### Phase 5: Native Desktop App (added — see plan history for detail)
+- [x] `gui/` compiles to a real, installable executable (`egottol_app`, CPack `.deb`/`.tar.gz`), not just a static library launched from Python.
+- [x] Native `MainWindow`, `PropertyEditor`, `WaveformPlotter` (previously empty stubs).
+- [x] Demo circuits run through the native `MNASolver`/`Transient` directly from the GUI — no Python in that loop.
+- [ ] Full schematic-to-netlist extraction (Run button currently drives hardcoded demo circuits, not the drawn schematic) — not yet started.
+- [ ] Native ports of the Python-only analog/AI/EII engines (`core/analog/`, `core/ai/`, `core/eii/`) — in progress.
 
 ---
 

@@ -30,13 +30,15 @@ std::vector<double> Resistor::getCurrent() const {
 }
 
 std::vector<std::vector<double>> Resistor::getConductanceMatrix() const {
+    // Note: this local 2x2 is stamped by MNASolver even when one terminal is
+    // ground (node 0) — a grounded resistor still needs its self-conductance
+    // term applied at the other terminal, so this must not gate on both
+    // terminals being non-ground.
     std::vector<std::vector<double>> G(2, std::vector<double>(2, 0.0));
-    if (nodeP_ > 0 && nodeN_ > 0) {
-        G[0][0] = G_;
-        G[0][1] = -G_;
-        G[1][0] = -G_;
-        G[1][1] = G_;
-    }
+    G[0][0] = G_;
+    G[0][1] = -G_;
+    G[1][0] = -G_;
+    G[1][1] = G_;
     return G;
 }
 

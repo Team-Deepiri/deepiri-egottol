@@ -15,7 +15,7 @@ public:
 };
 
 WireItem::WireItem(QGraphicsItem* parent)
-    : QGraphicsItem(parent)
+    : QGraphicsObject(parent)
     , d(new WireItemImpl)
 {
     setFlag(QGraphicsItem::ItemIsSelectable);
@@ -24,7 +24,7 @@ WireItem::WireItem(QGraphicsItem* parent)
 }
 
 WireItem::WireItem(const QPointF& start, const QPointF& end, QGraphicsItem* parent)
-    : QGraphicsItem(parent)
+    : QGraphicsObject(parent)
     , d(new WireItemImpl)
 {
     d->points_.append(start);

@@ -43,7 +43,6 @@ private:
         const std::vector<std::shared_ptr<Device>>& devices,
         const std::vector<double>& state
     );
-    bool checkConvergence(const std::vector<double>& state, const std::vector<double>& prevState);
 };
 
 }

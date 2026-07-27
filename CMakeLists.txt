@@ -25,6 +25,7 @@ set(CORE_SOURCES
     core/solver.cpp
     core/circuit.cpp
     core/device_mgr.cpp
+    core/ac_analysis.cpp
 )
 
 set(MODELS_SOURCES
@@ -53,6 +54,29 @@ set(LOGIC_SOURCES
     logic/vhdl_lexer.cpp
     logic/vhdl_parser.cpp
     logic/subckt.cpp
+    logic/rtl_shadow_sim.cpp
+)
+
+set(ANALOG_SOURCES
+    core/analog/ota.cpp
+    core/analog/gilbert_cell.cpp
+    core/analog/opamp_neuron.cpp
+    core/analog/noise.cpp
+    core/analog/hopfield.cpp
+    core/analog/ising.cpp
+)
+
+set(AI_SOURCES
+    core/ai/reservoir.cpp
+    core/ai/nsp.cpp
+)
+
+set(EII_SOURCES
+    core/eii/detectors.cpp
+    core/eii/encoders.cpp
+    core/eii/inference.cpp
+    core/eii/actuators.cpp
+    core/eii/pipeline.cpp
 )
 
 set(IO_SOURCES
@@ -74,6 +98,7 @@ if(Qt6_FOUND AND ENABLE_QT)
         gui/main_window.cpp
         gui/waveform_plotter.cpp
         gui/property_editor.cpp
+        gui/simulation_controller.cpp
     )
 endif()
 
@@ -101,7 +126,23 @@ endif()
 add_library(deepiri_models STATIC ${MODELS_SOURCES})
 target_link_libraries(deepiri_models PUBLIC deepiri_core)
 
+# core/ac_analysis.cpp dynamic_casts into models/ device subclasses (Capacitor,
+# Inductor) to read their AC admittance — a deliberate layering exception
+# (mna_solver.cpp does the same for Vsrc), so this is a genuine mutual
+# dependency, not an oversight; CMake resolves the cycle by repeating the
+# archives on the link line.
+target_link_libraries(deepiri_core PUBLIC deepiri_models)
+
 add_library(deepiri_logic STATIC ${LOGIC_SOURCES})
+
+add_library(deepiri_analog STATIC ${ANALOG_SOURCES})
+target_link_libraries(deepiri_analog PUBLIC deepiri_core deepiri_models)
+
+add_library(deepiri_ai STATIC ${AI_SOURCES})
+target_link_libraries(deepiri_ai PUBLIC deepiri_core)
+
+add_library(deepiri_eii STATIC ${EII_SOURCES})
+target_link_libraries(deepiri_eii PUBLIC deepiri_core)
 
 add_library(deepiri_io STATIC ${IO_SOURCES})
 
@@ -114,11 +155,30 @@ add_library(deepiri_infra STATIC ${INFRA_SOURCES})
 
 if(Qt6_FOUND AND ENABLE_QT)
     add_library(deepiri_gui STATIC ${GUI_SOURCES})
-    target_link_libraries(deepiri_gui PUBLIC 
-        deepiri_core deepiri_models deepiri_io Qt6::Core Qt6::Gui Qt6::Widgets
+    target_link_libraries(deepiri_gui PUBLIC
+        deepiri_core deepiri_models deepiri_io deepiri_logic
+        deepiri_analog deepiri_ai deepiri_eii
+        Qt6::Core Qt6::Gui Qt6::Widgets
     )
-    
-    # No standalone C++ executable — app is launched via Python (egottol.ui.main)
+    if(ENABLE_AVIONICS)
+        target_link_libraries(deepiri_gui PUBLIC deepiri_avionics)
+    endif()
+
+    add_executable(egottol_app gui/main.cpp)
+    target_link_libraries(egottol_app PRIVATE deepiri_gui)
+    set_target_properties(egottol_app PROPERTIES OUTPUT_NAME "egottol")
+
+    install(TARGETS egottol_app RUNTIME DESTINATION bin)
+    install(DIRECTORY vhdl/ DESTINATION share/egottol/vhdl)
+
+    set(CPACK_PACKAGE_NAME "egottol")
+    set(CPACK_PACKAGE_VENDOR "Deepiri")
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Binary Electrical Systems Simulation Lab")
+    set(CPACK_GENERATOR "TGZ;DEB")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Deepiri")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6widgets6")
+    include(CPack)
 endif()
 
 if(BUILD_PYTHON_BINDINGS)
