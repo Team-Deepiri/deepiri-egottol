@@ -7,6 +7,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+# MSVC does not define M_PI in <cmath> unless this is set.
+if(MSVC)
+    add_compile_definitions(_USE_MATH_DEFINES)
+endif()
+
 option(ENABLE_QT "Build Qt GUI" ON)
 option(ENABLE_AVIONICS "Build avionics" ON)
 option(BUILD_PYTHON_BINDINGS "Build pybind11 module egottol._native" OFF)
@@ -179,29 +184,6 @@ if(Qt6_FOUND AND ENABLE_QT)
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Deepiri")
     set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6widgets6")
     include(CPack)
-endif()
-
-if(BUILD_PYTHON_BINDINGS)
-    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-
-    include(FetchContent)
-    FetchContent_Declare(
-        pybind11
-        GIT_REPOSITORY https://github.com/pybind/pybind11.git
-        GIT_TAG v2.13.6
-    )
-    FetchContent_MakeAvailable(pybind11)
-
-    pybind11_add_module(_native bindings/pybind_module.cpp)
-    target_include_directories(_native PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/core)
-    target_link_libraries(_native PRIVATE deepiri_core)
-    target_compile_features(_native PRIVATE cxx_std_20)
-
-    set_target_properties(_native PROPERTIES
-        OUTPUT_NAME "_native"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/egottol"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/egottol"
-    )
 endif()
 
 if(BUILD_PYTHON_BINDINGS)
