@@ -34,6 +34,8 @@ inline QColor categoryColor(const QString &category) {
   static const QMap<QString, QColor> map = {
       {"passive", QColor("#8be9fd")},
       {"active", QColor("#50fa7b")},
+      {"analog", QColor("#50fa7b")},
+      {"semiconductor", QColor("#ff79c6")},
       {"source", QColor("#f1fa8c")},
       {"power", QColor("#ff5555")},
       {"logic", QColor("#bd93f9")},

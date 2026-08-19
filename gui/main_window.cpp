@@ -4,10 +4,14 @@
 #include "egottol_theme.h"
 #include "scene.h"
 #include "schematic_document.h"
+#include "schematic_to_circuit.h"
 #include "schematic_view.h"
 #include "selection_tool.h"
 #include "waveform_panel.h"
 #include "wire_tool.h"
+
+#include "../core/circuit.h"
+#include "../core/mna_solver.h"
 
 #include <QAction>
 #include <QApplication>
@@ -41,6 +45,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
           &MainWindow::onComponentRequested);
   connect(scene_, &SchematicScene::placeModeChanged, this,
           &MainWindow::onPlaceModeChanged);
+  connect(scene_, &SchematicScene::schematicChanged, waveform_,
+          &WaveformPanel::clear);
 
   console_->appendLine(tr("deepiri-egottol C++ GUI — Stage 1 shell"));
   console_->appendLine(
@@ -215,10 +221,51 @@ void MainWindow::onPlaceModeChanged(const QString &modeText) {
 void MainWindow::runDcAnalysis() {
   console_->appendLine(
       QStringLiteral("─── DC Analysis ───────────────────────"));
-  // TODO Stage 5: schematic_to_circuit + MNASolver; annotate scene +
-  // waveform_->showDcResults
-  console_->appendLine(
-      tr("Not implemented — see gui/schematic_to_circuit.h (Stage 5)"));
+  waveform_->clear();
+  scene_->annotate_dc_results({});
+  SchematicCircuitExport exported = buildCircuitFromSchematic(*document_);
+  if (!exported.isValid()) {
+    console_->appendLine(tr("Error: %1").arg(exported.error));
+    return;
+  }
+
+  MNASolver solver;
+  const MNASolver::Solution solution =
+      solver.solve(exported.circuit->getDevices(), exported.solverNodeMap, {});
+  if (!solution.success) {
+    console_->appendLine(
+        tr("Solver error: %1").arg(QString::fromStdString(solution.message)));
+    return;
+  }
+
+  QMap<QString, double> portVoltages;
+  for (auto it = exported.portNodes.cbegin(); it != exported.portNodes.cend();
+       ++it) {
+    const size_t node = it.value();
+    const double voltage =
+        node == 0 || node > solution.voltages.size()
+            ? 0.0
+            : solution.voltages[node - 1];
+    portVoltages.insert(it.key(), voltage);
+  }
+  scene_->annotate_dc_results(portVoltages);
+
+  QStringList nodeLabels;
+  QVector<double> nodeVoltages;
+  for (qsizetype node = 0; node < exported.nodeLabels.size(); ++node) {
+    nodeLabels.append(exported.nodeLabels[node]);
+    nodeVoltages.append(node == 0 ? 0.0 : solution.voltages[node - 1]);
+    console_->appendLine(
+        QStringLiteral("%1 = %2 V")
+            .arg(exported.nodeLabels[node])
+            .arg(nodeVoltages.last(), 0, 'g', 8));
+  }
+  waveform_->showDcResults(nodeLabels, nodeVoltages);
+  for (qsizetype i = 0; i < static_cast<qsizetype>(solution.currents.size());
+       ++i)
+    console_->appendLine(QStringLiteral("I(V%1) = %2 A")
+                             .arg(i + 1)
+                             .arg(solution.currents[i], 0, 'g', 8));
 }
 
 void MainWindow::runTransientAnalysis() {

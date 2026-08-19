@@ -51,7 +51,7 @@ Stages are ordered; later stages depend on earlier ones.
 - `MainWindow : QMainWindow` replacing the non-Qt stub class.
 - Central widget: `SchematicView` hosting `SchematicScene`.
 - **Left dock — Components:** palette list populated from `SymbolLibrary` (names/categories).
-- **Right dock — Services:** placeholder status indicators (zepGPU, UQE); no live probing yet.
+- **Right dock — Services:** placeholder status indicators (zepGPU, UQE).
 - **Bottom dock — Waveform / Console:** horizontal splitter with plot placeholder + read-only console.
 - **Toolbar:** actions mirroring Python (DC, Transient, Config, quick-place R/C/L/V/I/GND/VCC, gates, clear, zoom).
 - **Status bar:** mode label (`SELECT`, `PLACE: Resistor`, …) and shortcut hints.
@@ -323,6 +323,7 @@ Stages are ordered; later stages depend on earlier ones.
 
 ## File ownership map (C++ GUI)
 
+
 | Concern           | Primary files                                             |
 | ----------------- | --------------------------------------------------------- |
 | App entry         | `gui/main.cpp`                                            |
@@ -338,7 +339,8 @@ Stages are ordered; later stages depend on earlier ones.
 | Palette dock      | `gui/component_palette.h/cpp`                             |
 | Console / plot    | `gui/console_panel.h/cpp`, `gui/waveform_panel.h/cpp`     |
 | Registry metadata | `io/symbol_library.h/cpp`                                 |
-| Simulation        | `core/mna_solver.h/cpp`, `models/*`                       |
+| Simulation        | `core/mna_solver.h/cpp`, `models/`*                       |
+
 
 ---
 

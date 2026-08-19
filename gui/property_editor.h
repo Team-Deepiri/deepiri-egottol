@@ -1,29 +1,26 @@
 #pragma once
 
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
+#include <QDialog>
+#include <QMap>
+#include <QString>
+#include <QVariant>
+
+class QLineEdit;
 
 namespace deepiri {
 
-class PropertyEditor {
+class PropertyEditor : public QDialog {
 public:
-  PropertyEditor();
-  ~PropertyEditor();
+  explicit PropertyEditor(const QString &componentId,
+                          const QMap<QString, QVariant> &parameters,
+                          QWidget *parent = nullptr);
+  QMap<QString, QVariant> parameters() const;
 
-  void setObject(void *obj);
-  void *getObject() const;
-
-  void addProperty(const std::string &name, const std::string &type);
-  void setPropertyValue(const std::string &name, const std::string &value);
-  std::string getPropertyValue(const std::string &name) const;
-
-  std::vector<std::string> getPropertyNames() const;
+public slots:
+  void accept() override;
 
 private:
-  class Impl;
-  std::unique_ptr<Impl> pImpl;
+  QMap<QString, QLineEdit *> editors_;
 };
 
 } // namespace deepiri

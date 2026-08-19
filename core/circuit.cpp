@@ -1,13 +1,8 @@
 #include "circuit.h"
 
-namespace deepiri {
+#include <map>
 
-class Device {
-public:
-    virtual ~Device() = default;
-    virtual std::string getName() const = 0;
-    virtual std::string getType() const = 0;
-};
+namespace deepiri {
 
 class Circuit::Impl {
 public:

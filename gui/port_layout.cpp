@@ -5,7 +5,6 @@
 namespace deepiri {
 
 QString PortLayout::symbolKeyForRegistry(const QString& registryKey) {
-    // TODO Stage 2: port full SYMBOL_KEY map from egottol/ui/main.py
     static const QMap<QString, QString> map = {
         {"RES", "R"}, {"CAP", "C"}, {"IND", "L"},
         {"DIODE", "DIODE"}, {"VSRC", "VSRC"}, {"ISRC", "ISRC"},
@@ -19,12 +18,14 @@ QString PortLayout::symbolKeyForRegistry(const QString& registryKey) {
 }
 
 std::vector<PortDef> PortLayout::portsForSymbol(const QString& symbolKey) {
-    // TODO Stage 2: replace with full PORT_OFFSETS from Python
     if (symbolKey == "R" || symbolKey == "C" || symbolKey == "L") {
         return {{0, -25, "1"}, {0, 25, "2"}};
     }
+    if (symbolKey == "DIODE") {
+        return {{0, -25, "A"}, {0, 25, "K"}};
+    }
     if (symbolKey == "VSRC" || symbolKey == "ISRC") {
-        return {{0, -25, "+"}, {0, 25, QString::fromUtf8("−")}};
+        return {{0, -25, "+"}, {0, 25, "-"}};
     }
     if (symbolKey == "GND") {
         return {{0, -25, "G"}};
@@ -43,7 +44,10 @@ std::vector<PortDef> PortLayout::portsForSymbol(const QString& symbolKey) {
         return {{-28, -16, "D"}, {-28, 8, "CLK"}, {28, -16, "Q"}, {28, 8, "QB"}};
     }
     if (symbolKey == "OPAMP") {
-        return {{-20, -10, "+"}, {-20, 10, QString::fromUtf8("−")}, {30, 0, "OUT"}};
+        return {{-30, -12, "+"}, {-30, 12, "-"}, {32, 0, "OUT"}};
+    }
+    if (symbolKey == "Q_NPN" || symbolKey == "Q_PNP") {
+        return {{-30, 0, "B"}, {16, -28, "C"}, {16, 28, "E"}};
     }
     // DEFAULT — generic two-pin horizontal (Python PORT_OFFSETS["DEFAULT"])
     return {{-18, 0, "1"}, {18, 0, "2"}};

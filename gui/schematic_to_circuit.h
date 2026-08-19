@@ -1,11 +1,27 @@
 #pragma once
 
+#include <QMap>
+#include <QString>
+#include <QStringList>
+
+#include <map>
 #include <memory>
+
+#include "../core/circuit.h"
 
 namespace deepiri {
 
 class SchematicDocument;
-class Circuit;
+
+struct SchematicCircuitExport {
+    std::unique_ptr<Circuit> circuit;
+    std::map<std::string, size_t> solverNodeMap;
+    QMap<QString, size_t> portNodes;
+    QStringList nodeLabels;
+    QString error;
+
+    bool isValid() const { return circuit != nullptr && error.isEmpty(); }
+};
 
 /**
  * schematic_to_circuit.h — STAGE 5: Export schematic → simulation netlist.
@@ -19,6 +35,7 @@ class Circuit;
  *   3. for each component, instantiate models::Resistor, Vsrc, etc.
  *   4. return deepiri::Circuit ready for MNASolver::solve
  */
-std::unique_ptr<Circuit> buildCircuitFromSchematic(const SchematicDocument& document);
+SchematicCircuitExport
+buildCircuitFromSchematic(const SchematicDocument& document);
 
 } // namespace deepiri

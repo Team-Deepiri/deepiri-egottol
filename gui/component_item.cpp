@@ -1,8 +1,13 @@
 #include "component_item.h"
 #include "egottol_theme.h"
+#include "property_editor.h"
+#include "scene.h"
+#include "schematic_document.h"
 #include "symbol_renderer.h"
 
 #include <QDebug>
+#include <QGraphicsSceneMouseEvent>
+#include <QGraphicsView>
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>
 
@@ -61,7 +66,7 @@ void ComponentItem::add_pin(const Pin &pin) {
 QPointF ComponentItem::pin_position(const QString &name) const {
   for (const Pin &pin : d->pins_) {
     if (pin.name == name) {
-      return pin.position + pos();
+      return mapToScene(pin.position);
     }
   }
   return QPointF();
@@ -70,7 +75,6 @@ QPointF ComponentItem::pin_position(const QString &name) const {
 QString ComponentItem::pin_at(const QPointF &pos) const {
   QPointF local_pos = mapFromScene(pos);
   for (const Pin &pin : d->pins_) {
-    QPointF pin_scene_pos = mapToScene(pin.position);
     if (QLineF(local_pos, pin.position).length() < 10) {
       return pin.name;
     }
@@ -86,8 +90,7 @@ void ComponentItem::set_selection_color(const QColor &color) {
 QColor ComponentItem::selection_color() const { return d->selection_color_; }
 
 QRectF ComponentItem::boundingRect() const {
-  return QRectF(-d->size_.width() / 2, -d->size_.height() / 2, d->size_.width(),
-                d->size_.height());
+  return QRectF(-46, -34, 92, 82);
 }
 
 void ComponentItem::paint(QPainter *painter,
@@ -111,8 +114,12 @@ void ComponentItem::paint(QPainter *painter,
     painter->drawEllipse(pin.position, 4, 4);
   }
 
-  // TODO Stage 3: port-click wiring in mousePressEvent (mirror Python
-  // ComponentItem)
+  painter->setPen(ui::colorLabel());
+  QFont labelFont = painter->font();
+  labelFont.setPointSize(7);
+  painter->setFont(labelFont);
+  painter->drawText(QRectF(-44, 31, 88, 14), Qt::AlignHCenter,
+                    d->label_);
 }
 
 int ComponentItem::type() const { return Type + 1; }
@@ -120,19 +127,53 @@ int ComponentItem::type() const { return Type + 1; }
 QVariant ComponentItem::itemChange(GraphicsItemChange change,
                                    const QVariant &value) {
   if (change == ItemPositionHasChanged) {
-    // TODO Stage 3: SchematicScene should refresh WireItems connected to this
-    // component. Do NOT call update_pins() here — it clears factory-loaded pins
-    // from PortLayout.
+    if (auto *schematic = dynamic_cast<SchematicScene *>(scene())) {
+      if (schematic->document())
+        schematic->document()->setComponentPosition(d->label_,
+                                                    value.toPointF());
+      schematic->refresh_wires_for_component(d->label_);
+      schematic->mark_modified();
+    }
   }
   return QGraphicsItem::itemChange(change, value);
 }
 
 void ComponentItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+  if (event->button() == Qt::LeftButton) {
+    const QString port = pin_at(event->scenePos());
+    if (!port.isEmpty()) {
+      if (auto *schematic = dynamic_cast<SchematicScene *>(scene())) {
+        schematic->start_wire(d->label_, port, pin_position(port));
+        event->accept();
+        return;
+      }
+    }
+  }
   QGraphicsItem::mousePressEvent(event);
 }
 
 void ComponentItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
   QGraphicsItem::mouseReleaseEvent(event);
+}
+
+void ComponentItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
+  if (auto *schematic = dynamic_cast<SchematicScene *>(scene())) {
+    if (SchematicDocument *document = schematic->document()) {
+      if (const SchematicComponent *component =
+              document->findComponent(d->label_)) {
+        QWidget *parent =
+            schematic->views().isEmpty() ? nullptr : schematic->views().first();
+        PropertyEditor editor(d->label_, component->parameters, parent);
+        if (editor.exec() == QDialog::Accepted) {
+          document->setComponentParameters(d->label_, editor.parameters());
+          schematic->mark_modified();
+        }
+        event->accept();
+        return;
+      }
+    }
+  }
+  QGraphicsItem::mouseDoubleClickEvent(event);
 }
 
 void ComponentItem::update_pins() {

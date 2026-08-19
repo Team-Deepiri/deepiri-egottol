@@ -3,11 +3,10 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <map>
+
+#include "../models/device.h"
 
 namespace deepiri {
-
-class Device;
 
 class Node {
 public:

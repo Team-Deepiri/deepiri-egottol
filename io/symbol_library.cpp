@@ -1,6 +1,6 @@
 #include "symbol_library.h"
-#include <fstream>
-#include <sstream>
+
+#include <utility>
 
 namespace deepiri {
 
@@ -559,6 +559,73 @@ public:
     microphone.footprint = "Electret_Mic";
     microphone.description = "Electret Microphone";
     symbols_["MICROPHONE"] = microphone;
+
+    // Canonical native GUI catalog. Only entries with registry_key are exposed
+    // by the Stage 2 palette; the larger symbol library remains available for
+    // future component batches.
+    auto guiSymbol = [this](const std::string &registryKey,
+                            const std::string &symbolKey,
+                            const std::string &description,
+                            const std::string &category,
+                            std::initializer_list<SymbolPin> pins,
+                            std::map<std::string, std::string> defaults = {}) {
+      SymbolDefinition def;
+      def.name = registryKey;
+      def.registry_key = registryKey;
+      def.symbol_key = symbolKey;
+      def.category = category;
+      def.library = "Native";
+      def.type = SymbolType::Component;
+      def.description = description;
+      def.pins.assign(pins);
+      def.properties = std::move(defaults);
+      symbols_[registryKey] = std::move(def);
+    };
+
+    guiSymbol("RES", "R", "Resistor", "passive",
+              {{"1", 1, "inout", "passive"}, {"2", 2, "inout", "passive"}},
+              {{"R", "1000"}});
+    guiSymbol("CAP", "C", "Capacitor", "passive",
+              {{"1", 1, "inout", "passive"}, {"2", 2, "inout", "passive"}},
+              {{"C", "1e-6"}});
+    guiSymbol("IND", "L", "Inductor", "passive",
+              {{"1", 1, "inout", "passive"}, {"2", 2, "inout", "passive"}},
+              {{"L", "1e-3"}});
+    guiSymbol("DIODE", "DIODE", "Diode", "semiconductor",
+              {{"A", 1, "inout", "passive"}, {"K", 2, "inout", "passive"}});
+    guiSymbol("VSRC", "VSRC", "DC Voltage Source", "source",
+              {{"+", 1, "out", "power"}, {"-", 2, "in", "power"}},
+              {{"V", "5"}});
+    guiSymbol("ISRC", "ISRC", "DC Current Source", "source",
+              {{"+", 1, "out", "power"}, {"-", 2, "in", "power"}},
+              {{"I", "0.001"}});
+    guiSymbol("GND", "GND", "Ground", "power",
+              {{"G", 1, "inout", "power"}});
+    guiSymbol("VCC", "VCC", "VCC Rail", "power",
+              {{"V", 1, "inout", "power"}});
+    guiSymbol("NPN", "Q_NPN", "NPN Transistor", "semiconductor",
+              {{"B", 1, "in", "passive"}, {"C", 2, "inout", "passive"},
+               {"E", 3, "inout", "passive"}});
+    guiSymbol("PNP", "Q_PNP", "PNP Transistor", "semiconductor",
+              {{"B", 1, "in", "passive"}, {"C", 2, "inout", "passive"},
+               {"E", 3, "inout", "passive"}});
+    guiSymbol("AND", "GATE_AND", "AND Gate", "logic",
+              {{"A", 1, "in", "digital"}, {"B", 2, "in", "digital"},
+               {"Q", 3, "out", "digital"}});
+    guiSymbol("OR", "GATE_OR", "OR Gate", "logic",
+              {{"A", 1, "in", "digital"}, {"B", 2, "in", "digital"},
+               {"Q", 3, "out", "digital"}});
+    guiSymbol("NOT", "GATE_NOT", "Inverter", "logic",
+              {{"A", 1, "in", "digital"}, {"Q", 2, "out", "digital"}});
+    guiSymbol("XOR", "GATE_XOR", "XOR Gate", "logic",
+              {{"A", 1, "in", "digital"}, {"B", 2, "in", "digital"},
+               {"Q", 3, "out", "digital"}});
+    guiSymbol("DFF", "DFF", "D Flip-Flop", "logic",
+              {{"D", 1, "in", "digital"}, {"CLK", 2, "in", "digital"},
+               {"Q", 3, "out", "digital"}, {"QB", 4, "out", "digital"}});
+    guiSymbol("LM741", "OPAMP", "Operational Amplifier", "analog",
+              {{"+", 1, "in", "analog"}, {"-", 2, "in", "analog"},
+               {"OUT", 3, "out", "analog"}});
   }
 };
 

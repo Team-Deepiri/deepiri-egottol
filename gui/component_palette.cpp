@@ -32,14 +32,19 @@ void ComponentPalette::populateFromLibrary() {
   list_->clear();
   SymbolLibrary lib;
   for (const std::string &name : lib.listSymbols()) {
-    const QString key = QString::fromStdString(name);
-    auto *item = new QListWidgetItem(QStringLiteral("  ") + key);
+    const auto definition = lib.getSymbol(name);
+    if (!definition || definition->registry_key.empty())
+      continue;
+    const QString key = QString::fromStdString(definition->registry_key);
+    const QString description = QString::fromStdString(definition->description);
+    const QString category = QString::fromStdString(definition->category);
+    auto *item =
+        new QListWidgetItem(QStringLiteral("  %1  %2").arg(key, description));
     item->setData(Qt::UserRole, key);
-    item->setForeground(ui::categoryColor(QStringLiteral("passive")));
+    item->setForeground(ui::categoryColor(category));
+    item->setToolTip(description);
     list_->addItem(item);
   }
-  // TODO Stage 2: map SymbolLibrary entries to Python registry keys (RES vs R)
-  // and categories
 }
 
 void ComponentPalette::onItemClicked() {

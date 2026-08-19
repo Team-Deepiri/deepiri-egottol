@@ -136,11 +136,7 @@ void SelectionTool::clear_selection() {
 void SelectionTool::delete_selected() {
   if (!d->scene_)
     return;
-
-  QList<QGraphicsItem *> items = selected_items();
-  for (QGraphicsItem *item : items) {
-    d->scene_->removeItem(item);
-  }
+  d->scene_->delete_selection();
   emit selection_changed(selected_items());
 }
 

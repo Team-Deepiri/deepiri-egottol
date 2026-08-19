@@ -6,6 +6,9 @@
 #include <QPainter>
 #include <QVBoxLayout>
 
+#include <algorithm>
+#include <cmath>
+
 namespace deepiri {
 
 WaveformPanel::WaveformPanel(QWidget *parent) : QWidget(parent) {
@@ -39,12 +42,33 @@ void WaveformPanel::paintEvent(QPaintEvent *event) {
   QPainter p(this);
   p.fillRect(rect(), ui::colorDockBg());
   const int n = dcVolts_.size();
+  if (n == 0)
+    return;
+  double maximum = 0.0;
+  for (double voltage : dcVolts_)
+    maximum = std::max(maximum, std::abs(voltage));
+  if (maximum < 1e-12)
+    maximum = 1.0;
+
+  const int top = 24;
+  const int bottom = height() - 26;
+  const int zeroY = (top + bottom) / 2;
+  const double scale = (bottom - top) * 0.45 / maximum;
   const double barW = width() / double(n + 1);
-  p.setPen(ui::colorWire());
+  p.setPen(QPen(ui::colorGridDot(), 1));
+  p.drawLine(0, zeroY, width(), zeroY);
   for (int i = 0; i < n; ++i) {
-    const double h = qBound(0.0, dcVolts_[i] * 10.0, double(height() - 20));
-    p.fillRect(int((i + 1) * barW - barW * 0.3), int(height() - h - 10),
-               int(barW * 0.6), int(h), ui::colorWire());
+    const double signedHeight = dcVolts_[i] * scale;
+    const int x = int((i + 1) * barW - barW * 0.3);
+    const int y = signedHeight >= 0 ? int(zeroY - signedHeight) : zeroY;
+    p.fillRect(x, y, std::max(2, int(barW * 0.6)),
+               std::max(1, int(std::abs(signedHeight))), ui::colorWire());
+    p.setPen(ui::colorText());
+    p.drawText(QRectF((i + 0.5) * barW, bottom + 4, barW, 18),
+               Qt::AlignCenter, dcNodes_.value(i));
+    p.drawText(QRectF((i + 0.5) * barW, top - 18, barW, 18),
+               Qt::AlignCenter,
+               QStringLiteral("%1 V").arg(dcVolts_[i], 0, 'g', 4));
   }
 }
 

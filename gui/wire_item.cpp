@@ -12,6 +12,10 @@ public:
   bool highlighted_ = false;
   bool error_ = false;
   QPainterPath path_;
+  QString from_component_id_;
+  QString from_port_;
+  QString to_component_id_;
+  QString to_port_;
 };
 
 WireItem::WireItem(QGraphicsItem *parent)
@@ -80,6 +84,31 @@ void WireItem::set_end_point(const QPointF &point) {
   update_path();
 }
 
+void WireItem::set_endpoints(const QString &fromComponentId,
+                             const QString &fromPort,
+                             const QString &toComponentId,
+                             const QString &toPort) {
+  d->from_component_id_ = fromComponentId;
+  d->from_port_ = fromPort;
+  d->to_component_id_ = toComponentId;
+  d->to_port_ = toPort;
+}
+
+QString WireItem::from_component_id() const { return d->from_component_id_; }
+QString WireItem::from_port() const { return d->from_port_; }
+QString WireItem::to_component_id() const { return d->to_component_id_; }
+QString WireItem::to_port() const { return d->to_port_; }
+
+QPainterPath WireItem::orthogonal_path(const QPointF &start,
+                                       const QPointF &end) {
+  QPainterPath path(start);
+  const qreal middleY = (start.y() + end.y()) / 2.0;
+  path.lineTo(start.x(), middleY);
+  path.lineTo(end.x(), middleY);
+  path.lineTo(end);
+  return path;
+}
+
 void WireItem::set_highlighted(bool highlighted) {
   d->highlighted_ = highlighted;
   update();
@@ -94,7 +123,9 @@ void WireItem::set_error(bool error) {
 
 bool WireItem::has_error() const { return d->error_; }
 
-QRectF WireItem::boundingRect() const { return d->path_.boundingRect(); }
+QRectF WireItem::boundingRect() const {
+  return d->path_.boundingRect().adjusted(-4, -4, 4, 4);
+}
 
 void WireItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                      QWidget *widget) {
@@ -129,15 +160,20 @@ QVariant WireItem::itemChange(GraphicsItemChange change,
 }
 
 void WireItem::update_path() {
+  prepareGeometryChange();
   d->path_ = QPainterPath();
 
   if (d->points_.isEmpty())
     return;
 
-  d->path_.moveTo(d->points_.first());
-  for (int i = 1; i < d->points_.size(); ++i) {
-    d->path_.lineTo(d->points_[i]);
+  if (d->points_.size() == 2)
+    d->path_ = orthogonal_path(d->points_.first(), d->points_.last());
+  else {
+    d->path_.moveTo(d->points_.first());
+    for (int i = 1; i < d->points_.size(); ++i)
+      d->path_.lineTo(d->points_[i]);
   }
+  update();
 }
 
 } // namespace deepiri

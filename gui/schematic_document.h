@@ -67,6 +67,8 @@ public:
     bool removeWire(const QString& id);
 
     const SchematicComponent* findComponent(const QString& id) const;
+    std::vector<SchematicWire> wiresForComponent(const QString& id) const;
+    bool setComponentPosition(const QString& id, const QPointF& position);
 
     /** Update params after PropertyEditor (Stage 4). */
     bool setComponentParameters(const QString& id, const QMap<QString, QVariant>& params);

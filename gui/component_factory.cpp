@@ -13,7 +13,7 @@ namespace deepiri {
 
 QString ComponentFactory::makeInstanceId(const QString &registryKey) {
   return registryKey + QStringLiteral("_") +
-         QUuid::createUuid().toString(QUuid::WithoutBraces).left(6);
+         QUuid::createUuid().toString(QUuid::WithoutBraces).left(10);
 }
 
 ComponentItem *ComponentFactory::placeComponent(SchematicScene *scene,
@@ -38,7 +38,10 @@ ComponentItem *ComponentFactory::placeComponent(SchematicScene *scene,
     displayName = QString::fromStdString(symOpt->description);
   }
 
-  const QString instanceId = makeInstanceId(registryKey);
+  QString instanceId;
+  do {
+    instanceId = makeInstanceId(registryKey);
+  } while (document->findComponent(instanceId));
 
   ComponentItem *item = new ComponentItem(ComponentType::CUSTOM, instanceId);
   item->set_registry_key(registryKey);
@@ -61,9 +64,23 @@ ComponentItem *ComponentFactory::placeComponent(SchematicScene *scene,
   docComp.id = instanceId;
   docComp.registryKey = registryKey;
   docComp.displayName = displayName;
-  docComp.category = QStringLiteral("passive");
+  docComp.category =
+      symOpt ? QString::fromStdString(symOpt->category) : QStringLiteral("other");
   docComp.symbolKey = symbolKey;
   docComp.position = scenePos;
+  if (symOpt) {
+    for (const auto &[name, value] : symOpt->properties) {
+      bool ok = false;
+      const double numeric = QString::fromStdString(value).toDouble(&ok);
+      docComp.parameters.insert(QString::fromStdString(name),
+                                ok ? QVariant(numeric)
+                                   : QVariant(QString::fromStdString(value)));
+    }
+    for (const SymbolPin &pin : symOpt->pins) {
+      docComp.ports.push_back({QString::fromStdString(pin.name),
+                               QString::fromStdString(pin.direction)});
+    }
+  }
   document->addComponent(std::move(docComp));
 
   return item;

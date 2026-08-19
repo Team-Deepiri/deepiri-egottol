@@ -19,6 +19,9 @@ enum class SymbolType { Component, Port, Net, Text, Graphic };
 
 struct SymbolDefinition {
   std::string name;
+  std::string registry_key;
+  std::string symbol_key;
+  std::string category;
   std::string library;
   SymbolType type;
   std::string footprint;

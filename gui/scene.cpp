@@ -9,9 +9,11 @@
 
 #include <QDebug>
 #include <QGraphicsSceneMouseEvent>
+#include <QGraphicsTextItem>
 #include <QGraphicsView>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QUuid>
 
 namespace deepiri {
 
@@ -25,6 +27,10 @@ public:
   WireTool *wire_tool_ = nullptr;
   SchematicDocument *document_ = nullptr;
   QString place_mode_key_;
+  WireItem *pending_wire_ = nullptr;
+  QString pending_component_id_;
+  QString pending_port_;
+  QList<QGraphicsTextItem *> result_labels_;
 };
 
 SchematicScene::SchematicScene(QObject *parent)
@@ -38,24 +44,38 @@ SchematicScene::~SchematicScene() { delete d; }
 void SchematicScene::add_component(ComponentItem *component) {
   if (component && !d->components_.contains(component)) {
     d->components_.append(component);
-    addItem(component);
+    if (component->scene() != this)
+      addItem(component);
     emit component_added(component);
+    mark_modified();
   }
 }
 
 void SchematicScene::add_wire(WireItem *wire) {
   if (wire && !d->wires_.contains(wire)) {
     d->wires_.append(wire);
-    addItem(wire);
+    if (wire->scene() != this)
+      addItem(wire);
     emit wire_added(wire);
+    mark_modified();
   }
 }
 
 void SchematicScene::remove_component(ComponentItem *component) {
   if (component && d->components_.contains(component)) {
+    const QString id = component->label();
+    const QList<WireItem *> attached = d->wires_;
+    for (WireItem *wire : attached) {
+      if (wire->from_component_id() == id || wire->to_component_id() == id)
+        remove_wire(wire);
+    }
     d->components_.removeAll(component);
     removeItem(component);
+    if (d->document_)
+      d->document_->removeComponent(id);
     emit component_removed(component);
+    delete component;
+    mark_modified();
   }
 }
 
@@ -63,7 +83,23 @@ void SchematicScene::remove_wire(WireItem *wire) {
   if (wire && d->wires_.contains(wire)) {
     d->wires_.removeAll(wire);
     removeItem(wire);
+    if (d->document_) {
+      QString documentWireId;
+      for (const auto &documentWire : d->document_->wires()) {
+        if (documentWire.fromComponentId == wire->from_component_id() &&
+            documentWire.fromPort == wire->from_port() &&
+            documentWire.toComponentId == wire->to_component_id() &&
+            documentWire.toPort == wire->to_port()) {
+          documentWireId = documentWire.id;
+          break;
+        }
+      }
+      if (!documentWireId.isEmpty())
+        d->document_->removeWire(documentWireId);
+    }
     emit wire_removed(wire);
+    delete wire;
+    mark_modified();
   }
 }
 
@@ -79,6 +115,14 @@ ComponentItem *SchematicScene::component_at(const QPointF &pos) const {
     if (comp && comp->isVisible()) {
       return comp;
     }
+  }
+  return nullptr;
+}
+
+ComponentItem *SchematicScene::component_by_id(const QString &id) const {
+  for (ComponentItem *component : d->components_) {
+    if (component->label() == id)
+      return component;
   }
   return nullptr;
 }
@@ -150,14 +194,145 @@ QString SchematicScene::place_mode() const { return d->place_mode_key_; }
 
 void SchematicScene::handle_escape() {
   clear_place_mode();
+  cancel_wire();
   if (d->wire_tool_)
     d->wire_tool_->cancel();
 }
 
+bool SchematicScene::start_wire(const QString &componentId,
+                                const QString &portName,
+                                const QPointF &scenePosition) {
+  if (d->pending_wire_)
+    return finish_wire(componentId, portName, scenePosition);
+  if (!component_by_id(componentId) || portName.isEmpty())
+    return false;
+  d->pending_component_id_ = componentId;
+  d->pending_port_ = portName;
+  d->pending_wire_ = new WireItem(scenePosition, scenePosition);
+  d->pending_wire_->setZValue(-1);
+  addItem(d->pending_wire_);
+  return true;
+}
+
+bool SchematicScene::finish_wire(const QString &componentId,
+                                 const QString &portName,
+                                 const QPointF &scenePosition) {
+  if (!d->pending_wire_ || !d->document_)
+    return false;
+  if (componentId == d->pending_component_id_ && portName == d->pending_port_) {
+    cancel_wire();
+    return false;
+  }
+
+  d->pending_wire_->set_end_point(scenePosition);
+  d->pending_wire_->set_endpoints(d->pending_component_id_, d->pending_port_,
+                                  componentId, portName);
+  SchematicWire wire;
+  wire.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+  wire.fromComponentId = d->pending_component_id_;
+  wire.fromPort = d->pending_port_;
+  wire.toComponentId = componentId;
+  wire.toPort = portName;
+  const size_t oldSize = d->document_->wires().size();
+  d->document_->addWire(wire);
+  if (d->document_->wires().size() == oldSize) {
+    cancel_wire();
+    return false;
+  }
+
+  WireItem *completed = d->pending_wire_;
+  d->pending_wire_ = nullptr;
+  d->pending_component_id_.clear();
+  d->pending_port_.clear();
+  add_wire(completed);
+  return true;
+}
+
+void SchematicScene::update_wire_preview(const QPointF &scenePosition) {
+  if (d->pending_wire_)
+    d->pending_wire_->set_end_point(snap_position(scenePosition));
+}
+
+void SchematicScene::cancel_wire() {
+  if (d->pending_wire_) {
+    removeItem(d->pending_wire_);
+    delete d->pending_wire_;
+    d->pending_wire_ = nullptr;
+  }
+  d->pending_component_id_.clear();
+  d->pending_port_.clear();
+}
+
+bool SchematicScene::wire_in_progress() const {
+  return d->pending_wire_ != nullptr;
+}
+
+void SchematicScene::refresh_wires_for_component(const QString &componentId) {
+  for (WireItem *wire : d->wires_) {
+    if (wire->from_component_id() == componentId) {
+      if (ComponentItem *component = component_by_id(componentId))
+        wire->set_start_point(component->pin_position(wire->from_port()));
+    }
+    if (wire->to_component_id() == componentId) {
+      if (ComponentItem *component = component_by_id(componentId))
+        wire->set_end_point(component->pin_position(wire->to_port()));
+    }
+  }
+}
+
+void SchematicScene::delete_selection() {
+  const QList<QGraphicsItem *> selected = selectedItems();
+  QList<ComponentItem *> componentsToDelete;
+  QList<WireItem *> wiresToDelete;
+  for (QGraphicsItem *item : selected) {
+    if (auto *component = dynamic_cast<ComponentItem *>(item))
+      componentsToDelete.append(component);
+    else if (auto *wire = dynamic_cast<WireItem *>(item))
+      wiresToDelete.append(wire);
+  }
+  for (ComponentItem *component : componentsToDelete)
+    remove_component(component);
+  for (WireItem *wire : wiresToDelete) {
+    if (d->wires_.contains(wire))
+      remove_wire(wire);
+  }
+  emit selection_changed({});
+}
+
+void SchematicScene::annotate_dc_results(
+    const QMap<QString, double> &portVoltages) {
+  for (QGraphicsTextItem *label : d->result_labels_) {
+    removeItem(label);
+    delete label;
+  }
+  d->result_labels_.clear();
+  for (auto it = portVoltages.cbegin(); it != portVoltages.cend(); ++it) {
+    const int separator = it.key().lastIndexOf(':');
+    if (separator < 0)
+      continue;
+    ComponentItem *component = component_by_id(it.key().left(separator));
+    if (!component)
+      continue;
+    auto *label = addText(QStringLiteral("%1 V").arg(it.value(), 0, 'g', 4));
+    label->setDefaultTextColor(ui::colorLabel());
+    label->setScale(0.75);
+    label->setPos(component->pin_position(it.key().mid(separator + 1)) +
+                  QPointF(6, -12));
+    d->result_labels_.append(label);
+  }
+}
+
+void SchematicScene::mark_modified() {
+  annotate_dc_results({});
+  emit schematicChanged();
+}
+
 void SchematicScene::clear_canvas() {
+  cancel_wire();
   clear();
   d->components_.clear();
   d->wires_.clear();
+  d->result_labels_.clear();
   d->place_mode_key_.clear();
   emit placeModeChanged(QStringLiteral("SELECT"));
 }
@@ -200,6 +375,11 @@ void SchematicScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void SchematicScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+  if (d->pending_wire_) {
+    update_wire_preview(event->scenePos());
+    event->accept();
+    return;
+  }
   if (d->wire_tool_ && d->wire_tool_->is_active()) {
     d->wire_tool_->handle_move(event);
     return;
@@ -224,11 +404,9 @@ void SchematicScene::keyPressEvent(QKeyEvent *event) {
     handle_escape();
   }
   if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
-    QList<QGraphicsItem *> selected_items = selectedItems();
-    for (QGraphicsItem *item : selected_items) {
-      removeItem(item);
-    }
-    emit selection_changed(selected_items);
+    delete_selection();
+    event->accept();
+    return;
   }
   QGraphicsScene::keyPressEvent(event);
 }

@@ -3,10 +3,12 @@
 #include <QGraphicsObject>
 #include <QList>
 #include <QPointF>
+#include <QString>
 
 QT_BEGIN_NAMESPACE
 class QPainter;
 class QStyleOptionGraphicsItem;
+class QPainterPath;
 QT_END_NAMESPACE
 
 namespace deepiri {
@@ -28,6 +30,16 @@ public:
   QPointF end_point() const;
   void set_start_point(const QPointF &point);
   void set_end_point(const QPointF &point);
+
+  void set_endpoints(const QString &fromComponentId, const QString &fromPort,
+                     const QString &toComponentId, const QString &toPort);
+  QString from_component_id() const;
+  QString from_port() const;
+  QString to_component_id() const;
+  QString to_port() const;
+
+  static QPainterPath orthogonal_path(const QPointF &start,
+                                      const QPointF &end);
 
   void set_highlighted(bool highlighted);
   bool is_highlighted() const;
