@@ -4,6 +4,7 @@
 #include "../core/mna_solver.h"
 #include "../core/spice_engine.h"
 #include "../core/ac_analysis.h"
+#include "../core/spice_extra.h"
 #include "../models/vsrc.h"
 #include "../models/isrc.h"
 #include "ee_lookup.h"
@@ -25,13 +26,13 @@ void printUsage(const char* argv0) {
     std::fprintf(stderr,
         "egottol-cli — headless Deepiri Egottol simulator\n"
         "Usage:\n"
-        "  %s sim <file.cir> [--op|--tran|--ac|--dcsweep] [--trap] [--lte] [-o out.csv]\n"
+        "  %s sim <file.cir> [--op|--tran|--ac|--dcsweep|--tf|--noise] [--trap] [--lte] [-o out.csv]\n"
         "  %s ee <query...>          EE design / symptom lookup\n"
         "  %s version\n"
         "  %s help\n"
         "\n"
-        "Analyses: .op / .tran / .ac / .dc (source sweep). Sources: DC PULSE SIN EXP PWL.\n"
-        "Devices: R C L V I D M Q E G F H S K X(.subckt).  .param / .measure supported.\n"
+        "Analyses: .op .tran .ac .dc .tf .noise .measure; Sources: DC PULSE SIN EXP PWL.\n"
+        "Devices: R C L V I D M Q E G F H S K X(.subckt).  .param expressions supported.\n"
         "Exit codes: 0 success, 1 usage/parse error, 2 simulation failure\n",
         argv0, argv0, argv0, argv0);
 }
@@ -69,7 +70,7 @@ int cmdSim(int argc, char** argv) {
     }
 
     std::string path = argv[2];
-    enum class Mode { Auto, Op, Tran, Ac, DcSweep };
+    enum class Mode { Auto, Op, Tran, Ac, DcSweep, Tf, Noise };
     Mode mode = Mode::Auto;
     std::string outPath;
     bool useTrap = false;
@@ -81,6 +82,8 @@ int cmdSim(int argc, char** argv) {
         else if (a == "--dc" || a == "--dcsweep") mode = Mode::DcSweep;
         else if (a == "--tran") mode = Mode::Tran;
         else if (a == "--ac") mode = Mode::Ac;
+        else if (a == "--tf") mode = Mode::Tf;
+        else if (a == "--noise") mode = Mode::Noise;
         else if (a == "--trap") useTrap = true;
         else if (a == "--lte") useLte = true;
         else if ((a == "-o" || a == "--output") && i + 1 < argc) {
@@ -108,18 +111,100 @@ int cmdSim(int argc, char** argv) {
 
     // Auto-select analysis from control cards if not overridden.
     if (mode == Mode::Auto) {
-        bool hasTran = false, hasAc = false, hasDcSweep = false, hasOp = false;
+        bool hasTran = false, hasAc = false, hasDcSweep = false, hasTf = false, hasNoise = false;
         for (const auto& d : parser.getControlDirectives()) {
             if (d.kind == "tran") hasTran = true;
             else if (d.kind == "ac") hasAc = true;
             else if (d.kind == "dc" && d.numbers.size() >= 3) hasDcSweep = true;
-            else if (d.kind == "op") hasOp = true;
+            else if (d.kind == "tf") hasTf = true;
+            else if (d.kind == "noise") hasNoise = true;
         }
         if (hasTran) mode = Mode::Tran;
+        else if (hasNoise) mode = Mode::Noise;
         else if (hasAc) mode = Mode::Ac;
+        else if (hasTf) mode = Mode::Tf;
         else if (hasDcSweep) mode = Mode::DcSweep;
         else mode = Mode::Op;
-        (void)hasOp;
+    }
+
+    auto parseOutNode = [&](const std::string& tok) -> size_t {
+        std::string net = tok;
+        if (net.size() >= 4 && (net[0] == 'V' || net[0] == 'v') && net[1] == '(' && net.back() == ')') {
+            net = net.substr(2, net.size() - 3);
+        }
+        auto it = circuit.nodeMap.find(net);
+        return (it == circuit.nodeMap.end()) ? 0 : it->second;
+    };
+
+    if (mode == Mode::Tf) {
+        std::string outTok = "out";
+        std::string srcName = "V1";
+        for (const auto& d : parser.getControlDirectives()) {
+            if (d.kind != "tf") continue;
+            if (d.tokens.size() >= 1) outTok = d.tokens[0];
+            if (d.tokens.size() >= 2) srcName = d.tokens[1];
+            break;
+        }
+        size_t outNode = parseOutNode(outTok);
+        if (outNode == 0) outNode = pickProbe(circuit);
+        auto tf = computeTransferFunction(circuit.devices, circuit.nodeMap, outNode, srcName);
+        if (!tf.success) {
+            std::fprintf(stderr, "TF failed: %s\n", tf.message.c_str());
+            return 2;
+        }
+        std::printf("Transfer function V(%s) / %s:\n", nodeName(circuit, outNode).c_str(),
+                    srcName.c_str());
+        std::printf("  transfer = %.6g\n", tf.gain);
+        std::printf("  input_impedance = %.6g ohm\n", tf.inputZ);
+        std::printf("  output_impedance = %.6g ohm\n", tf.outputZ);
+        return 0;
+    }
+
+    if (mode == Mode::Noise) {
+        std::string outTok = "out";
+        double fstart = 1.0, fstop = 1e6;
+        int npoints = 20;
+        for (const auto& d : parser.getControlDirectives()) {
+            if (d.kind != "noise") continue;
+            if (!d.tokens.empty()) outTok = d.tokens[0];
+            // .noise V(out) V1 dec np fstart fstop — numbers often np fstart fstop
+            if (d.numbers.size() >= 3) {
+                npoints = std::max(2, static_cast<int>(d.numbers[0]));
+                fstart = d.numbers[1];
+                fstop = d.numbers[2];
+            } else if (d.numbers.size() == 2) {
+                fstart = d.numbers[0];
+                fstop = d.numbers[1];
+            }
+            break;
+        }
+        size_t outNode = parseOutNode(outTok);
+        if (outNode == 0) outNode = pickProbe(circuit);
+        auto nr = computeOutputNoise(circuit.devices, circuit.nodeMap, outNode, fstart, fstop, npoints);
+        if (!nr.success) {
+            std::fprintf(stderr, "Noise failed: %s\n", nr.message.c_str());
+            return 2;
+        }
+        std::printf("Output noise V(%s): %zu points, %.6g .. %.6g Hz\n",
+                    nodeName(circuit, outNode).c_str(), nr.frequenciesHz.size(), fstart, fstop);
+        if (!nr.outputNoiseDensity.empty()) {
+            std::printf("  density@fstart = %.6g V/sqrtHz\n", nr.outputNoiseDensity.front());
+            std::printf("  density@fstop  = %.6g V/sqrtHz\n", nr.outputNoiseDensity.back());
+        }
+        std::printf("  total_rms ≈ %.6g V\n", nr.totalRms);
+        if (!outPath.empty()) {
+            WaveformData wd;
+            wd.name = "onoise_V(" + nodeName(circuit, outNode) + ")";
+            wd.time_points = nr.frequenciesHz;
+            wd.values = nr.outputNoiseDensity;
+            WaveformWriter writer;
+            if (!writer.writeCSV(outPath, {wd})) {
+                std::fprintf(stderr, "Failed to write %s\n", outPath.c_str());
+                return 1;
+            }
+            std::printf("Wrote %s\n", outPath.c_str());
+        }
+        return 0;
     }
 
     if (mode == Mode::DcSweep) {

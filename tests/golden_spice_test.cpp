@@ -2,6 +2,7 @@
 #include "../io/netlist_parser.h"
 #include "../io/netlist_builder.h"
 #include "../core/spice_engine.h"
+#include "../core/spice_extra.h"
 #include "../core/mna_solver.h"
 #include "../models/vsrc.h"
 
@@ -298,6 +299,54 @@ int main() {
         opts.tolerance = 1e-4;
         auto sim = SpiceTransient(opts).simulate(0.0, 2e-6, 20e-9, c.devices, c.nodeMap);
         expect(sim.converged && !sim.timePoints.empty(), "g31 mutual tran");
+        auto ms = evaluateMeasures(p.getControlDirectives(), c, sim.timePoints, sim.nodeVoltages);
+        if (!ms.empty() && ms[0].ok) {
+            expect(ms[0].value > 0.1, "g31 coupled peak");
+            std::printf("  mutual smax=%.4f V\n", ms[0].value);
+        }
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g32_tf.cir"), "g32 load");
+        auto c = buildCircuitFromNetlist(p);
+        expect(c.ok, "g32 build");
+        size_t mid = c.nodeMap.count("mid") ? c.nodeMap["mid"] : 0;
+        auto tf = computeTransferFunction(c.devices, c.nodeMap, mid, "V1");
+        expect(tf.success, "g32 tf");
+        expectNear(tf.gain, 0.5, 1e-3, "g32 gain");
+        expectNear(tf.inputZ, 2000.0, 1.0, "g32 zin");
+        expectNear(tf.outputZ, 500.0, 1.0, "g32 zout");
+        std::printf("  tf gain=%.4f Zin=%.1f Zout=%.1f\n", tf.gain, tf.inputZ, tf.outputZ);
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g33_noise.cir"), "g33 load");
+        auto c = buildCircuitFromNetlist(p);
+        size_t mid = c.nodeMap["mid"];
+        auto nr = computeOutputNoise(c.devices, c.nodeMap, mid, 1.0, 1e6, 5);
+        expect(nr.success && !nr.outputNoiseDensity.empty(), "g33 noise");
+        expect(nr.outputNoiseDensity[0] > 0.0, "g33 density>0");
+        std::printf("  onoise=%.4e V/sqrtHz  rms=%.4e\n",
+                    nr.outputNoiseDensity[0], nr.totalRms);
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g34_param_expr.cir"), "g34 load");
+        expect(p.getParams().count("rseries") == 1, "g34 param");
+        expectNear(p.getParams().at("rseries"), 1000.0, 1e-6, "g34 rseries expr");
+        auto c = buildCircuitFromNetlist(p);
+        auto sol = dcSolve(c);
+        expect(sol.success, "g34 dc");
+        expectNear(nodeV(sol, c, "mid"), 5.0 * 500.0 / 1500.0, 1e-3, "g34 mid");
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g35_mos_level2.cir"), "g35 load");
+        auto c = buildCircuitFromNetlist(p);
+        auto sol = DcOperatingPoint().solve(c.devices, c.nodeMap);
+        expect(sol.success, "g35 level2 dc");
+        expect(std::isfinite(nodeV(sol, c, "d")), "g35 Vd");
+        std::printf("  level2 Vd=%.4f\n", nodeV(sol, c, "d"));
     }
 
     {

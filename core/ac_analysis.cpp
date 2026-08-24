@@ -7,6 +7,7 @@
 #include "../models/vsrc.h"
 #include "../models/isrc.h"
 #include "../models/vcvs.h"
+#include "../models/ccvs.h"
 
 #include <cmath>
 #include <algorithm>
@@ -149,29 +150,42 @@ ACResult ACAnalysis::sweep(
 
     size_t auxCount = 0;
     for (auto& device : devices) {
-        if (device->type() == "Vsrc" || device->type() == "VCVS") auxCount++;
+        if (device->type() == "Vsrc" || device->type() == "VCVS" || device->type() == "CCVS")
+            auxCount++;
     }
     size_t total = numNodes + auxCount;
 
-    // Prefer AC magnitude from source signal when set; else fall back to DC value.
     std::complex<double> refMagnitude(1.0, 0.0);
+    bool haveRef = false;
     for (auto& device : devices) {
         if (device->type() == "Vsrc") {
             if (auto* v = dynamic_cast<Vsrc*>(device.get())) {
-                double mag = (v->signal().acMag != 0.0) ? v->signal().acMag : v->dc();
+                double mag = (v->signal().acMag != 0.0) ? v->signal().acMag : 0.0;
+                // Fall back to DC only if no AC sources present later — prefer non-zero AC.
+                if (mag == 0.0 && v->dc() != 0.0 && !haveRef) mag = v->dc();
+                if (mag == 0.0) continue;
                 double ph = v->signal().acPhaseDeg * M_PI / 180.0;
                 refMagnitude = std::polar(mag, ph);
+                haveRef = true;
                 break;
             }
         }
-        if (device->type() == "Isrc") {
-            if (auto* i = dynamic_cast<Isrc*>(device.get())) {
-                double mag = (i->signal().acMag != 0.0) ? i->signal().acMag : i->dc();
-                double ph = i->signal().acPhaseDeg * M_PI / 180.0;
-                refMagnitude = std::polar(mag, ph);
+    }
+    if (!haveRef) {
+        for (auto& device : devices) {
+            if (device->type() == "Isrc") {
+                if (auto* i = dynamic_cast<Isrc*>(device.get())) {
+                    double mag = (i->signal().acMag != 0.0) ? i->signal().acMag : i->dc();
+                    if (mag == 0.0) continue;
+                    double ph = i->signal().acPhaseDeg * M_PI / 180.0;
+                    refMagnitude = std::polar(mag, ph);
+                    haveRef = true;
+                    break;
+                }
             }
         }
     }
+    if (!haveRef) refMagnitude = std::complex<double>(1.0, 0.0);
 
     std::vector<double> freqs = frequencySweep(freqStartHz, freqEndHz, numPoints);
     result.frequenciesHz = freqs;
@@ -213,7 +227,8 @@ ACResult ACAnalysis::sweep(
                     if (npValid) iVec[np - 1] -= iAc;
                     if (nnValid) iVec[nn - 1] += iAc;
                 }
-            } else if (device->type() == "Vsrc" || device->type() == "VCVS") {
+            } else if (device->type() == "Vsrc" || device->type() == "VCVS" ||
+                       device->type() == "CCVS") {
                 size_t auxRow = numNodes + vsIndex;
                 if (npValid) {
                     y[auxRow * total + (np - 1)] = std::complex<double>(1.0, 0.0);

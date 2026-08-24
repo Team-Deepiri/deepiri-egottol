@@ -15,12 +15,17 @@ public:
         vt0_(0.7), gamma_(0.0), phi_(0.6), lambda_(0.0),
         kp_(2e-5),  // A/V^2 — Level-1 KP = μ0·Cox
         rsh_(0.0), cgs0_(0.0), cgd0_(0.0), cbs_(0.0), cbd_(0.0),
-        m_(0.5), pbfactor_(1.0), ef_(0.0) {}
+        m_(0.5), pbfactor_(1.0), ef_(0.0),
+        level_(1), u0_(0.0), tox_(0.0), ucrit_(0.0) {}
 
     double vt0_, gamma_, phi_, lambda_;
     double kp_;
     double rsh_, cgs0_, cgd0_, cbs_, cbd_;
     double m_, pbfactor_, ef_;
+    int level_;
+    double u0_;     // cm²/V·s (if set with tox → derive KP)
+    double tox_;    // oxide thickness (m)
+    double ucrit_;  // critical field for Level-2 velocity sat (V/m)
 };
 
 class MOSFET : public Device {

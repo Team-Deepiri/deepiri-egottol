@@ -1,9 +1,9 @@
-* Coupled inductors (ideal transformer-ish short check at DC via shorts)
-* Transient: primary pulse couples to secondary
-V1 p1 0 PULSE(0 1 0 1n 1n 0.5u 1u)
-L1 p1 0 1m
-L2 s1 0 1m
-K1 L1 L2 0.99
-Rload s1 0 1k
+* 1:1 coupled inductors — open secondary should track primary pulse edge
+V1 p 0 PULSE(0 1 0 1n 1n 1u 2u)
+L1 p 0 100u
+L2 s 0 100u
+K1 L1 L2 0.999
+Rload s 0 1meg
 .tran 20n 2u
+.measure tran smax MAX V(s)
 .end

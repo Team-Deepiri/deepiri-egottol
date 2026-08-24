@@ -63,6 +63,11 @@ void MOSFET::calculateIds(double vgs, double vds, double vbs) {
     }
 
     double vdsat = von;
+    // Level-2 lite: velocity saturation shortens Vdsat.
+    if (model_.level_ >= 2 && model_.ucrit_ > 0.0) {
+        double ecL = model_.ucrit_ * std::max(L_, 1e-9);
+        vdsat = von * ecL / (von + ecL);
+    }
     if (vdss < vdsat) {
         // Linear
         ids_ = beta * (von * vdss - 0.5 * vdss * vdss) * (1.0 + model_.lambda_ * vdss);
@@ -72,8 +77,17 @@ void MOSFET::calculateIds(double vgs, double vds, double vbs) {
     } else {
         // Saturation
         ids_ = 0.5 * beta * von * von * (1.0 + model_.lambda_ * vdss);
-        gm_ = beta * von * (1.0 + model_.lambda_ * vdss);
+        if (model_.level_ >= 2 && model_.ucrit_ > 0.0) {
+            // Use vdsat form: Ids ≈ β·vdsat·(von - vdsat/2)·(1+λVds)
+            ids_ = beta * vdsat * (von - 0.5 * vdsat) * (1.0 + model_.lambda_ * vdss);
+            gm_ = beta * vdsat * (1.0 + model_.lambda_ * vdss);
+        } else {
+            gm_ = beta * von * (1.0 + model_.lambda_ * vdss);
+        }
         gds_ = 0.5 * beta * von * von * model_.lambda_;
+        if (model_.level_ >= 2 && model_.ucrit_ > 0.0) {
+            gds_ = beta * vdsat * (von - 0.5 * vdsat) * model_.lambda_;
+        }
     }
     gmb_ = gm_ * model_.gamma_ / (2.0 * std::sqrt(std::max(model_.phi_ - vbss, 0.1)));
 

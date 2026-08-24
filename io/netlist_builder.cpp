@@ -264,11 +264,25 @@ BuiltCircuit buildCircuitFromElements(
                 model.gamma_ = modelParam(mod, "gamma", 0.4);
                 model.phi_ = modelParam(mod, "phi", 0.6);
                 model.kp_ = modelParam(mod, "kp", 2e-5);
+                model.level_ = static_cast<int>(modelParam(mod, "level", 1));
+                model.u0_ = modelParam(mod, "u0", 0.0);
+                model.tox_ = modelParam(mod, "tox", 0.0);
+                model.ucrit_ = modelParam(mod, "ucrit", modelParam(mod, "vmax", 0.0));
+                if (model.u0_ > 0.0 && model.tox_ > 0.0) {
+                    // KP = μ0·Cox, Cox=εox/tox; μ0 often in cm²/Vs → convert to m²/Vs
+                    constexpr double epsOx = 3.45e-11;
+                    double u0_m = model.u0_ * 1e-4;  // cm² → m²
+                    model.kp_ = u0_m * epsOx / model.tox_;
+                }
                 if (elem.named_parameters.count("vto")) model.vt0_ = elem.named_parameters.at("vto");
                 if (elem.named_parameters.count("lambda")) model.lambda_ = elem.named_parameters.at("lambda");
                 if (elem.named_parameters.count("gamma")) model.gamma_ = elem.named_parameters.at("gamma");
                 if (elem.named_parameters.count("phi")) model.phi_ = elem.named_parameters.at("phi");
                 if (elem.named_parameters.count("kp")) model.kp_ = elem.named_parameters.at("kp");
+                if (elem.named_parameters.count("level"))
+                    model.level_ = static_cast<int>(elem.named_parameters.at("level"));
+                if (elem.named_parameters.count("ucrit"))
+                    model.ucrit_ = elem.named_parameters.at("ucrit");
                 dev->setModel(model);
                 dev->setTerminals({d, g, s, b});
                 out.devices.push_back(dev);

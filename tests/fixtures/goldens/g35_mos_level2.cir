@@ -1,0 +1,7 @@
+* Level-2 lite MOSFET with UCRIT velocity sat — still solves DC
+Vdd d 0 5
+Vg g 0 2
+M1 d g 0 0 NMOS W=10u L=1u
+.model NMOS NMOS (LEVEL=2 VTO=0.7 KP=120u LAMBDA=0.02 UCRIT=2e6)
+.op
+.end

@@ -1,4 +1,5 @@
 #include "netlist_parser.h"
+#include "param_expr.h"
 
 #include <algorithm>
 #include <cctype>
@@ -288,8 +289,9 @@ bool NetlistParser::parse(const std::string& netlist_content) {
                     size_t eq = t.find('=');
                     if (eq == std::string::npos || eq == 0) continue;
                     std::string key = toLower(t.substr(0, eq));
+                    std::string rhs = t.substr(eq + 1);
                     double val = 0.0;
-                    if (parseValue(t.substr(eq + 1), val)) {
+                    if (evalSpiceExpr(rhs, pImpl->params_, val) || parseValue(rhs, val)) {
                         pImpl->params_[key] = val;
                     }
                 }
@@ -399,6 +401,12 @@ bool NetlistParser::parse(const std::string& netlist_content) {
                                       tokens.end());
 
         auto expandTok = [&](std::string t) -> std::string {
+            double ev = 0.0;
+            if (evalSpiceExpr(t, pImpl->params_, ev)) {
+                char buf[64];
+                std::snprintf(buf, sizeof(buf), "%.16g", ev);
+                return buf;
+            }
             if (t.size() >= 3 && t.front() == '{' && t.back() == '}') {
                 std::string key = toLower(t.substr(1, t.size() - 2));
                 auto it = pImpl->params_.find(key);
