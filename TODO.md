@@ -1,36 +1,17 @@
-# TODO — What Needs Done to Ship 1.0
+# TODO — Ship 1.0
 
-> Audit 2026-08-24. Full context: [PLAN.md §7–8](PLAN.md).
+## Done this push (production SPICE engine)
+- [x] Companion-model transient (backward Euler C/L) — RC step hits 0.993 @ 5τ
+- [x] Nonlinear DC OP with Newton + gmin/source stepping — diode Vf ≈ 0.57 V
+- [x] Multi-terminal MOSFET (D/G/S/B) + BJT (C/B/E) stamps
+- [x] PULSE() sources, W=/L= params, keyed SPICE tokens
+- [x] `spice_production_test` + ngspice presence check
+- [x] CLI uses SpiceTransient / DcOperatingPoint
 
-## Current state
-
-**Shipped on this branch:** product loop (parse → build → draw/sim → save `.egt` →
-CSV), `egottol-cli`, Python `egottol.simulate` / `.export`, EII thermistor
-benchmark runner, analytical golden waveforms, Newton gmin/source stepping,
-`to_uqe()` + Mermaid export. **16/16 ctest**.
-
-## Phase 6 — Close the loop ✅
-## Phase 7 — mostly done
-- [x] `egottol-cli`
-- [x] `python -m egottol.simulate` / `.export`
-- [x] `python -m egottol.benchmarks.eii.run`
-- [x] mypy duplicate `eii` unblocked
-- [x] version 1.0.0
-- [ ] ruff autofix + CI gate when green
-
-## Phase 8 — in progress
-- [x] Analytical golden waveforms (divider / RC DC / RC AC corner / UQE map)
-- [x] Newton gmin + source stepping API (`solveWithStepping`)
-- [ ] Broader ngspice/LTspice corpus (~20 circuits)
-- [ ] MOSFET/BJT curve validation
-- [ ] Perf baseline in CI
-
-## Phase 9 — started
-- [x] `to_uqe()` NOT→X, XOR→CNOT, AND→Toffoli + test
-- [x] Schematic → Mermaid export
-- [ ] zepGPU bridge documentation
-- [ ] ADS-B/SDR end-to-end GUI demo
-
-## Phase 10
-- [x] README verified commands
-- [ ] Packaging audit / tag v1.0.0
+## Still open for “beyond LTspice” credibility
+- [ ] ~20-circuit ngspice golden corpus (automated compare)
+- [ ] Full `.model` card application (VTO/KP/Is from .model lines)
+- [ ] Subcircuit expansion (X instances)
+- [ ] Trapezoidal integration + LTE timestep control
+- [ ] MOSFET/BJT curve family validation plots
+- [ ] Perf baseline vs node count in CI
