@@ -5,6 +5,9 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include <set>
+#include <filesystem>
+#include <functional>
 
 namespace deepiri {
 
@@ -130,6 +133,8 @@ public:
     std::map<std::string, SpiceModel> models_;
     std::map<std::string, SpiceSubckt> subckts_;
     std::string activeSubckt_;  // empty = top-level
+    std::string baseDir_ = ".";
+    std::set<std::string> includeStack_;
 };
 
 bool NetlistParser::parseValue(const std::string& token, double& out) {
@@ -222,7 +227,8 @@ bool NetlistParser::parse(const std::string& netlist_content) {
     std::string line;
     std::string continued;
 
-    auto flushLine = [&](std::string raw) {
+    std::function<void(std::string)> flushLine;
+    flushLine = [&](std::string raw) {
         raw = trim(raw);
         if (raw.empty() || raw[0] == '*' || raw[0] == ';') {
             return;
@@ -290,6 +296,48 @@ bool NetlistParser::parse(const std::string& netlist_content) {
             }
             if (ctrl.kind == "ends") {
                 pImpl->activeSubckt_.clear();
+            }
+            if (ctrl.kind == "include" || ctrl.kind == "inc") {
+                if (ctrl.tokens.empty()) return;
+                std::string inc = ctrl.tokens[0];
+                if (inc.size() >= 2 && ((inc.front() == '"' && inc.back() == '"') ||
+                                        (inc.front() == '\'' && inc.back() == '\''))) {
+                    inc = inc.substr(1, inc.size() - 2);
+                }
+                std::filesystem::path incPath(inc);
+                if (incPath.is_relative()) {
+                    incPath = std::filesystem::path(pImpl->baseDir_) / incPath;
+                }
+                std::error_code ec;
+                auto canon = std::filesystem::weakly_canonical(incPath, ec);
+                std::string resolved = ec ? incPath.string() : canon.string();
+                if (!pImpl->includeStack_.insert(resolved).second) {
+                    return;  // cycle
+                }
+                std::ifstream ifs(resolved);
+                if (!ifs.is_open()) {
+                    pImpl->includeStack_.erase(resolved);
+                    return;
+                }
+                std::string savedDir = pImpl->baseDir_;
+                auto parent = std::filesystem::path(resolved).parent_path();
+                if (!parent.empty()) pImpl->baseDir_ = parent.string();
+                std::string iline, icont;
+                while (std::getline(ifs, iline)) {
+                    std::string t = trim(iline);
+                    if (!t.empty() && t[0] == '+') {
+                        icont += " " + t.substr(1);
+                        continue;
+                    }
+                    if (!icont.empty()) {
+                        flushLine(icont);
+                        icont.clear();
+                    }
+                    icont = iline;
+                }
+                if (!icont.empty()) flushLine(icont);
+                pImpl->baseDir_ = savedDir;
+                pImpl->includeStack_.erase(resolved);
             }
             return;
         }
@@ -414,9 +462,21 @@ bool NetlistParser::loadFromFile(const std::string& filename) {
         return false;
     }
 
+    std::filesystem::path fp(filename);
+    auto parent = fp.parent_path();
+    pImpl->baseDir_ = parent.empty() ? "." : parent.string();
+
     std::stringstream buffer;
     buffer << file.rdbuf();
-    return parse(buffer.str());
+
+    pImpl->includeStack_.clear();
+    std::error_code ec;
+    auto canon = std::filesystem::weakly_canonical(fp, ec);
+    pImpl->includeStack_.insert(ec ? fp.string() : canon.string());
+
+    bool ok = parse(buffer.str());
+    pImpl->includeStack_.clear();
+    return ok;
 }
 
 std::vector<NetlistElement> NetlistParser::getElements() const {
@@ -454,17 +514,22 @@ std::vector<NetlistElement> NetlistParser::expandedElements() const {
         return l == "0" || l == "gnd" || l == "ground" || l == "gnd!";
     };
 
-    std::vector<NetlistElement> out;
-    for (const auto& elem : pImpl->elements_) {
+    std::function<std::vector<NetlistElement>(const NetlistElement&, int)> expandInst;
+    expandInst = [&](const NetlistElement& elem, int depth) -> std::vector<NetlistElement> {
+        std::vector<NetlistElement> out;
         if (elem.type != NetlistElementType::Instance) {
             out.push_back(elem);
-            continue;
+            return out;
+        }
+        if (depth > 32) {
+            out.push_back(elem);  // bail — keep opaque instance
+            return out;
         }
         std::string key = lower(elem.subckt_name.empty() ? elem.model_name : elem.subckt_name);
         auto it = pImpl->subckts_.find(key);
         if (it == pImpl->subckts_.end()) {
             out.push_back(elem);
-            continue;
+            return out;
         }
         const SpiceSubckt& sc = it->second;
         std::map<std::string, std::string> portMap;
@@ -484,8 +549,20 @@ std::vector<NetlistElement> NetlistParser::expandedElements() const {
                     n.name = n.net;
                 }
             }
-            out.push_back(std::move(e));
+            if (e.type == NetlistElementType::Instance) {
+                auto nested = expandInst(e, depth + 1);
+                out.insert(out.end(), nested.begin(), nested.end());
+            } else {
+                out.push_back(std::move(e));
+            }
         }
+        return out;
+    };
+
+    std::vector<NetlistElement> out;
+    for (const auto& elem : pImpl->elements_) {
+        auto part = expandInst(elem, 0);
+        out.insert(out.end(), part.begin(), part.end());
     }
     return out;
 }

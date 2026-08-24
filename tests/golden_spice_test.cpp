@@ -5,6 +5,7 @@
 #include "../core/mna_solver.h"
 
 #include <cmath>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -126,47 +127,52 @@ void test_rl_step() {
 }
 
 void test_ngspice_batch_compare() {
-    const char* path = "/tmp/egottol_golden_div.cir";
-    {
-        std::ofstream f(path);
-        f << "V1 in 0 10\nR1 in mid 3k\nR2 mid 0 1k\n.op\n.print dc V(mid)\n.end\n";
-    }
-    int rc = std::system("ngspice -b /tmp/egottol_golden_div.cir > /tmp/egottol_golden_div.out 2>&1");
-    if (rc != 0) {
-        std::printf("SKIP: ngspice golden batch (rc=%d)\n", rc);
-        return;
-    }
-    // Parse ngspice "v(mid) = 2.50000e+00" style if present.
-    double ng = NAN;
-    {
-        std::ifstream in("/tmp/egottol_golden_div.out");
-        std::string line;
-        while (std::getline(in, line)) {
-            auto pos = line.find("v(mid)");
-            if (pos == std::string::npos) {
-                pos = line.find("V(mid)");
+    struct Case { const char* cir; const char* node; double want; };
+    const Case cases[] = {
+        {"V1 in 0 10\nR1 in mid 3k\nR2 mid 0 1k\n.op\n", "mid", 2.5},
+        {"V1 in 0 5\nR1 in a 1k\nR2 a 0 1k\n.op\n", "a", 2.5},
+        {"V1 in 0 5\nR1 in mid 500\nRload mid 0 500\n.op\n", "mid", 2.5},
+    };
+    int compared = 0;
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+        std::string path = "/tmp/egottol_ng_" + std::to_string(i) + ".cir";
+        std::string outp = "/tmp/egottol_ng_" + std::to_string(i) + ".out";
+        {
+            std::ofstream f(path);
+            f << cases[i].cir << ".print dc V(" << cases[i].node << ")\n.end\n";
+        }
+        std::string cmd = "ngspice -b " + path + " > " + outp + " 2>&1";
+        if (std::system(cmd.c_str()) != 0) {
+            std::printf("SKIP: ngspice case %zu\n", i);
+            continue;
+        }
+        double ng = NAN;
+        {
+            std::ifstream in(outp);
+            std::string line;
+            std::string key = std::string("v(") + cases[i].node + ")";
+            while (std::getline(in, line)) {
+                std::string low = line;
+                for (char& c : low) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                auto pos = low.find(key);
+                if (pos == std::string::npos) continue;
+                auto eq = line.find('=', pos);
+                if (eq == std::string::npos) continue;
+                try { ng = std::stod(line.substr(eq + 1)); break; } catch (...) {}
             }
-            if (pos == std::string::npos) continue;
-            auto eq = line.find('=', pos);
-            if (eq == std::string::npos) continue;
-            try {
-                ng = std::stod(line.substr(eq + 1));
-                break;
-            } catch (...) {}
+        }
+        NetlistParser p;
+        p.parse(cases[i].cir);
+        auto c = buildCircuitFromNetlist(p);
+        auto sol = dcSolve(c);
+        double ours = nodeV(sol, c, cases[i].node);
+        expectNear(ours, cases[i].want, 1e-6, "egottol analytical");
+        if (std::isfinite(ng)) {
+            expectNear(ours, ng, 1e-3, "egottol vs ngspice");
+            ++compared;
         }
     }
-    NetlistParser p;
-    p.parse("V1 in 0 10\nR1 in mid 3k\nR2 mid 0 1k\n.op\n");
-    auto c = buildCircuitFromNetlist(p);
-    auto sol = dcSolve(c);
-    double ours = nodeV(sol, c, "mid");
-    expectNear(ours, 2.5, 1e-6, "egottol vs analytical");
-    if (std::isfinite(ng)) {
-        expectNear(ours, ng, 1e-3, "egottol vs ngspice V(mid)");
-        std::printf("  ngspice V(mid)=%.6g egottol=%.6g\n", ng, ours);
-    } else {
-        std::printf("  ngspice batch OK — divider 2.5 V (print parse skipped)\n");
-    }
+    std::printf("  ngspice cross-check: %d circuit(s)\n", compared);
 }
 
 void test_nmos_ids_level1() {
@@ -223,6 +229,8 @@ int main() {
     checkOp("g17_star.cir", "c", 10.0 / 3.0, 1e-2);
     checkOp("g18_current_div.cir", "n1", 0.5, 1e-3);
     checkOp("g20_thevenin.cir", "mid", 2.5, 1e-3);
+    checkOp("g21_include.cir", "mid", 2.5, 1e-3);
+    checkOp("g22_nested_subckt.cir", "mid", 2.5, 1e-3);
 
     {
         NetlistParser p;
@@ -325,6 +333,6 @@ int main() {
         std::fprintf(stderr, "%d failure(s) in golden_spice_test\n", failures);
         return 1;
     }
-    std::printf("golden_spice_test: all passed (%d circuits)\n", 20);
+    std::printf("golden_spice_test: all passed (%d circuits)\n", 22);
     return 0;
 }

@@ -1,55 +1,39 @@
-# Releasing Egottol Desktop
+# Releasing Egottol 1.0
 
-GitHub Actions packages the PyQt6 Egottol UI (`python -m egottol.ui.main`) for Linux, macOS, and Windows when you push a version tag. Filenames match the [Deepiri landing site](https://github.com/Team-Deepiri/deepiri-landing).
+## What ships
+
+| Artifact | How |
+|----------|-----|
+| Native desktop `egottol` | CMake + Qt6 (`ENABLE_QT=ON`) |
+| Headless `egottol-cli` | Always built — no Qt required |
+| Python package `egottol` 1.0.0 | Poetry + optional `_native` pybind module |
+| CPack `.deb` / `.tar.gz` | `cpack` from the CMake build tree |
 
 ## Cut a release
 
-1. Merge changes to `main`.
-2. Bump `version` in `pyproject.toml` if needed (current: `0.1.0`).
-3. Tag and push:
+1. Merge to `main` (version already `1.0.0` in `pyproject.toml` / CLI).
+2. Tag and push:
 
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v1.0.0
+   git push origin v1.0.0
    ```
 
-4. Watch [Release workflow](https://github.com/Team-Deepiri/deepiri-egottol/actions/workflows/release.yml).
+3. Watch [Release workflow](https://github.com/Team-Deepiri/deepiri-egottol/actions/workflows/release.yml) for desktop bundles.
 
-## Test CI without tagging
-
-**Actions → Release → Run workflow** on a branch. Publish is skipped unless the ref is a `v*` tag.
-
-## Local packaging (optional)
+## Local verify before tag
 
 ```bash
-poetry install --no-root
-pip install pyinstaller
-bash scripts/ci/build-release.sh
-ls release/
-```
-
-## Release assets
-
-| Platform | Filename |
-|----------|----------|
-| macOS | `Egottol-latest.dmg` |
-| Linux | `Egottol-latest.AppImage` |
-| Windows | `Egottol-latest-setup.exe` |
-
-## Verify download URLs
-
-```bash
-BASE=https://github.com/Team-Deepiri/deepiri-egottol/releases/latest/download
-
-curl -I "$BASE/Egottol-latest.dmg"
-curl -I "$BASE/Egottol-latest.AppImage"
-curl -I "$BASE/Egottol-latest-setup.exe"
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+./build/egottol-cli version
+./build/egottol-cli sim tests/fixtures/divider.cir --op
+poetry run pytest -q
 ```
 
 ## Notes
 
-- CI builds the C++ core and **`egottol._native`** pybind11 extension (`-DBUILD_PYTHON_BINDINGS=ON`) before PyInstaller runs. DC MNA solves use `deepiri::Matrix` from the native module when bundled.
-- Dev install: `cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_PYTHON_BINDINGS=ON && cmake --build build --target _native`
-- The frozen app bundles VHDL assets and `io/eii_weights.schema.json` for RTL/EII features.
-- Optional deps (`onnxruntime`, `cupy`) are excluded from the frozen bundle to reduce size.
-- v1 builds are **unsigned**; expect Gatekeeper / SmartScreen prompts.
+- CI builds the C++ core and optional `egottol._native` (`-DBUILD_PYTHON_BINDINGS=ON`).
+- Desktop freeze still packages the PyQt UI for multi-OS installers; the primary engineer workflow is native `egottol` + `egottol-cli`.
+- v1 builds may be **unsigned** (Gatekeeper / SmartScreen prompts).

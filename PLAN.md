@@ -73,21 +73,20 @@ Unlike standard LTspice which is analog-first, **egottol** uses a **Multi-Domain
 
 ### Phase 3: The Solver
 - [x] Basic MNA (Modified Nodal Analysis) solver — `core/mna_solver.*` (DC), `core/transient.*`.
-- [ ] AC/Bode small-signal solver — in progress natively (`core/ac_analysis.*`), was Python-only.
-- [ ] zepGPU bridge for matrix operations — Python-only (`egottol/engines/gpu_mesh.py`); kept as a networking sidecar, not ported to C++ (aiohttp/cloudpickle have no clean native equivalent).
+- [x] AC/Bode small-signal solver — `core/ac_analysis.*` + production `core/spice_engine.*`.
+- [ ] zepGPU bridge for matrix operations — Python sidecar (`egottol/engines/gpu_mesh.py`); optional post-1.0.
 - [x] ADS-B packet decoder node — `avionics/adsb_decoder.cpp`.
 
 ### Phase 4: The Bridge
-- [ ] `to_uqe()` export logic — not yet started.
-- [ ] Automated schematic to Mermaid export (vizult-style) — not yet started.
+- [x] `to_uqe()` export logic — `infra/uqe_logic.*`.
+- [x] Automated schematic to Mermaid export — `gui/schematic_mermaid.*`.
 
 ### Phase 5: Native Desktop App (added — see plan history for detail)
 - [x] `gui/` compiles to a real, installable executable (`egottol_app`, CPack `.deb`/`.tar.gz`), not just a static library launched from Python.
 - [x] Native `MainWindow`, `PropertyEditor`, `WaveformPlotter` (previously empty stubs).
 - [x] Demo circuits run through the native `MNASolver`/`Transient` directly from the GUI — no Python in that loop.
-- [ ] Full schematic-to-netlist extraction (Run button currently drives hardcoded demo circuits, not the drawn schematic) — not yet started.
-- [ ] Native ports of the Python-only analog/AI/EII engines (`core/analog/`, `core/ai/`, `core/eii/`) — in progress.
-
+- [x] Full schematic-to-netlist extraction — `gui/schematic_netlist.*` + `SimulationController`.
+- [x] Native ports of the Python-only analog/AI/EII engines (`core/analog/`, `core/ai/`, `core/eii/`).
 ---
 
 ## 6. Commands

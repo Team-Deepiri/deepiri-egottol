@@ -223,6 +223,31 @@ void test_subckt_expand() {
     }
 }
 
+void test_nested_subckt() {
+    const char* nl =
+        ".subckt RDIV in out\n"
+        "R1 in out 3k\n"
+        "R2 out 0 1k\n"
+        ".ends\n"
+        ".subckt OUTER in out\n"
+        "Xinner in out RDIV\n"
+        ".ends\n"
+        "V1 in 0 10\n"
+        "X1 in mid OUTER\n";
+    NetlistParser p;
+    expect(p.parse(nl), "parse nested");
+    auto flat = p.expandedElements();
+    // V + 2R (inner fully flattened)
+    expect(flat.size() == 3, "nested flattened to 3");
+    auto c = buildCircuitFromNetlist(p);
+    auto sol = DcOperatingPoint().solve(c.devices, c.nodeMap);
+    if (!sol.success) sol = MNASolver().solve(c.devices, c.nodeMap, {});
+    expect(sol.success, "nested dc");
+    if (c.nodeMap.count("mid")) {
+        expect(std::fabs(sol.voltages[c.nodeMap["mid"] - 1] - 2.5) < 1e-3, "nested mid=2.5");
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -235,6 +260,7 @@ int main() {
     test_mosfet_bjt_diode_lines();
     test_model_card();
     test_subckt_expand();
+    test_nested_subckt();
 
     if (failures > 0) {
         std::fprintf(stderr, "%d failure(s)\n", failures);
