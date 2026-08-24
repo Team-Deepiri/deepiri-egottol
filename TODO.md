@@ -7,8 +7,10 @@
 - [x] 22-circuit goldens, ngspice cross-check, perf baseline
 - [x] Native GUI schematic→sim, CLI, Python wrappers, Mermaid + UQE export
 - [x] `CHANGELOG.md` + docs aligned to 1.0
+- [x] **EE design knowledge** (`docs/ee/` + Copilot `lookup_ee_design`)
 
 ## Post-1.0 backlog
 - [ ] Deeper `.lib` / PDK libraries and nested `.include` trees in CI artifacts
 - [ ] MOSFET/BJT family curve plot artifacts
 - [ ] zepGPU offload for large MNA (optional)
+- [ ] Expand EE symptom index + more design fixtures (H-bridge, boost)
