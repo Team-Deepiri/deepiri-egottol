@@ -11,6 +11,7 @@ All notable changes to **deepiri-egottol** are documented here.
 - Headless `egottol-cli` (`sim --op|--tran|--ac`, `--trap`, `--lte`) and Python `egottol.simulate` / `egottol.export`
 - Native Qt schematic → netlist simulation, `.egt` save/load, CSV waveform export, Mermaid export, UQE logic bridge
 - 22-circuit golden corpus + ngspice cross-check + perf baseline in `ctest`
+- **EE design knowledge base** (`docs/ee/`): series/parallel, combinations, transistors+C/L, motors, symptom→fix, PCB floorplanning; Copilot tool `lookup_ee_design`
 
 ### Verified
 - MOSFET Level-1 Id matches analytical `½·KP·(W/L)·(Vgs−Vt)²·(1+λVds)`

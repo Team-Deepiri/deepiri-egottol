@@ -138,6 +138,31 @@ COPILOT_TOOLS: List[Dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "lookup_ee_design",
+            "description": (
+                "Look up electrical design guidance from Egottol's EE knowledge base "
+                "(symptom → combination → applied use). Use for flyback diodes, LED "
+                "current limits, RC filters, buck/boost, crystals/MUX, PCB floorplan, motors."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Symptom or topic, e.g. 'relay kills MOSFET', 'LED burned', 'buck'",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max hits (default 5)",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "run_eii_sim",
             "description": "Run the EII (detector/encoder/engine/actuator) pipeline on the current circuit.",
             "parameters": {
@@ -618,6 +643,20 @@ class ToolExecutor:
             ],
             "wires": [w.model_dump() for w in self.circuit.wires],
             "last_sim_mode": self.sim_results.get("mode"),
+        }
+
+    async def _tool_lookup_ee_design(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        from egottol.knowledge import format_lookup, lookup_ee_design
+
+        query = str(args.get("query") or "")
+        limit = int(args.get("limit") or 5)
+        hits = lookup_ee_design(query, limit=limit)
+        return {
+            "ok": True,
+            "query": query,
+            "hits": hits,
+            "formatted": format_lookup(query, limit=limit),
+            "docs_root": "docs/ee/",
         }
 
     async def _tool_run_eii_sim(self, args: Dict[str, Any]) -> Dict[str, Any]:
