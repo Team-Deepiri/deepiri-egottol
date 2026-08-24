@@ -21,6 +21,7 @@ enum class NetlistElementType {
     CCCS,
     CCVS,
     VSwitch,
+    ISwitch,
     Mutual,
     Subckt,
     Instance
@@ -79,6 +80,9 @@ public:
     std::map<std::string, SpiceModel> getModels() const;
     std::map<std::string, SpiceSubckt> getSubckts() const;
     std::map<std::string, double> getParams() const;
+
+    // Override or inject a `.param` value (used by `.step` sweeps).
+    void setParam(const std::string& name, double value);
 
     // Flatten X instances using defined .subckt bodies (port map + name prefix).
     std::vector<NetlistElement> expandedElements() const;

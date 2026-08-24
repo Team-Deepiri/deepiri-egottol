@@ -206,12 +206,12 @@ NoiseResult computeOutputNoise(
     ACAnalysis ac;
     // Use AC sweep machinery: for each resistor we need per-freq transfer.
     // Collect resistors first.
-    struct RInfo { size_t np, nn; double R; };
+    struct RInfo { size_t np, nn; double R; double KF; };
     std::vector<RInfo> resistors;
     for (const auto& d : devices) {
         if (auto* res = dynamic_cast<Resistor*>(d.get())) {
             if (res->resistance() > 0) {
-                resistors.push_back({res->nodeP(), res->nodeN(), res->resistance()});
+                resistors.push_back({res->nodeP(), res->nodeN(), res->resistance(), res->kf()});
             }
         }
     }
@@ -247,6 +247,9 @@ NoiseResult computeOutputNoise(
             // Reference magnitude may divide — ACAnalysis divides by ref.
             // With all sources 0 and our Isrc dc=0 ac=1, ref might be from Isrc.
             sOut += (vMag * vMag) * (fourKT / ri.R);
+            if (ri.KF > 0.0 && f > 0.0) {
+                sOut += (vMag * vMag) * (ri.KF / (ri.R * f));
+            }
         }
         r.outputNoiseDensity[static_cast<size_t>(fi)] = std::sqrt(std::max(sOut, 0.0));
 

@@ -45,6 +45,7 @@ set(MODELS_SOURCES
     models/cccs.cpp
     models/ccvs.cpp
     models/vswitch.cpp
+    models/iswitch.cpp
     models/coupled_inductor.cpp
     models/opamp.cpp
     models/transmission_line.cpp

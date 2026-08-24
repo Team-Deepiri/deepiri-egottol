@@ -13,6 +13,7 @@
 #include "../models/cccs.h"
 #include "../models/ccvs.h"
 #include "../models/vswitch.h"
+#include "../models/iswitch.h"
 #include "../models/coupled_inductor.h"
 #include "../models/source_signal.h"
 
@@ -99,6 +100,7 @@ BuiltCircuit buildCircuitFromElements(
                 double r = paramOr(elem, 0, 1000.0);
                 if (r == 0.0) r = 1e-12;
                 auto dev = std::make_shared<Resistor>(elem.name, r);
+                if (elem.named_parameters.count("kf")) dev->setKF(elem.named_parameters.at("kf"));
                 dev->setNodes(a, b);
                 out.devices.push_back(dev);
                 break;
@@ -364,6 +366,26 @@ BuiltCircuit buildCircuitFromElements(
                 out.devices.push_back(dev);
                 break;
             }
+            case NetlistElementType::ISwitch: {
+                if (!needNodes(2)) return out;
+                size_t np = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
+                size_t nn = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
+                double it = 0.0, ron = 1.0, roff = 1e12;
+                const SpiceModel* mod = lookupModel(elem.subckt_name);
+                if (mod) {
+                    it = modelParam(mod, "it", it);
+                    ron = modelParam(mod, "ron", ron);
+                    roff = modelParam(mod, "roff", roff);
+                }
+                if (elem.named_parameters.count("it")) it = elem.named_parameters.at("it");
+                if (elem.named_parameters.count("ron")) ron = elem.named_parameters.at("ron");
+                if (elem.named_parameters.count("roff")) roff = elem.named_parameters.at("roff");
+                auto dev = std::make_shared<ISwitch>(elem.name, it, ron, roff);
+                if (!elem.model_name.empty()) dev->setSenseName(elem.model_name);
+                dev->setNodes(np, nn);
+                out.devices.push_back(dev);
+                break;
+            }
             case NetlistElementType::Mutual:
                 // Applied in a second pass after all inductors exist.
                 break;
@@ -443,6 +465,35 @@ std::vector<MeasureResult> evaluateMeasures(
         return nodeIdx(tok);
     };
 
+    auto parseAtTime = [&](const std::string& tok, double& atOut) -> bool {
+        std::string low = tok;
+        std::transform(low.begin(), low.end(), low.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (low.rfind("at=", 0) == 0) {
+            return NetlistParser::parseValue(tok.substr(3), atOut);
+        }
+        return false;
+    };
+
+    auto parseWhen = [&](const std::string& tok, int& whenProbe, double& whenVal) -> bool {
+        std::string low = tok;
+        std::transform(low.begin(), low.end(), low.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        size_t wpos = low.find("when");
+        if (wpos == std::string::npos) return false;
+        std::string rest = tok.substr(wpos + 4);
+        size_t eq = rest.find('=');
+        if (eq == std::string::npos) return false;
+        auto trimTok = [](std::string s) {
+            size_t a = s.find_first_not_of(" \t");
+            if (a == std::string::npos) return std::string();
+            size_t b = s.find_last_not_of(" \t");
+            return s.substr(a, b - a + 1);
+        };
+        whenProbe = parseProbe(trimTok(rest.substr(0, eq)));
+        return whenProbe >= 0 && NetlistParser::parseValue(trimTok(rest.substr(eq + 1)), whenVal);
+    };
+
     for (const auto& d : controls) {
         if (d.kind != "measure" && d.kind != "meas") continue;
         MeasureResult mr;
@@ -457,6 +508,10 @@ std::vector<MeasureResult> evaluateMeasures(
         mr.name = (ti < d.tokens.size()) ? d.tokens[ti] : "meas";
         std::string op = "max";
         int probe = -1;
+        double atTime = -1.0;
+        int whenProbe = -1;
+        double whenVal = 0.0;
+        bool hasWhen = false;
         for (size_t i = 0; i < d.tokens.size(); ++i) {
             std::string t = d.tokens[i];
             std::string low = t;
@@ -465,6 +520,15 @@ std::vector<MeasureResult> evaluateMeasures(
             if (low == "max" || low == "min" || low == "avg" || low == "mean" ||
                 low == "find" || low == "pp" || low == "rms") {
                 op = low;
+            }
+            double atParsed = 0.0;
+            if (parseAtTime(t, atParsed)) atTime = atParsed;
+            int wp = -1;
+            double wv = 0.0;
+            if (parseWhen(t, wp, wv)) {
+                whenProbe = wp;
+                whenVal = wv;
+                hasWhen = true;
             }
             int p = parseProbe(t);
             if (p >= 0) probe = p;
@@ -502,8 +566,58 @@ std::vector<MeasureResult> evaluateMeasures(
                 s += v * v;
             }
             mr.value = std::sqrt(s / static_cast<double>(n));
-        } else if (op == "find") {
-            mr.value = nodeVoltages.back()[static_cast<size_t>(probe)];
+        }         else if (op == "find") {
+            if (hasWhen && whenProbe >= 0) {
+                bool found = false;
+                for (size_t i = 1; i < timePoints.size(); ++i) {
+                    if (static_cast<size_t>(whenProbe) >= nodeVoltages[i - 1].size() ||
+                        static_cast<size_t>(whenProbe) >= nodeVoltages[i].size() ||
+                        static_cast<size_t>(probe) >= nodeVoltages[i].size()) {
+                        continue;
+                    }
+                    double y0 = nodeVoltages[i - 1][static_cast<size_t>(whenProbe)];
+                    double y1 = nodeVoltages[i][static_cast<size_t>(whenProbe)];
+                    if ((y0 - whenVal) * (y1 - whenVal) <= 0.0) {
+                        double t0 = timePoints[i - 1];
+                        double t1 = timePoints[i];
+                        double frac = (std::abs(y1 - y0) > 1e-18)
+                                          ? ((whenVal - y0) / (y1 - y0))
+                                          : 0.0;
+                        double tcross = t0 + frac * (t1 - t0);
+                        // Interpolate probe at crossing time.
+                        double v0 = nodeVoltages[i - 1][static_cast<size_t>(probe)];
+                        double v1 = nodeVoltages[i][static_cast<size_t>(probe)];
+                        mr.value = v0 + frac * (v1 - v0);
+                        (void)tcross;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    mr.message = "WHEN crossing not found";
+                    results.push_back(mr);
+                    continue;
+                }
+            } else if (atTime >= 0.0) {
+                size_t best = 0;
+                double bestDt = 1e300;
+                for (size_t i = 0; i < timePoints.size(); ++i) {
+                    double dt = std::abs(timePoints[i] - atTime);
+                    if (dt < bestDt) {
+                        bestDt = dt;
+                        best = i;
+                    }
+                }
+                if (static_cast<size_t>(probe) < nodeVoltages[best].size()) {
+                    mr.value = nodeVoltages[best][static_cast<size_t>(probe)];
+                } else {
+                    mr.message = "AT sample missing";
+                    results.push_back(mr);
+                    continue;
+                }
+            } else {
+                mr.value = nodeVoltages.back()[static_cast<size_t>(probe)];
+            }
         } else {
             mr.value = mx;
         }

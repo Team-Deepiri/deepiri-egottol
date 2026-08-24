@@ -26,13 +26,13 @@ void printUsage(const char* argv0) {
     std::fprintf(stderr,
         "egottol-cli — headless Deepiri Egottol simulator\n"
         "Usage:\n"
-        "  %s sim <file.cir> [--op|--tran|--ac|--dcsweep|--tf|--noise] [--trap] [--lte] [-o out.csv]\n"
+        "  %s sim <file.cir> [--op|--tran|--ac|--dcsweep|--step|--tf|--noise] [--trap] [--lte] [-o out.csv]\n"
         "  %s ee <query...>          EE design / symptom lookup\n"
         "  %s version\n"
         "  %s help\n"
         "\n"
-        "Analyses: .op .tran .ac .dc .tf .noise .measure; Sources: DC PULSE SIN EXP PWL.\n"
-        "Devices: R C L V I D M Q E G F H S K X(.subckt).  .param expressions supported.\n"
+        "Analyses: .op .tran .ac .dc .step .tf .noise .measure; Sources: DC PULSE SIN EXP PWL.\n"
+        "Devices: R C L V I D M Q E G F H S W K X(.subckt).  .param expressions supported.\n"
         "Exit codes: 0 success, 1 usage/parse error, 2 simulation failure\n",
         argv0, argv0, argv0, argv0);
 }
@@ -70,7 +70,7 @@ int cmdSim(int argc, char** argv) {
     }
 
     std::string path = argv[2];
-    enum class Mode { Auto, Op, Tran, Ac, DcSweep, Tf, Noise };
+    enum class Mode { Auto, Op, Tran, Ac, DcSweep, Step, Tf, Noise };
     Mode mode = Mode::Auto;
     std::string outPath;
     bool useTrap = false;
@@ -80,6 +80,7 @@ int cmdSim(int argc, char** argv) {
         std::string a = argv[i];
         if (a == "--op") mode = Mode::Op;
         else if (a == "--dc" || a == "--dcsweep") mode = Mode::DcSweep;
+        else if (a == "--step") mode = Mode::Step;
         else if (a == "--tran") mode = Mode::Tran;
         else if (a == "--ac") mode = Mode::Ac;
         else if (a == "--tf") mode = Mode::Tf;
@@ -111,11 +112,12 @@ int cmdSim(int argc, char** argv) {
 
     // Auto-select analysis from control cards if not overridden.
     if (mode == Mode::Auto) {
-        bool hasTran = false, hasAc = false, hasDcSweep = false, hasTf = false, hasNoise = false;
+        bool hasTran = false, hasAc = false, hasDcSweep = false, hasStep = false, hasTf = false, hasNoise = false;
         for (const auto& d : parser.getControlDirectives()) {
             if (d.kind == "tran") hasTran = true;
             else if (d.kind == "ac") hasAc = true;
             else if (d.kind == "dc" && d.numbers.size() >= 3) hasDcSweep = true;
+            else if (d.kind == "step") hasStep = true;
             else if (d.kind == "tf") hasTf = true;
             else if (d.kind == "noise") hasNoise = true;
         }
@@ -123,6 +125,7 @@ int cmdSim(int argc, char** argv) {
         else if (hasNoise) mode = Mode::Noise;
         else if (hasAc) mode = Mode::Ac;
         else if (hasTf) mode = Mode::Tf;
+        else if (hasStep) mode = Mode::Step;
         else if (hasDcSweep) mode = Mode::DcSweep;
         else mode = Mode::Op;
     }
@@ -267,6 +270,75 @@ int cmdSim(int argc, char** argv) {
             if ((up && x + step > stop && x < stop) || (!up && x + step < stop && x > stop)) {
                 // ensure final point
             }
+        }
+        if (!outPath.empty()) {
+            WaveformWriter writer;
+            if (!writer.writeCSV(outPath, {wd})) {
+                std::fprintf(stderr, "Failed to write %s\n", outPath.c_str());
+                return 1;
+            }
+            std::printf("Wrote %s\n", outPath.c_str());
+        }
+        return 0;
+    }
+
+    if (mode == Mode::Step) {
+        // .step param Rval start stop step
+        std::string paramName;
+        double start = 0, stop = 1, stepVal = 0.1;
+        for (const auto& d : parser.getControlDirectives()) {
+            if (d.kind != "step") continue;
+            if (d.tokens.size() >= 2 &&
+                (d.tokens[0] == "param" || d.tokens[0] == "PARAM")) {
+                paramName = d.tokens[1];
+            }
+            if (d.numbers.size() >= 3) {
+                start = d.numbers[0];
+                stop = d.numbers[1];
+                stepVal = d.numbers[2];
+            }
+            break;
+        }
+        if (paramName.empty()) {
+            std::fprintf(stderr, "Parametric step requires .step param <name> <start> <stop> <step>\n");
+            return 1;
+        }
+        if (stepVal == 0.0) stepVal = (stop >= start) ? 0.1 : -0.1;
+
+        size_t probe = pickProbe(circuit);
+        WaveformData wd;
+        wd.name = "V(" + nodeName(circuit, probe) + ")";
+        std::printf("Step param %s from %g to %g step %g, probe %s\n",
+                    paramName.c_str(), start, stop, stepVal, wd.name.c_str());
+
+        const bool up = stepVal > 0;
+        for (double x = start; up ? (x <= stop + 1e-15 * std::abs(stepVal))
+                                  : (x >= stop - 1e-15 * std::abs(stepVal));
+             x += stepVal) {
+            NetlistParser p2;
+            if (!p2.loadFromFile(path)) {
+                std::fprintf(stderr, "Failed to re-read netlist for step\n");
+                return 1;
+            }
+            p2.setParam(paramName, x);
+            BuiltCircuit c2 = buildCircuitFromNetlist(p2);
+            if (!c2.ok) {
+                std::fprintf(stderr, "Step build failed at %s=%g: %s\n",
+                             paramName.c_str(), x, c2.error.c_str());
+                return 1;
+            }
+            auto sol = DcOperatingPoint().solve(c2.devices, c2.nodeMap);
+            if (!sol.success) sol = MNASolver().solve(c2.devices, c2.nodeMap, {});
+            if (!sol.success) {
+                std::fprintf(stderr, "Step DC failed at %s=%g: %s\n",
+                             paramName.c_str(), x, sol.message.c_str());
+                return 2;
+            }
+            double v = 0.0;
+            if (probe >= 1 && probe - 1 < sol.voltages.size()) v = sol.voltages[probe - 1];
+            wd.time_points.push_back(x);
+            wd.values.push_back(v);
+            std::printf("  %s=%g  %s=%g\n", paramName.c_str(), x, wd.name.c_str(), v);
         }
         if (!outPath.empty()) {
             WaveformWriter writer;

@@ -6,6 +6,7 @@
 #include "../models/vcvs.h"
 #include "../models/ccvs.h"
 #include "../models/cccs.h"
+#include "../models/iswitch.h"
 #include "../models/capacitor.h"
 #include "../models/inductor.h"
 
@@ -166,6 +167,23 @@ void shortInductiveDevices(
     }
 }
 
+void updateCurrentControlledSwitches(
+    const std::vector<std::shared_ptr<Device>>& devices,
+    const std::vector<double>& auxCurrents
+) {
+    auto senseAux = vsrcAuxMap(devices);
+    for (auto& d : devices) {
+        auto* w = dynamic_cast<ISwitch*>(d.get());
+        if (!w) continue;
+        auto it = senseAux.find(lowerName(w->senseName()));
+        double i = 0.0;
+        if (it != senseAux.end() && it->second < auxCurrents.size()) {
+            i = auxCurrents[it->second];
+        }
+        w->updateFromSenseCurrent(i);
+    }
+}
+
 }  // namespace
 
 DcOperatingPoint::DcOperatingPoint(Options opts) : opts_(std::move(opts)) {}
@@ -246,6 +264,12 @@ MNASolver::Solution DcOperatingPoint::solve(
                 maxDx = std::max(maxDx, std::abs(next - state[i]));
                 state[i] = next;
             }
+
+            std::vector<double> auxCurrents;
+            for (size_t i = numNodes; i < sol.size(); ++i) {
+                auxCurrents.push_back(sol[i]);
+            }
+            updateCurrentControlledSwitches(devices, auxCurrents);
 
             if (opts_.verbose) {
                 std::cout << "DC NR iter " << iter << " dx=" << maxDx
@@ -428,6 +452,7 @@ SpiceTransient::Result SpiceTransient::simulate(
                 maxDx = std::max(maxDx, std::abs(sol.voltages[i] - v[i]));
                 v[i] = sol.voltages[i];
             }
+            updateCurrentControlledSwitches(devices, sol.currents);
             if (maxDx < opts_.tolerance) {
                 stepOk = true;
                 break;

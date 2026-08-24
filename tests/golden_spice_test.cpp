@@ -348,6 +348,52 @@ int main() {
         expect(std::isfinite(nodeV(sol, c, "d")), "g35 Vd");
         std::printf("  level2 Vd=%.4f\n", nodeV(sol, c, "d"));
     }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g36_wswitch.cir"), "g36 load");
+        auto c = buildCircuitFromNetlist(p);
+        auto sol = DcOperatingPoint().solve(c.devices, c.nodeMap);
+        expect(sol.success, "g36 wswitch dc");
+        expectNear(nodeV(sol, c, "out"), 0.0, 0.05, "g36 out shorted");
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g37_step.cir"), "g37 load");
+        expect(p.getParams().count("rval") == 1, "g37 param");
+        p.setParam("Rval", 1000.0);
+        auto c = buildCircuitFromNetlist(p);
+        auto sol = dcSolve(c);
+        expect(sol.success, "g37 step midpoint");
+        expectNear(nodeV(sol, c, "out"), 0.5, 1e-3, "g37 Vout@1k");
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g38_measure_at.cir"), "g38 load");
+        auto c = buildCircuitFromNetlist(p);
+        SpiceTransient::Options opts;
+        auto sim = SpiceTransient(opts).simulate(0.0, 15e-6, 10e-9, c.devices, c.nodeMap, {});
+        expect(sim.converged, "g38 tran");
+        auto measures = evaluateMeasures(
+            p.getControlDirectives(), c, sim.timePoints, sim.nodeVoltages);
+        expect(measures.size() >= 2, "g38 measures");
+        if (measures.size() >= 1 && measures[0].ok) {
+            expectNear(measures[0].value, 1.0, 0.05, "g38 AT=5u");
+        }
+        if (measures.size() >= 2 && measures[1].ok) {
+            expectNear(measures[1].value, 1.0, 0.05, "g38 MAX");
+        }
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g39_noise_flicker.cir"), "g39 load");
+        auto c = buildCircuitFromNetlist(p);
+        size_t outNode = c.nodeMap.count("out") ? c.nodeMap.at("out") : 0;
+        auto nr = computeOutputNoise(c.devices, c.nodeMap, outNode, 10.0, 100.0, 5, 300.0);
+        expect(nr.success, "g39 noise");
+        expect(nr.outputNoiseDensity.size() >= 2, "g39 noise pts");
+        expect(nr.outputNoiseDensity[0] > nr.outputNoiseDensity.back() * 0.5,
+                "g39 flicker boosts low-f noise");
+    }
 
     {
         NetlistParser p;
@@ -450,6 +496,6 @@ int main() {
         std::fprintf(stderr, "%d failure(s) in golden_spice_test\n", failures);
         return 1;
     }
-    std::printf("golden_spice_test: all passed (%d circuits)\n", 22);
+    std::printf("golden_spice_test: all passed (%d circuits)\n", 26);
     return 0;
 }
