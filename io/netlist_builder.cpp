@@ -8,9 +8,13 @@
 #include "../models/diode.h"
 #include "../models/bjt.h"
 #include "../models/mosfet.h"
+#include "../models/vcvs.h"
+#include "../models/vccs.h"
+#include "../models/source_signal.h"
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 
 namespace deepiri {
 
@@ -118,22 +122,20 @@ BuiltCircuit buildCircuitFromElements(
                 size_t b = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
                 double v = paramOr(elem, 0, 1.0);
                 auto dev = std::make_shared<Vsrc>(elem.name, v);
-                if (elem.named_parameters.count("pulse")) {
-                    // PULSE(v1 v2 td tr tf pw per) → parameters in order after keyword
-                    double v1 = paramOr(elem, 0, 0.0);
-                    double v2 = paramOr(elem, 1, 1.0);
-                    double td = paramOr(elem, 2, 0.0);
-                    double tr = paramOr(elem, 3, 1e-9);
-                    double tf = paramOr(elem, 4, 1e-9);
-                    double pw = paramOr(elem, 5, 1e-3);
-                    double per = paramOr(elem, 6, 2e-3);
-                    dev->setPulse(v1, v2, td, tr, tf, pw, per);
-                    // Also keep DC as v1 for operating-point fallback.
-                    dev->setDC(v1);
-                } else if (elem.parameters.size() >= 2) {
-                    double ac = elem.parameters[1];
-                    double phase = paramOr(elem, 2, 0.0);
-                    dev->setAC(ac, phase);
+                SourceSignal sig;
+                sig.dc = v;
+                applyWaveformFromParams(sig, elem.named_parameters, elem.parameters);
+                dev->setSignal(sig);
+                if (sig.kind == SourceWaveform::DC && elem.parameters.size() >= 2 &&
+                    !elem.named_parameters.count("pulse") && !elem.named_parameters.count("sin") &&
+                    !elem.named_parameters.count("exp") && !elem.named_parameters.count("pwl")) {
+                    // V1 n1 n2 DC 5 AC 1 0  — or V1 n1 n2 5 AC 1
+                    // If "ac" flagged, params may be DC then AC; already handled.
+                    // Legacy: two numbers without keyword → DC + AC mag
+                    if (!elem.named_parameters.count("ac")) {
+                        dev->setDC(elem.parameters[0]);
+                        dev->setAC(elem.parameters[1], paramOr(elem, 2, 0.0));
+                    }
                 }
                 dev->setNodes(a, b);
                 out.devices.push_back(dev);
@@ -145,7 +147,15 @@ BuiltCircuit buildCircuitFromElements(
                 size_t b = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
                 double i = paramOr(elem, 0, 1e-3);
                 auto dev = std::make_shared<Isrc>(elem.name, i);
-                if (elem.parameters.size() >= 2) {
+                SourceSignal sig;
+                sig.dc = i;
+                applyWaveformFromParams(sig, elem.named_parameters, elem.parameters);
+                dev->setSignal(sig);
+                if (sig.kind == SourceWaveform::DC && elem.parameters.size() >= 2 &&
+                    !elem.named_parameters.count("pulse") && !elem.named_parameters.count("sin") &&
+                    !elem.named_parameters.count("exp") && !elem.named_parameters.count("pwl") &&
+                    !elem.named_parameters.count("ac")) {
+                    dev->setDC(elem.parameters[0]);
                     dev->setAC(elem.parameters[1], paramOr(elem, 2, 0.0));
                 }
                 dev->setNodes(a, b);
@@ -262,6 +272,34 @@ BuiltCircuit buildCircuitFromElements(
                 // X/subckt definitions are flattened by NetlistParser::expandedElements()
                 // before buildCircuitFromNetlist(); leftover defs here are skipped.
                 break;
+            case NetlistElementType::VCVS: {
+                if (!needNodes(4)) return out;
+                size_t np = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
+                size_t nn = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
+                size_t ncp = resolveNode(elem.nodes[2].net, out.nodeMap, nextIndex);
+                size_t ncn = resolveNode(elem.nodes[3].net, out.nodeMap, nextIndex);
+                double gain = paramOr(elem, 0, 1.0);
+                auto it = elem.named_parameters.find("gain");
+                if (it != elem.named_parameters.end()) gain = it->second;
+                auto dev = std::make_shared<VCVS>(elem.name, gain);
+                dev->setNodes(np, nn, ncp, ncn);
+                out.devices.push_back(dev);
+                break;
+            }
+            case NetlistElementType::VCCS: {
+                if (!needNodes(4)) return out;
+                size_t np = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
+                size_t nn = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
+                size_t ncp = resolveNode(elem.nodes[2].net, out.nodeMap, nextIndex);
+                size_t ncn = resolveNode(elem.nodes[3].net, out.nodeMap, nextIndex);
+                double gm = paramOr(elem, 0, 1.0);
+                auto it = elem.named_parameters.find("gm");
+                if (it != elem.named_parameters.end()) gm = it->second;
+                auto dev = std::make_shared<VCCS>(elem.name, gm);
+                dev->setNodes(np, nn, ncp, ncn);
+                out.devices.push_back(dev);
+                break;
+            }
         }
     }
 
@@ -272,6 +310,78 @@ BuiltCircuit buildCircuitFromElements(
         out.ok = false;
     }
     return out;
+}
+
+std::map<std::string, double> parseNodeVoltagesFromControls(
+    const std::vector<NetlistControl>& controls,
+    const char* kind
+) {
+    std::map<std::string, double> out;
+    std::string want = kind;
+    for (char& c : want) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+    for (const auto& d : controls) {
+        if (d.kind != want) continue;
+        // Tokens like: V(mid)=2.5  mid=1  V(n1)=0
+        for (const auto& tok : d.tokens) {
+            auto eq = tok.find('=');
+            if (eq == std::string::npos) continue;
+            std::string left = tok.substr(0, eq);
+            std::string right = tok.substr(eq + 1);
+            double v = 0.0;
+            if (!NetlistParser::parseValue(right, v)) continue;
+            // Strip V(…) wrapper
+            if (left.size() >= 4 && (left[0] == 'V' || left[0] == 'v') && left[1] == '(' &&
+                left.back() == ')') {
+                left = left.substr(2, left.size() - 3);
+            }
+            out[left] = v;
+        }
+        // Also support space-separated: .ic V(mid) 2.5
+        for (size_t i = 0; i + 1 < d.tokens.size(); ++i) {
+            std::string left = d.tokens[i];
+            if (left.find('=') != std::string::npos) continue;
+            double v = 0.0;
+            if (!NetlistParser::parseValue(d.tokens[i + 1], v)) continue;
+            if (left.size() >= 4 && (left[0] == 'V' || left[0] == 'v') && left[1] == '(' &&
+                left.back() == ')') {
+                left = left.substr(2, left.size() - 3);
+            }
+            out[left] = v;
+            ++i;
+        }
+    }
+    return out;
+}
+
+std::vector<double> initialConditionVector(
+    const BuiltCircuit& circuit,
+    const std::map<std::string, double>& named
+) {
+    std::vector<double> v(circuit.numNodes, 0.0);
+    for (const auto& kv : named) {
+        auto it = circuit.nodeMap.find(kv.first);
+        if (it == circuit.nodeMap.end() || it->second == 0) continue;
+        size_t idx = it->second - 1;
+        if (idx < v.size()) v[idx] = kv.second;
+    }
+    return v;
+}
+
+std::shared_ptr<Device> findSourceByName(
+    const BuiltCircuit& circuit,
+    const std::string& name
+) {
+    std::string want = name;
+    std::transform(want.begin(), want.end(), want.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    for (const auto& d : circuit.devices) {
+        std::string n = d->name();
+        std::transform(n.begin(), n.end(), n.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (n == want) return d;
+    }
+    return nullptr;
 }
 
 }

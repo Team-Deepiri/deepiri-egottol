@@ -4,11 +4,14 @@
 #include "../core/mna_solver.h"
 #include "../core/spice_engine.h"
 #include "../core/ac_analysis.h"
+#include "../models/vsrc.h"
+#include "../models/isrc.h"
 #include "ee_lookup.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -22,11 +25,13 @@ void printUsage(const char* argv0) {
     std::fprintf(stderr,
         "egottol-cli — headless Deepiri Egottol simulator\n"
         "Usage:\n"
-        "  %s sim <file.cir> [--op|--tran|--ac] [--trap] [--lte] [-o out.csv]\n"
+        "  %s sim <file.cir> [--op|--tran|--ac|--dcsweep] [--trap] [--lte] [-o out.csv]\n"
         "  %s ee <query...>          EE design / symptom lookup\n"
         "  %s version\n"
         "  %s help\n"
         "\n"
+        "Analyses: .op / .tran / .ac / .dc (source sweep). Sources: DC PULSE SIN EXP PWL.\n"
+        "Devices: R C L V I D M Q E(VCVS) G(VCCS) X(.subckt).\n"
         "Exit codes: 0 success, 1 usage/parse error, 2 simulation failure\n",
         argv0, argv0, argv0, argv0);
 }
@@ -64,7 +69,7 @@ int cmdSim(int argc, char** argv) {
     }
 
     std::string path = argv[2];
-    enum class Mode { Auto, Op, Tran, Ac };
+    enum class Mode { Auto, Op, Tran, Ac, DcSweep };
     Mode mode = Mode::Auto;
     std::string outPath;
     bool useTrap = false;
@@ -72,7 +77,8 @@ int cmdSim(int argc, char** argv) {
 
     for (int i = 3; i < argc; ++i) {
         std::string a = argv[i];
-        if (a == "--op" || a == "--dc") mode = Mode::Op;
+        if (a == "--op") mode = Mode::Op;
+        else if (a == "--dc" || a == "--dcsweep") mode = Mode::DcSweep;
         else if (a == "--tran") mode = Mode::Tran;
         else if (a == "--ac") mode = Mode::Ac;
         else if (a == "--trap") useTrap = true;
@@ -102,16 +108,90 @@ int cmdSim(int argc, char** argv) {
 
     // Auto-select analysis from control cards if not overridden.
     if (mode == Mode::Auto) {
-        bool hasTran = false, hasAc = false, hasOp = false;
+        bool hasTran = false, hasAc = false, hasDcSweep = false, hasOp = false;
         for (const auto& d : parser.getControlDirectives()) {
             if (d.kind == "tran") hasTran = true;
             else if (d.kind == "ac") hasAc = true;
-            else if (d.kind == "op" || d.kind == "dc") hasOp = true;
+            else if (d.kind == "dc" && d.numbers.size() >= 3) hasDcSweep = true;
+            else if (d.kind == "op") hasOp = true;
         }
         if (hasTran) mode = Mode::Tran;
         else if (hasAc) mode = Mode::Ac;
+        else if (hasDcSweep) mode = Mode::DcSweep;
         else mode = Mode::Op;
         (void)hasOp;
+    }
+
+    if (mode == Mode::DcSweep) {
+        // .dc srcName start stop step
+        std::string srcName;
+        double start = 0, stop = 1, step = 0.1;
+        for (const auto& d : parser.getControlDirectives()) {
+            if (d.kind != "dc") continue;
+            if (!d.tokens.empty()) srcName = d.tokens[0];
+            if (d.numbers.size() >= 3) {
+                start = d.numbers[0];
+                stop = d.numbers[1];
+                step = d.numbers[2];
+            } else if (d.numbers.size() >= 3) {
+                // already handled
+            }
+            // tokens may be: V1 0 5 0.5 → first token name, numbers from parse
+            if (srcName.empty() && !d.tokens.empty()) srcName = d.tokens[0];
+            break;
+        }
+        if (srcName.empty()) {
+            std::fprintf(stderr, "DC sweep requires .dc <src> <start> <stop> <step>\n");
+            return 1;
+        }
+        if (step == 0.0) step = (stop >= start) ? 0.1 : -0.1;
+        auto src = findSourceByName(circuit, srcName);
+        if (!src) {
+            std::fprintf(stderr, "DC sweep source not found: %s\n", srcName.c_str());
+            return 1;
+        }
+
+        size_t probe = pickProbe(circuit);
+        WaveformData wd;
+        wd.name = "V(" + nodeName(circuit, probe) + ")";
+        std::printf("DC sweep %s from %g to %g step %g, probe %s\n",
+                    srcName.c_str(), start, stop, step, wd.name.c_str());
+
+        auto setSrc = [&](double val) {
+            if (auto* v = dynamic_cast<Vsrc*>(src.get())) v->setDC(val);
+            else if (auto* i = dynamic_cast<Isrc*>(src.get())) i->setDC(val);
+        };
+
+        const bool up = step > 0;
+        for (double x = start; up ? (x <= stop + 1e-15 * std::abs(step))
+                                  : (x >= stop - 1e-15 * std::abs(step));
+             x += step) {
+            setSrc(x);
+            auto sol = DcOperatingPoint().solve(circuit.devices, circuit.nodeMap);
+            if (!sol.success) sol = MNASolver().solve(circuit.devices, circuit.nodeMap, {});
+            if (!sol.success) {
+                std::fprintf(stderr, "DC sweep failed at %s=%g: %s\n",
+                             srcName.c_str(), x, sol.message.c_str());
+                return 2;
+            }
+            double v = 0.0;
+            if (probe >= 1 && probe - 1 < sol.voltages.size()) v = sol.voltages[probe - 1];
+            wd.time_points.push_back(x);
+            wd.values.push_back(v);
+            std::printf("  %s=%g  %s=%g\n", srcName.c_str(), x, wd.name.c_str(), v);
+            if ((up && x + step > stop && x < stop) || (!up && x + step < stop && x > stop)) {
+                // ensure final point
+            }
+        }
+        if (!outPath.empty()) {
+            WaveformWriter writer;
+            if (!writer.writeCSV(outPath, {wd})) {
+                std::fprintf(stderr, "Failed to write %s\n", outPath.c_str());
+                return 1;
+            }
+            std::printf("Wrote %s\n", outPath.c_str());
+        }
+        return 0;
     }
 
     if (mode == Mode::Op) {
@@ -162,7 +242,16 @@ int cmdSim(int argc, char** argv) {
         opts.useTrapezoidal = useTrap;
         opts.adaptiveLte = useLte;
         SpiceTransient transient(opts);
-        auto sim = transient.simulate(0.0, tstop, tstep, circuit.devices, circuit.nodeMap);
+
+        auto icNamed = parseNodeVoltagesFromControls(parser.getControlDirectives(), "ic");
+        if (icNamed.empty()) {
+            icNamed = parseNodeVoltagesFromControls(parser.getControlDirectives(), "nodeset");
+        }
+        std::vector<double> ic;
+        if (!icNamed.empty()) {
+            ic = initialConditionVector(circuit, icNamed);
+        }
+        auto sim = transient.simulate(0.0, tstop, tstep, circuit.devices, circuit.nodeMap, ic);
         if (!sim.converged) {
             std::fprintf(stderr, "Transient failed: %s\n", sim.message.c_str());
             return 2;

@@ -3,6 +3,7 @@
 #include "../io/netlist_builder.h"
 #include "../core/spice_engine.h"
 #include "../core/mna_solver.h"
+#include "../models/vsrc.h"
 
 #include <cmath>
 #include <cctype>
@@ -231,6 +232,36 @@ int main() {
     checkOp("g20_thevenin.cir", "mid", 2.5, 1e-3);
     checkOp("g21_include.cir", "mid", 2.5, 1e-3);
     checkOp("g22_nested_subckt.cir", "mid", 2.5, 1e-3);
+    checkOp("g23_vcvs.cir", "out", 2.0, 1e-3);
+    checkOp("g24_vccs.cir", "out", 2.0, 1e-3);
+
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g25_sin_rc.cir"), "g25 load");
+        auto c = buildCircuitFromNetlist(p);
+        expect(c.ok, "g25 build");
+        SpiceTransient::Options opts;
+        opts.tolerance = 1e-4;
+        auto sim = SpiceTransient(opts).simulate(0.0, 2e-3, 10e-6, c.devices, c.nodeMap);
+        expect(sim.converged && sim.timePoints.size() > 10, "g25 sin tran");
+    }
+    {
+        // .dc sweep: mid should track Vin/2
+        NetlistParser p;
+        expect(loadCir(p, "g26_dc_sweep.cir"), "g26 load");
+        auto c = buildCircuitFromNetlist(p);
+        expect(c.ok, "g26 build");
+        auto src = findSourceByName(c, "V1");
+        expect(src != nullptr, "g26 find V1");
+        if (auto* v = dynamic_cast<Vsrc*>(src.get())) {
+            for (double vin : {0.0, 2.0, 4.0}) {
+                v->setDC(vin);
+                auto sol = dcSolve(c);
+                expect(sol.success, "g26 dc point");
+                expectNear(nodeV(sol, c, "mid"), vin * 0.5, 1e-3, "g26 mid");
+            }
+        }
+    }
 
     {
         NetlistParser p;

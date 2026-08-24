@@ -49,6 +49,8 @@ NetlistElementType typeFromKeyword(const std::string& t) {
     if (l == "m" || l == "mos") return NetlistElementType::MOSFET;
     if (l == "q" || l == "bjt") return NetlistElementType::BJT;
     if (l == "d" || l == "diode") return NetlistElementType::Diode;
+    if (l == "e" || l == "vcvs") return NetlistElementType::VCVS;
+    if (l == "g" || l == "vccs") return NetlistElementType::VCCS;
     if (l == "x") return NetlistElementType::Instance;
     return NetlistElementType::Instance;
 }
@@ -65,6 +67,8 @@ NetlistElementType typeFromNamePrefix(const std::string& name) {
         case 'M': return NetlistElementType::MOSFET;
         case 'Q': return NetlistElementType::BJT;
         case 'D': return NetlistElementType::Diode;
+        case 'E': return NetlistElementType::VCVS;
+        case 'G': return NetlistElementType::VCCS;
         case 'X': return NetlistElementType::Instance;
         default:  return NetlistElementType::Instance;
     }
@@ -203,6 +207,9 @@ int NetlistParser::expectedNodeCount(NetlistElementType type) {
         case NetlistElementType::BJT:
             return 3;
         case NetlistElementType::MOSFET:
+            return 4;
+        case NetlistElementType::VCVS:
+        case NetlistElementType::VCCS:
             return 4;
         case NetlistElementType::Subckt:
         case NetlistElementType::Instance:

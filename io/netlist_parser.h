@@ -16,6 +16,8 @@ enum class NetlistElementType {
     MOSFET,
     BJT,
     Diode,
+    VCVS,
+    VCCS,
     Subckt,
     Instance
 };

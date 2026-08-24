@@ -9,7 +9,7 @@ Status: **SHIPPED** on branch `feat/spice-production-engine` (PR #39).
 | Native desktop `egottol` (Qt schematic → sim, save/load, CSV, Mermaid) | Done |
 | Headless `egottol-cli` 1.0.0 (`sim` / `ee` / `--op` / `--tran` / `--ac`) | Done |
 | Python `egottol.simulate` / `egottol.export` / Copilot | Done |
-| Production SPICE (DC OP, BE/trap, `.model`, nested `.subckt`, `.include`) | Done |
+| Production SPICE (DC OP, BE/trap, `.dc` sweep, `.ic`, E/G, SIN/PWL, `.model`, nested `.subckt`) | Done |
 | GUI schematic → production engine (demo only if canvas empty) | Done |
 | EE design knowledge (`docs/ee/` + CLI/`lookup_ee_design`) | Done |
 | Goldens (22+) + ngspice cross-check + perf baseline | Done |

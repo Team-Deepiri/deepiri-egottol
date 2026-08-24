@@ -55,6 +55,9 @@ public:
         (void)nodeVoltages;
     }
 
+    // Absolute analysis time (transient / swept sources). Default no-op.
+    virtual void setAnalysisTime(double tSec) { (void)tSec; }
+
     // Nonlinear residual contribution magnitude (for NR convergence).
     virtual double nonlinearResidual() const { return 0.0; }
 

@@ -1,11 +1,20 @@
 #include "mna_solver.h"
 #include "../models/device.h"
 #include "../models/vsrc.h"
+#include "../models/vcvs.h"
 #include "matrix.h"
 #include <iostream>
 #include <stdexcept>
 
 namespace deepiri {
+
+namespace {
+
+bool needsAux(const Device& d) {
+    return d.type() == "Vsrc" || d.type() == "VCVS";
+}
+
+}  // namespace
 
 MNASolver::MNASolver() : solverMethod_("LU") {}
 
@@ -13,14 +22,12 @@ size_t MNASolver::buildStampMatrix(
     std::vector<std::vector<double>>& stamp,
     std::vector<double>& auxRHS,
     const std::vector<std::shared_ptr<Device>>& devices,
-    const std::map<std::string, size_t>& nodeMap,
+    const std::map<std::string, size_t>& /*nodeMap*/,
     size_t numNodes
 ) {
     size_t auxCount = 0;
     for (auto& device : devices) {
-        if (device->type() == "Vsrc") {
-            auxCount++;
-        }
+        if (needsAux(*device)) auxCount++;
     }
 
     size_t matrixSize = numNodes + auxCount;
@@ -32,28 +39,9 @@ size_t MNASolver::buildStampMatrix(
 
     size_t vsIndex = 0;
     for (auto& device : devices) {
-        auto g = device->getConductanceMatrix();
-        auto current = device->getCurrent();
-
-        size_t np = device->nodeP();
-        size_t nn = device->nodeN();
-
-        bool npValid = np > 0 && np <= numNodes;
-        bool nnValid = nn > 0 && nn <= numNodes;
-        if ((npValid || nnValid) && g.size() >= 2 && g[0].size() >= 2 && g[1].size() >= 2) {
-            if (npValid) {
-                stamp[np - 1][np - 1] += g[0][0];
-            }
-            if (nnValid) {
-                stamp[nn - 1][nn - 1] += g[1][1];
-            }
-            if (npValid && nnValid) {
-                stamp[np - 1][nn - 1] += g[0][1];
-                stamp[nn - 1][np - 1] += g[1][0];
-            }
-        }
-
-        if (device->type() == "Vsrc") {
+        if (needsAux(*device)) {
+            size_t np = device->nodeP();
+            size_t nn = device->nodeN();
             size_t auxRow = numNodes + vsIndex;
             if (np > 0 && np <= numNodes) {
                 stamp[auxRow][np - 1] = 1.0;
@@ -65,9 +53,32 @@ size_t MNASolver::buildStampMatrix(
             }
             if (auto* vsrc = dynamic_cast<Vsrc*>(device.get())) {
                 auxRHS[vsIndex] = vsrc->getVoltage(0.0);
+            } else if (auto* e = dynamic_cast<VCVS*>(device.get())) {
+                size_t ncp = e->nodeCP();
+                size_t ncn = e->nodeCN();
+                double gain = e->gain();
+                if (ncp > 0 && ncp <= numNodes) stamp[auxRow][ncp - 1] -= gain;
+                if (ncn > 0 && ncn <= numNodes) stamp[auxRow][ncn - 1] += gain;
+                auxRHS[vsIndex] = 0.0;
             }
             vsIndex++;
+            continue;
         }
+
+        auto terms = device->terminals();
+        auto g = device->getConductanceMatrix();
+        auto current = device->getCurrent();
+        for (size_t a = 0; a < terms.size() && a < g.size(); ++a) {
+            size_t na = terms[a];
+            if (na == 0 || na > numNodes) continue;
+            // RHS filled in solve()
+            for (size_t b = 0; b < terms.size() && b < g[a].size(); ++b) {
+                size_t nb = terms[b];
+                if (nb == 0 || nb > numNodes) continue;
+                stamp[na - 1][nb - 1] += g[a][b];
+            }
+        }
+        (void)current;
     }
 
     return auxCount;
@@ -92,12 +103,14 @@ void MNASolver::addDeviceStamp(
             if (i == 1 && j == 1) stamp[nodeN - 1][nodeN - 1] += deviceG[i][j];
         }
     }
+    (void)deviceRHS;
+    (void)auxIndex;
 }
 
 MNASolver::Solution MNASolver::solve(
     const std::vector<std::shared_ptr<Device>>& devices,
     const std::map<std::string, size_t>& nodeMap,
-    const std::vector<size_t>& voltageSourceIndices
+    const std::vector<size_t>& /*voltageSourceIndices*/
 ) {
     Solution result;
     result.success = false;
@@ -120,15 +133,14 @@ MNASolver::Solution MNASolver::solve(
     std::vector<double> rhs(matrixSize, 0.0);
 
     for (auto& device : devices) {
+        if (needsAux(*device)) continue;
+        auto terms = device->terminals();
         auto current = device->getCurrent();
-        size_t np = device->nodeP();
-        size_t nn = device->nodeN();
-
-        if (np > 0 && np <= numNodes) {
-            rhs[np - 1] += current[0];
-        }
-        if (nn > 0 && nn <= numNodes) {
-            rhs[nn - 1] += current[1];
+        for (size_t a = 0; a < terms.size() && a < current.size(); ++a) {
+            size_t na = terms[a];
+            if (na > 0 && na <= numNodes) {
+                rhs[na - 1] += current[a];
+            }
         }
     }
 

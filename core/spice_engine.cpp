@@ -3,6 +3,7 @@
 #include "matrix.h"
 #include "../models/device.h"
 #include "../models/vsrc.h"
+#include "../models/vcvs.h"
 #include "../models/capacitor.h"
 #include "../models/inductor.h"
 
@@ -22,10 +23,16 @@ size_t maxNodeIndex(const std::map<std::string, size_t>& nodeMap) {
     return n;
 }
 
-double nodeVoltage(const std::vector<double>& v, size_t node) {
-    if (node == 0) return 0.0;
-    if (node - 1 < v.size()) return v[node - 1];
-    return 0.0;
+bool needsAuxBranch(const Device& d) {
+    return d.type() == "Vsrc" || d.type() == "VCVS";
+}
+
+size_t countAuxBranches(const std::vector<std::shared_ptr<Device>>& devices) {
+    size_t n = 0;
+    for (const auto& d : devices) {
+        if (needsAuxBranch(*d)) ++n;
+    }
+    return n;
 }
 
 // Stamp a device's G and I onto the reduced MNA system (nodes 1..N, no ground row).
@@ -43,9 +50,6 @@ void stampDevice(
     for (size_t a = 0; a < nt && a < g.size(); ++a) {
         size_t na = terminals[a];
         if (na == 0 || na > numNodes) continue;
-        // KCL: sum currents leaving node = 0. Device reports current into device,
-        // so contribution to node residual is -I. RHS for Gv = rhs uses +injected.
-        // Our convention matches existing MNA: rhs += current[terminal].
         if (a < i.size()) {
             rhs[na - 1] += i[a];
         }
@@ -57,7 +61,7 @@ void stampDevice(
     }
 }
 
-void stampVoltageSources(
+void stampAuxBranches(
     std::vector<std::vector<double>>& G,
     std::vector<double>& rhs,
     const std::vector<std::shared_ptr<Device>>& devices,
@@ -65,10 +69,10 @@ void stampVoltageSources(
     double sourceScale,
     double timeSec = 0.0
 ) {
-    size_t vsIndex = 0;
+    size_t auxIndex = 0;
     for (const auto& device : devices) {
-        if (device->type() != "Vsrc") continue;
-        size_t aux = numNodes + vsIndex;
+        if (!needsAuxBranch(*device)) continue;
+        size_t aux = numNodes + auxIndex;
         size_t np = device->nodeP();
         size_t nn = device->nodeN();
         if (np > 0 && np <= numNodes) {
@@ -79,19 +83,20 @@ void stampVoltageSources(
             G[aux][nn - 1] = -1.0;
             G[nn - 1][aux] = -1.0;
         }
+
         if (auto* v = dynamic_cast<Vsrc*>(device.get())) {
             rhs[aux] = sourceScale * v->getVoltage(timeSec);
+        } else if (auto* e = dynamic_cast<VCVS*>(device.get())) {
+            // Vp − Vn − gain·(Vcp − Vcn) = 0
+            size_t ncp = e->nodeCP();
+            size_t ncn = e->nodeCN();
+            double gain = e->gain();
+            if (ncp > 0 && ncp <= numNodes) G[aux][ncp - 1] -= gain;
+            if (ncn > 0 && ncn <= numNodes) G[aux][ncn - 1] += gain;
+            rhs[aux] = 0.0;
         }
-        ++vsIndex;
+        ++auxIndex;
     }
-}
-
-size_t countVsrc(const std::vector<std::shared_ptr<Device>>& devices) {
-    size_t n = 0;
-    for (const auto& d : devices) {
-        if (d->type() == "Vsrc") ++n;
-    }
-    return n;
 }
 
 }  // namespace
@@ -127,7 +132,7 @@ MNASolver::Solution DcOperatingPoint::solve(
                 d->updateState(state);
             }
 
-            size_t nV = countVsrc(devices);
+            size_t nV = countAuxBranches(devices);
             size_t N = numNodes + nV;
             std::vector<std::vector<double>> G(N, std::vector<double>(N, 0.0));
             std::vector<double> rhs(N, 0.0);
@@ -137,7 +142,7 @@ MNASolver::Solution DcOperatingPoint::solve(
             }
 
             for (const auto& d : devices) {
-                if (d->type() == "Vsrc") continue;
+                if (needsAuxBranch(*d)) continue;
                 if (d->type() == "Capacitor") continue;
                 if (d->type() == "Inductor") {
                     auto terms = d->terminals();
@@ -153,9 +158,10 @@ MNASolver::Solution DcOperatingPoint::solve(
                     }
                     continue;
                 }
+                d->setAnalysisTime(0.0);
                 stampDevice(G, rhs, *d, numNodes);
             }
-            stampVoltageSources(G, rhs, devices, numNodes, scale);
+            stampAuxBranches(G, rhs, devices, numNodes, scale);
 
             Matrix A(N, N);
             for (size_t i = 0; i < N; ++i)
@@ -259,7 +265,7 @@ MNASolver::Solution SpiceTransient::solveLinearized(
     double gmin,
     double timeSec
 ) const {
-    size_t nV = countVsrc(devices);
+    size_t nV = countAuxBranches(devices);
     size_t N = numNodes + nV;
     std::vector<std::vector<double>> G(N, std::vector<double>(N, 0.0));
     std::vector<double> rhs(N, 0.0);
@@ -267,10 +273,11 @@ MNASolver::Solution SpiceTransient::solveLinearized(
     for (size_t i = 0; i < numNodes; ++i) G[i][i] += gmin;
 
     for (const auto& d : devices) {
-        if (d->type() == "Vsrc") continue;
+        if (needsAuxBranch(*d)) continue;
+        d->setAnalysisTime(timeSec);
         stampDevice(G, rhs, *d, numNodes);
     }
-    stampVoltageSources(G, rhs, devices, numNodes, 1.0, timeSec);
+    stampAuxBranches(G, rhs, devices, numNodes, 1.0, timeSec);
 
     MNASolver::Solution out;
     out.success = false;

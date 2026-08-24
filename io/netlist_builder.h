@@ -25,4 +25,22 @@ BuiltCircuit buildCircuitFromElements(
     const std::map<std::string, SpiceModel>& models = {}
 );
 
+// Parse `.ic` / `.nodeset` cards → net name → voltage.
+std::map<std::string, double> parseNodeVoltagesFromControls(
+    const std::vector<NetlistControl>& controls,
+    const char* kind  // "ic" or "nodeset"
+);
+
+// Map named IC voltages onto the circuit's 0-based voltage vector (size = numNodes).
+std::vector<double> initialConditionVector(
+    const BuiltCircuit& circuit,
+    const std::map<std::string, double>& named
+);
+
+// Find a Vsrc/Isrc by element name (case-insensitive).
+std::shared_ptr<Device> findSourceByName(
+    const BuiltCircuit& circuit,
+    const std::string& name
+);
+
 }
