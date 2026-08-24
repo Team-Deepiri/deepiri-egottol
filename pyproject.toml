@@ -1,6 +1,6 @@
 [project]
 name = "deepiri-egottol"
-version = "0.1.0"
+version = "1.0.0"
 description = "Modern Binary Electrical Systems & Avionics Lab"
 authors = [
     {name = "Deepiri"}
@@ -38,6 +38,9 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.12"
 ignore_missing_imports = true
 check_untyped_defs = true
+explicit_package_bases = true
+packages = ["egottol"]
+exclude = ["build/", "vhdl/"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
