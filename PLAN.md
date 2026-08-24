@@ -117,17 +117,20 @@ poetry run python -m egottol.ui.main
 | GUI binary launches; Python UI imports | OK (verified offscreen) |
 | Core solvers | DC operating point, transient, AC/Bode — all with passing regression tests |
 
-### ❌ What's broken or missing (the actual gap to "finished product")
+### ✅ Closed for 1.0 (was the gap; now shipped on this branch)
 
-1. **No headless CLI at all.** The only `main()` is the GUI. No way to run a simulation from a terminal or script.
-2. **The product loop is severed: schematic → simulation does not exist.** The GUI Run button executes four hardcoded demo circuits (`gui/simulation_controller.cpp`); nothing reads what the user drew.
-3. **`io/netlist_parser.cpp` is broken.** It expects `R name n1 n2 value`; real SPICE is `R1 n1 n2 1k`. Every real netlist line parses as generic `Instance`. Unit suffixes (`1k`, `1u`, `100m`) are never converted to numeric values. `.tran` / `.ac` / `.dc` control cards are not recognized (only `.end/.include/.lib/.param/.option`).
-4. **No NetlistElement → Device bridge.** Even a correct parse cannot feed `MNASolver` — no builder converts parsed elements into `models/` device objects.
-5. **The entire IO layer is dead code** (0 consumers): `netlist_parser`, `project_loader`, `waveform_writer`, `symbol_library`. The GUI has **no save, no load, no export** — a drawn schematic cannot be persisted.
-6. **Documented commands don't exist**: `egottol.simulate`, `egottol.export`, `egottol.benchmarks.eii.run`.
-7. **mypy cannot run**: duplicate module name `eii` (`egottol/models/eii.py` vs `egottol/engines/eii/` package). Ruff reports 913 issues (543 auto-fixable).
-8. **Version drift**: `pyproject.toml` says 0.1.0, CMake says 1.0.0.
-9. Phase 4 items not started: `to_uqe()` quantum export, Mermaid export.
+1. **Headless CLI** — `egottol-cli` (`sim`, `ee`, `version`) with production DC/tran/AC.
+2. **Schematic → simulation** — `extractNetlistFromScene` + `DcOperatingPoint` / `SpiceTransient`; demos only on empty canvas.
+3. **SPICE parser + builder** — standard device lines, units, `.tran/.ac/.op`, `.model`, nested `.subckt` via `expandedElements()`.
+4. **IO live** — save/load, CSV export, goldens, design fixtures under `tests/fixtures/design/`.
+5. **Python API** — `egottol.simulate`, EE knowledge `lookup_ee_design`, Copilot tool.
+6. **Version** — CMake / CLI report 1.0.0; see CHANGELOG / SHIP.md.
+
+### ⏳ Still open (post-1.0 polish, not blockers for ship)
+
+1. mypy / ruff hygiene on the Python tree.
+2. Phase 4: `to_uqe()` quantum export (optional).
+3. Richer schematic device coverage (every ComponentType → SPICE).
 
 ---
 
@@ -135,25 +138,22 @@ poetry run python -m egottol.ui.main
 
 Ordered by dependency, not by coolness. Each phase ends shippable.
 
-### Phase 6 — Close the loop (the product only exists when this is done)
-- [ ] **Fix `NetlistParser`**: accept standard SPICE (`R1 n1 n2 1k`) while keeping named-type form; recognize `.tran/.ac/.dc/.op/.step` control cards; parse unit suffixes (k/meg/M/u/n/p/G) to doubles. Add a dedicated ctest with real-world netlists.
-- [ ] **Netlist → Device builder**: `NetlistParser` result → `std::vector<std::shared_ptr<Device>>` + node map, ready for `MNASolver`/`Transient`/`ACAnalysis`.
-- [ ] **Schematic → netlist extraction** in `gui/`: serialize scene components/wires (via `component_item`/`wire_item`) into the parsed netlist form; wire it into `SimulationController` so Run simulates *what is drawn*.
-- [ ] **Project save/load (.egt)**: JSON project format via `project_loader`; File → Save/Open in `MainWindow`. A schematic you can't save is not a product.
-- [ ] **Waveform export**: CSV via `waveform_writer` hooked to `WaveformPlotter`.
+### Phase 6 — Close the loop — **DONE on feat/spice-production-engine**
+- [x] **Fix `NetlistParser`**: SPICE syntax, control cards, unit suffixes; ctest goldens.
+- [x] **Netlist → Device builder**: feeds production `DcOperatingPoint` / `SpiceTransient` / AC.
+- [x] **Schematic → netlist extraction** wired into `SimulationController` (no silent demo when parts exist).
+- [x] **Project save/load (.egt)** and waveform CSV export.
+- [x] **Headless CLI** + EE design lookup (`egottol-cli ee …`).
 
-### Phase 7 — Headless CLI + CI hygiene
-- [ ] `egottol-cli` (native, links same libs as GUI): `egottol sim file.cir [--tran|--ac|--dc]`, `egottol export ...`. Exit codes for CI use.
-- [ ] Console scripts: `python -m egottol.simulate` thin wrapper over pybind `_native` (or drop from docs until real).
-- [ ] Benchmark runner: `egottol.benchmarks.eii.run` implementing the thermistor_classify benchmark from `benchmarks/eii/README.md`; wire both benchmarks into CI.
-- [ ] Fix mypy duplicate-module error (rename `models/eii.py` or add `explicit-package-bases`); get mypy green.
-- [ ] `ruff check --fix` the 543 auto-fixables; gate CI on ruff+mypy+clang-tidy.
-- [ ] Unify version: single source of truth (CMake `project(... VERSION)` feeds `pyproject.toml` via release script).
+### Phase 7 — Headless CLI + CI hygiene — **mostly done**
+- [x] `egottol-cli` (native): `sim`, `ee`, exit codes for CI.
+- [x] Python `egottol.simulate` / knowledge lookup.
+- [ ] Benchmark runner wiring into CI; mypy/ruff gate; single version source.
 
-### Phase 8 — Solver credibility ("beyond-LTspice" must first match LTspice)
-- [ ] Golden-waveform regression suite vs LTspice/ngspice on ~20 reference circuits (RC/RLC, dividers, rectifiers, common-emitter, op-amp filters). Tolerance-based comparison automated in CI.
-- [ ] Convergence hardening: gmin stepping / source stepping fallbacks in Newton-Raphson; document limits.
-- [ ] MOSFET/BJT model validation against known device curves (levels, parameters actually honored).
+### Phase 8 — Solver credibility — **core done on this branch**
+- [x] Golden corpus + optional ngspice compare; design fixtures.
+- [x] Convergence: gmin/source stepping; Level-1 MOSFET/BJT validation goldens.
+- [ ] Broader LTspice curve library / CI ngspice required (optional today).
 - [ ] Performance baseline: benchmarks/ suite runs in CI with size tracking (matrix solve time vs node count).
 
 ### Phase 9 — Differentiators (only after Phase 8)

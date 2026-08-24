@@ -4,6 +4,7 @@
 #include "../core/mna_solver.h"
 #include "../core/spice_engine.h"
 #include "../core/ac_analysis.h"
+#include "ee_lookup.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -22,11 +23,12 @@ void printUsage(const char* argv0) {
         "egottol-cli — headless Deepiri Egottol simulator\n"
         "Usage:\n"
         "  %s sim <file.cir> [--op|--tran|--ac] [--trap] [--lte] [-o out.csv]\n"
+        "  %s ee <query...>          EE design / symptom lookup\n"
         "  %s version\n"
         "  %s help\n"
         "\n"
         "Exit codes: 0 success, 1 usage/parse error, 2 simulation failure\n",
-        argv0, argv0, argv0);
+        argv0, argv0, argv0, argv0);
 }
 
 double controlNumber(const NetlistParser& parser, const char* kind, size_t index, double fallback) {
@@ -256,6 +258,19 @@ int main(int argc, char** argv) {
     }
     if (cmd == "sim") {
         return cmdSim(argc, argv);
+    }
+    if (cmd == "ee") {
+        if (argc < 3) {
+            std::fprintf(stderr, "Usage: %s ee <query words...>\n", argv[0]);
+            return 1;
+        }
+        std::string q;
+        for (int i = 2; i < argc; ++i) {
+            if (i > 2) q += ' ';
+            q += argv[i];
+        }
+        std::fputs(deepiri::formatEeLookup(q).c_str(), stdout);
+        return 0;
     }
 
     std::fprintf(stderr, "Unknown command: %s\n", cmd.c_str());

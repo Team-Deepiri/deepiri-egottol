@@ -259,7 +259,8 @@ BuiltCircuit buildCircuitFromElements(
             }
             case NetlistElementType::Instance:
             case NetlistElementType::Subckt:
-                // Subcircuit expansion not implemented yet — skip with a note.
+                // X/subckt definitions are flattened by NetlistParser::expandedElements()
+                // before buildCircuitFromNetlist(); leftover defs here are skipped.
                 break;
         }
     }

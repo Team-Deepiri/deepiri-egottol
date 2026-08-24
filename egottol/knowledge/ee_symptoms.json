@@ -25,6 +25,11 @@
     {"id": "voltage-doubler", "symptoms": ["double voltage", "charge pump", "no transformer hv"], "combination": "C + Diode + C multiplier", "behavior": "Steers charge into series stack", "use": "Flash / charge pumps", "doc": "docs/ee/combinations.md"},
     {"id": "diode-drop", "symptoms": ["drop 0.7v", "cheap regulator diodes"], "combination": "Diodes in series on supply", "behavior": "≈0.7V per silicon diode", "use": "Crude level drop", "doc": "docs/ee/series-parallel.md"},
     {"id": "floorplan", "symptoms": ["where to place parts", "pcb floorplan", "dirty clean zone"], "combination": "Dirty / Digital / Clean floorplan", "behavior": "Partition by noise before routing", "use": "All boards", "doc": "docs/ee/pcb-design.md"},
-    {"id": "pdn", "symptoms": ["voltage droop", "pdn impedance", "power integrity"], "combination": "Bulk + mid + HF capacitor hierarchy", "behavior": "Keep Z below ΔV/ΔI across frequency", "use": "Digital SoC boards", "doc": "docs/ee/pcb-design.md"}
+    {"id": "pdn", "symptoms": ["voltage droop", "pdn impedance", "power integrity"], "combination": "Bulk + mid + HF capacitor hierarchy", "behavior": "Keep Z below ΔV/ΔI across frequency", "use": "Digital SoC boards", "doc": "docs/ee/pcb-design.md"},
+    {"id": "snubber", "symptoms": ["switching ring", "mosfet ringing", "rc snubber"], "combination": "R+C series across switch / diode", "behavior": "Damps LC ringing", "use": "SMPS / relay drivers", "doc": "docs/ee/golden-rules.md"},
+    {"id": "current-sense", "symptoms": ["measure current", "shunt resistor", "overcurrent"], "combination": "Low-R shunt + differential amp", "behavior": "I → V drop", "use": "Motor / supply monitoring", "doc": "docs/ee/motors.md"},
+    {"id": "bleeder", "symptoms": ["cap stays charged", "shock after power off", "bleeder"], "combination": "Resistor || bulk capacitor", "behavior": "Discharges stored energy", "use": "HV / large electrolytics", "doc": "docs/ee/golden-rules.md"},
+    {"id": "star-gnd", "symptoms": ["ground loop hum", "shared return noise"], "combination": "Star / single-point analog ground", "behavior": "Keeps return currents from mixing", "use": "Mixed-signal boards", "doc": "docs/ee/pcb-design.md"},
+    {"id": "tvs", "symptoms": ["esd kill", "transient surge", "input protection"], "combination": "TVS / clamp diode to rail", "behavior": "Crowbars overvoltage spikes", "use": "Connector / antenna inputs", "doc": "docs/ee/symptom-solver.md"}
   ]
 }

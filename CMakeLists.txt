@@ -153,7 +153,7 @@ add_library(deepiri_io STATIC ${IO_SOURCES})
 target_link_libraries(deepiri_io PUBLIC deepiri_models)
 
 # Headless CLI — no Qt dependency; usable in CI and scripts.
-add_executable(egottol_cli cli/main.cpp)
+add_executable(egottol_cli cli/main.cpp cli/ee_lookup.cpp)
 target_link_libraries(egottol_cli PRIVATE deepiri_io deepiri_core deepiri_models)
 set_target_properties(egottol_cli PROPERTIES OUTPUT_NAME "egottol-cli")
 install(TARGETS egottol_cli RUNTIME DESTINATION bin)
