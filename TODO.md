@@ -1,16 +1,16 @@
-# TODO — Ship 1.0
+# TODO — 1.0 COMPLETE
 
-## Shipped in 1.0.0
+Egottol **1.0.0 is a finished product** — see [SHIP.md](SHIP.md).
+
+## Shipped
 - [x] Production SPICE DC + transient (BE/trap + LTE)
-- [x] `.model` + MOSFET/BJT Level-1 stamps (analytical Id golden)
-- [x] `.subckt` / nested `X` + `.include` libraries
-- [x] 22-circuit goldens, ngspice cross-check, perf baseline
-- [x] Native GUI schematic→sim, CLI, Python wrappers, Mermaid + UQE export
-- [x] `CHANGELOG.md` + docs aligned to 1.0
-- [x] **EE design knowledge** (`docs/ee/` + Copilot `lookup_ee_design`)
+- [x] `.model` + MOSFET/BJT Level-1 stamps
+- [x] `.subckt` / nested `X` + `.include`
+- [x] Goldens + ngspice + perf + design fixtures
+- [x] Native GUI + CLI + Python + EE knowledge (`docs/ee/`, Copilot)
 
 ## Post-1.0 backlog
-- [ ] Deeper `.lib` / PDK libraries and nested `.include` trees in CI artifacts
+- [ ] Deeper PDK / `.lib` trees in CI
 - [ ] MOSFET/BJT family curve plot artifacts
-- [ ] zepGPU offload for large MNA (optional)
-- [ ] Expand EE symptom index + more design fixtures (H-bridge, boost)
+- [ ] Optional zepGPU MNA offload
+- [ ] More design fixtures (H-bridge, boost)
