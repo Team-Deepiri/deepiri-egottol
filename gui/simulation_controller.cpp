@@ -1,9 +1,14 @@
 #include "simulation_controller.h"
 
+#include "schematic_netlist.h"
+#include "scene.h"
+
 #include "../core/mna_solver.h"
 #include "../core/transient.h"
 #include "../core/ac_analysis.h"
 #include "../core/eii/pipeline.h"
+#include "../io/netlist_parser.h"
+#include "../io/netlist_builder.h"
 #include "../models/vsrc.h"
 #include "../models/isrc.h"
 #include "../models/resistor.h"
@@ -11,40 +16,239 @@
 
 #include <map>
 #include <memory>
+#include <cmath>
 
 namespace deepiri {
 
+namespace {
+
+double controlNumber(const NetlistParser& parser, const char* kind, size_t index, double fallback) {
+    for (const auto& d : parser.getControlDirectives()) {
+        if (d.kind == kind && index < d.numbers.size()) {
+            return d.numbers[index];
+        }
+    }
+    return fallback;
+}
+
+size_t pickProbeNode(const BuiltCircuit& circuit) {
+    // Prefer a non-source node named "out" / "mid", else highest index.
+    for (const char* name : {"out", "mid", "n2", "n1"}) {
+        auto it = circuit.nodeMap.find(name);
+        if (it != circuit.nodeMap.end() && it->second > 0) {
+            return it->second;
+        }
+    }
+    size_t best = 0;
+    for (const auto& kv : circuit.nodeMap) {
+        if (kv.second > best) best = kv.second;
+    }
+    return best;
+}
+
+QString nodeLabel(const BuiltCircuit& circuit, size_t nodeId) {
+    for (const auto& kv : circuit.nodeMap) {
+        if (kv.second == nodeId) {
+            return QString::fromStdString(kv.first);
+        }
+    }
+    return QString("node%1").arg(nodeId);
+}
+
+}  // namespace
+
 SimulationController::SimulationController(QObject* parent) : QObject(parent) {}
 
-SimulationController::DcResult SimulationController::runDemoDcOperatingPoint() {
+SimulationController::DcResult SimulationController::runDcFromNetlist(const std::string& netlist) {
     DcResult result;
+    NetlistParser parser;
+    if (!parser.parse(netlist)) {
+        result.message = "Failed to parse netlist";
+        return result;
+    }
 
-    auto vsrc = std::make_shared<Vsrc>("V1", 5.0);
-    vsrc->setNodes(1, 0);
-    auto r1 = std::make_shared<Resistor>("R1", 1000.0);
-    r1->setNodes(1, 2);
-    auto r2 = std::make_shared<Resistor>("R2", 1000.0);
-    r2->setNodes(2, 0);
-
-    std::vector<std::shared_ptr<Device>> devices{vsrc, r1, r2};
-    std::map<std::string, size_t> nodeMap{{"1", 1}, {"2", 2}};
+    BuiltCircuit circuit = buildCircuitFromNetlist(parser);
+    if (!circuit.ok) {
+        result.message = QString::fromStdString(circuit.error);
+        return result;
+    }
 
     MNASolver solver;
-    auto solution = solver.solve(devices, nodeMap, {});
-
+    auto solution = solver.solve(circuit.devices, circuit.nodeMap, {});
     result.success = solution.success;
     result.message = QString::fromStdString(solution.message);
-    if (solution.success && solution.voltages.size() >= 2) {
-        result.summary = QString("Demo divider (V1=5V, R1=R2=1k):  node1 = %1 V   node2 = %2 V")
-                              .arg(solution.voltages[0], 0, 'f', 4)
-                              .arg(solution.voltages[1], 0, 'f', 4);
+    if (!solution.success) return result;
+
+    QStringList parts;
+    for (const auto& kv : circuit.nodeMap) {
+        if (kv.second == 0) continue;
+        size_t idx = kv.second - 1;
+        if (idx < solution.voltages.size()) {
+            parts << QString("%1=%2V")
+                         .arg(QString::fromStdString(kv.first))
+                         .arg(solution.voltages[idx], 0, 'f', 4);
+        }
+    }
+    result.summary = QString("DC OP (%1 devices):  %2")
+                         .arg(circuit.devices.size())
+                         .arg(parts.join("   "));
+    return result;
+}
+
+SimulationController::TransientResult SimulationController::runTransientFromNetlist(
+    const std::string& netlist) {
+    TransientResult result;
+    NetlistParser parser;
+    if (!parser.parse(netlist)) {
+        result.message = "Failed to parse netlist";
+        return result;
+    }
+
+    BuiltCircuit circuit = buildCircuitFromNetlist(parser);
+    if (!circuit.ok) {
+        result.message = QString::fromStdString(circuit.error);
+        return result;
+    }
+
+    double tstep = controlNumber(parser, "tran", 0, 1e-5);
+    double tstop = controlNumber(parser, "tran", 1, 1e-3);
+    if (tstep <= 0.0) tstep = 1e-5;
+    if (tstop <= tstep) tstop = tstep * 100.0;
+
+    size_t probe = pickProbeNode(circuit);
+    size_t numUnknowns = std::max(circuit.numNodes, probe);
+    if (numUnknowns == 0) numUnknowns = 1;
+
+    Transient transient;
+    auto sim = transient.simulate(0.0, tstop, tstep, circuit.devices, numUnknowns);
+
+    result.converged = sim.converged;
+    result.message = QString::fromStdString(sim.message);
+    result.timePoints = sim.timePoints;
+    result.traceName = QString("V(%1)").arg(nodeLabel(circuit, probe));
+    result.values.reserve(sim.nodeVoltages.size());
+    for (const auto& state : sim.nodeVoltages) {
+        double v = 0.0;
+        if (probe >= 1 && probe - 1 < state.size()) {
+            v = state[probe - 1];
+        } else if (!state.empty()) {
+            v = state[0];
+        }
+        result.values.push_back(v);
+    }
+    return result;
+}
+
+SimulationController::AcResult SimulationController::runAcFromNetlist(const std::string& netlist) {
+    AcResult result;
+    NetlistParser parser;
+    if (!parser.parse(netlist)) {
+        result.message = "Failed to parse netlist";
+        return result;
+    }
+
+    BuiltCircuit circuit = buildCircuitFromNetlist(parser);
+    if (!circuit.ok) {
+        result.message = QString::fromStdString(circuit.error);
+        return result;
+    }
+
+    // .ac dec|oct|lin np fstart fstop — numbers may skip the string keyword.
+    double fstart = 1.0;
+    double fstop = 1e6;
+    int npoints = 60;
+    for (const auto& d : parser.getControlDirectives()) {
+        if (d.kind != "ac") continue;
+        if (d.numbers.size() >= 3) {
+            // np, fstart, fstop (when type token is non-numeric)
+            npoints = std::max(2, static_cast<int>(d.numbers[0]));
+            fstart = d.numbers[1];
+            fstop = d.numbers[2];
+        } else if (d.numbers.size() == 2) {
+            fstart = d.numbers[0];
+            fstop = d.numbers[1];
+        }
+    }
+
+    ACAnalysis ac;
+    auto sweep = ac.sweep(circuit.devices, circuit.nodeMap, fstart, fstop, npoints);
+    result.success = sweep.success;
+    result.message = QString::fromStdString(sweep.message);
+    if (!sweep.success) return result;
+
+    size_t probe = pickProbeNode(circuit);
+    result.frequenciesHz = sweep.frequenciesHz;
+    result.traceName = QString("|V(%1)|").arg(nodeLabel(circuit, probe));
+    if (probe >= 1 && probe - 1 < sweep.magnitude.size()) {
+        result.magnitude = sweep.magnitude[probe - 1];
+    } else if (!sweep.magnitude.empty()) {
+        result.magnitude = sweep.magnitude.back();
+    }
+    return result;
+}
+
+SimulationController::DcResult SimulationController::runDcOperatingPoint(
+    const SchematicScene* scene, bool allowDemoFallback) {
+    if (scene) {
+        auto extracted = extractNetlistFromScene(scene);
+        if (extracted.ok) {
+            return runDcFromNetlist(extracted.netlist);
+        }
+        if (!allowDemoFallback) {
+            DcResult r;
+            r.message = QString::fromStdString(extracted.error);
+            return r;
+        }
+    }
+    return runDemoDcOperatingPoint();
+}
+
+SimulationController::TransientResult SimulationController::runTransient(
+    const SchematicScene* scene, bool allowDemoFallback) {
+    if (scene) {
+        auto extracted = extractNetlistFromScene(scene);
+        if (extracted.ok) {
+            return runTransientFromNetlist(extracted.netlist);
+        }
+        if (!allowDemoFallback) {
+            TransientResult r;
+            r.message = QString::fromStdString(extracted.error);
+            return r;
+        }
+    }
+    return runDemoTransient();
+}
+
+SimulationController::AcResult SimulationController::runAcAnalysis(
+    const SchematicScene* scene, bool allowDemoFallback) {
+    if (scene) {
+        auto extracted = extractNetlistFromScene(scene);
+        if (extracted.ok) {
+            return runAcFromNetlist(extracted.netlist);
+        }
+        if (!allowDemoFallback) {
+            AcResult r;
+            r.message = QString::fromStdString(extracted.error);
+            return r;
+        }
+    }
+    return runDemoAcAnalysis();
+}
+
+SimulationController::DcResult SimulationController::runDemoDcOperatingPoint() {
+    const char* nl =
+        "V1 1 0 5\n"
+        "R1 1 2 1k\n"
+        "R2 2 0 1k\n"
+        ".op\n";
+    auto result = runDcFromNetlist(nl);
+    if (result.success) {
+        result.summary = QString("Demo divider (V1=5V, R1=R2=1k):  %1").arg(result.summary);
     }
     return result;
 }
 
 SimulationController::TransientResult SimulationController::runDemoTransient() {
-    TransientResult result;
-
     auto isrc = std::make_shared<Isrc>("I1", 1e-3);
     isrc->setNodes(1, 2);
 
@@ -53,9 +257,11 @@ SimulationController::TransientResult SimulationController::runDemoTransient() {
     Transient transient;
     auto sim = transient.simulate(0.0, 1e-3, 1e-5, devices, 2);
 
+    TransientResult result;
     result.converged = sim.converged;
     result.message = QString::fromStdString(sim.message);
     result.timePoints = sim.timePoints;
+    result.traceName = "node1 (I1 = 1mA into open node)";
     result.values.reserve(sim.nodeVoltages.size());
     for (const auto& state : sim.nodeVoltages) {
         result.values.push_back(state.empty() ? 0.0 : state[0]);
@@ -64,27 +270,14 @@ SimulationController::TransientResult SimulationController::runDemoTransient() {
 }
 
 SimulationController::AcResult SimulationController::runDemoAcAnalysis() {
-    AcResult result;
-
-    // RC low-pass: Vsrc(1V AC) -> R(1k) -> node2 -> C(1uF) -> ground.
-    auto vsrc = std::make_shared<Vsrc>("V1", 1.0);
-    vsrc->setNodes(1, 0);
-    auto r1 = std::make_shared<Resistor>("R1", 1000.0);
-    r1->setNodes(1, 2);
-    auto c1 = std::make_shared<Capacitor>("C1", 1e-6);
-    c1->setNodes(2, 0);
-
-    std::vector<std::shared_ptr<Device>> devices{vsrc, r1, c1};
-    std::map<std::string, size_t> nodeMap{{"1", 1}, {"2", 2}};
-
-    ACAnalysis ac;
-    auto sweep = ac.sweep(devices, nodeMap, 1.0, 1.0e6, 60);
-
-    result.success = sweep.success;
-    result.message = QString::fromStdString(sweep.message);
-    if (sweep.success && sweep.magnitude.size() >= 2) {
-        result.frequenciesHz = sweep.frequenciesHz;
-        result.magnitude = sweep.magnitude[1];  // node2 (across the capacitor)
+    const char* nl =
+        "V1 1 0 1 1\n"
+        "R1 1 2 1k\n"
+        "C1 2 0 1u\n"
+        ".ac dec 10 1 1Meg\n";
+    auto result = runAcFromNetlist(nl);
+    if (result.success) {
+        result.traceName = "|H(f)| at C1 (RC low-pass)";
     }
     return result;
 }
@@ -113,7 +306,7 @@ SimulationController::EiiResult SimulationController::runDemoEiiPipeline() {
     std::vector<std::vector<double>> voltageTrace(numSteps, std::vector<double>(4, 0.0));
     std::vector<std::vector<double>> currentTrace(numSteps, std::vector<double>(4, 0.0));
     for (int i = 20; i < numSteps; ++i) {
-        voltageTrace[i][0] = 1.0;  // step input on channel 0
+        voltageTrace[i][0] = 1.0;
     }
 
     auto history = pipeline.run(voltageTrace, currentTrace, dt, 0);
@@ -127,10 +320,8 @@ SimulationController::EiiResult SimulationController::runDemoEiiPipeline() {
 
     result.ran = true;
     if (lastInference) {
-        result.summary = QString("EII pipeline: %1 impulse events detected, %2 window(s) inferred, "
-                                  "last confidence = %3")
+        result.summary = QString("EII pipeline: %1 impulse events detected, last confidence = %2")
                               .arg(totalEvents)
-                              .arg(lastInference != nullptr ? 1 : 0)
                               .arg(lastInference->confidence, 0, 'f', 4);
     } else {
         result.summary = QString("EII pipeline: %1 impulse events detected, no inference window completed")

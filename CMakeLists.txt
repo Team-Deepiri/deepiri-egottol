@@ -81,6 +81,7 @@ set(EII_SOURCES
 
 set(IO_SOURCES
     io/netlist_parser.cpp
+    io/netlist_builder.cpp
     io/project_loader.cpp
     io/symbol_library.cpp
     io/waveform_writer.cpp
@@ -99,6 +100,8 @@ if(Qt6_FOUND AND ENABLE_QT)
         gui/waveform_plotter.cpp
         gui/property_editor.cpp
         gui/simulation_controller.cpp
+        gui/schematic_netlist.cpp
+        gui/schematic_mermaid.cpp
     )
 endif()
 
@@ -113,6 +116,7 @@ endif()
 set(INFRA_SOURCES
     infra/zepgpu_client.cpp
     infra/uqe_bridge.cpp
+    infra/uqe_logic.cpp
     infra/config_manager.cpp
 )
 
@@ -145,6 +149,13 @@ add_library(deepiri_eii STATIC ${EII_SOURCES})
 target_link_libraries(deepiri_eii PUBLIC deepiri_core)
 
 add_library(deepiri_io STATIC ${IO_SOURCES})
+target_link_libraries(deepiri_io PUBLIC deepiri_models)
+
+# Headless CLI — no Qt dependency; usable in CI and scripts.
+add_executable(egottol_cli cli/main.cpp)
+target_link_libraries(egottol_cli PRIVATE deepiri_io deepiri_core deepiri_models)
+set_target_properties(egottol_cli PROPERTIES OUTPUT_NAME "egottol-cli")
+install(TARGETS egottol_cli RUNTIME DESTINATION bin)
 
 if(ENABLE_AVIONICS)
     add_library(deepiri_avionics STATIC ${AVIONICS_SOURCES})
@@ -157,7 +168,7 @@ if(Qt6_FOUND AND ENABLE_QT)
     add_library(deepiri_gui STATIC ${GUI_SOURCES})
     target_link_libraries(deepiri_gui PUBLIC
         deepiri_core deepiri_models deepiri_io deepiri_logic
-        deepiri_analog deepiri_ai deepiri_eii
+        deepiri_analog deepiri_ai deepiri_eii deepiri_infra
         Qt6::Core Qt6::Gui Qt6::Widgets
     )
     if(ENABLE_AVIONICS)

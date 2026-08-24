@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QString>
 #include <memory>
 
 QT_BEGIN_NAMESPACE
@@ -30,16 +31,26 @@ public:
 private slots:
     void onSceneSelectionChanged();
     void insertComponent(int componentType);
-    void runDemoDcOperatingPoint();
-    void runDemoTransient();
-    void runDemoAcAnalysis();
+    void runDcOperatingPoint();
+    void runTransient();
+    void runAcAnalysis();
     void runDemoEiiPipeline();
     void parseSampleVhdl();
     void decodeSampleAdsb();
+    void newProject();
+    void openProject();
+    void saveProject();
+    void saveProjectAs();
+    void exportWaveformCsv();
+    void exportMermaid();
 
 private:
     void buildMenusAndToolbars();
     void buildDocks();
+    bool writeProjectTo(const QString& path);
+    bool readProjectFrom(const QString& path);
+    void clearSchematic();
+    void setCurrentFile(const QString& path);
 
     SchematicScene* scene_ = nullptr;
     SchematicView* view_ = nullptr;
@@ -49,6 +60,7 @@ private:
     WaveformPlotter* waveformPlotter_ = nullptr;
     SimulationController* simController_ = nullptr;
     std::shared_ptr<SimulationData> simData_;
+    QString currentFile_;
 };
 
 }

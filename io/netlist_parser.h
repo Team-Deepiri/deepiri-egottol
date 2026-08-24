@@ -23,16 +23,24 @@ enum class NetlistElementType {
 struct NetlistNode {
     std::string name;
     std::string net;
-    int index;
+    int index = -1;
 };
 
 struct NetlistElement {
-    NetlistElementType type;
+    NetlistElementType type = NetlistElementType::Instance;
     std::string name;
     std::vector<NetlistNode> nodes;
     std::vector<double> parameters;
     std::string model_name;
     std::string subckt_name;
+};
+
+// Parsed analysis / option directive (`.tran`, `.ac`, `.op`, …).
+struct NetlistControl {
+    std::string kind;   // lower-case: tran, ac, dc, op, step, end, …
+    std::string raw;
+    std::vector<std::string> tokens;  // tokens after the leading `.kind`
+    std::vector<double> numbers;      // numeric args with unit suffixes applied
 };
 
 class NetlistParser {
@@ -46,8 +54,13 @@ public:
     std::vector<NetlistElement> getElements() const;
     std::map<std::string, std::vector<std::string>> getNets() const;
     std::vector<std::string> getControls() const;
+    std::vector<NetlistControl> getControlDirectives() const;
 
     std::string toNetlist() const;
+
+    // SPICE engineering notation → double (`1k` → 1000, `4.7u` → 4.7e-6).
+    static bool parseValue(const std::string& token, double& out);
+    static int expectedNodeCount(NetlistElementType type);
 
 private:
     class Impl;

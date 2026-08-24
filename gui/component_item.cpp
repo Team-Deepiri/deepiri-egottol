@@ -3,6 +3,7 @@
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>
 #include <QDebug>
+#include <QMap>
 
 namespace deepiri {
 
@@ -13,6 +14,7 @@ public:
     QList<Pin> pins_;
     QColor selection_color_;
     QSizeF size_;
+    QMap<QString, QString> properties_;
 };
 
 ComponentItem::ComponentItem(ComponentType type, const QString& label, QGraphicsItem* parent)
@@ -26,6 +28,41 @@ ComponentItem::ComponentItem(ComponentType type, const QString& label, QGraphics
     setFlag(QGraphicsItem::ItemIsMovable);
     setFlag(QGraphicsItem::ItemSendsGeometryChanges);
     setAcceptHoverEvents(true);
+
+    switch (type) {
+        case ComponentType::RESISTOR:
+        case ComponentType::VARISTOR:
+        case ComponentType::THERMISTOR_NTC:
+        case ComponentType::THERMISTOR_PTC:
+        case ComponentType::TRIMMER:
+            d->properties_["value"] = "1k";
+            break;
+        case ComponentType::CAPACITOR:
+        case ComponentType::CAP_ELEC:
+        case ComponentType::CAP_CER:
+        case ComponentType::CAP_FILM:
+        case ComponentType::CAP_TANT:
+        case ComponentType::CAP_TRIM:
+            d->properties_["value"] = "1u";
+            break;
+        case ComponentType::INDUCTOR:
+        case ComponentType::IND_FERRITE:
+        case ComponentType::IND_VAR:
+            d->properties_["value"] = "1m";
+            break;
+        case ComponentType::SOURCE:
+        case ComponentType::VCC:
+            d->properties_["value"] = "5";
+            break;
+        case ComponentType::LED:
+        case ComponentType::SCHOTTKY:
+        case ComponentType::PHOTODIODE:
+            d->properties_["value"] = "1e-12";
+            break;
+        default:
+            break;
+    }
+
     update_pins();
 }
 
@@ -43,6 +80,24 @@ QString ComponentItem::label() const {
 
 void ComponentItem::set_label(const QString& label) {
     d->label_ = label;
+    update();
+}
+
+QString ComponentItem::property(const QString& key, const QString& fallback) const {
+    return d->properties_.value(key, fallback);
+}
+
+void ComponentItem::set_property(const QString& key, const QString& value) {
+    d->properties_[key] = value;
+    update();
+}
+
+QMap<QString, QString> ComponentItem::properties() const {
+    return d->properties_;
+}
+
+void ComponentItem::set_properties(const QMap<QString, QString>& props) {
+    d->properties_ = props;
     update();
 }
 
@@ -139,7 +194,7 @@ void ComponentItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* event) {
 
 void ComponentItem::update_pins() {
     d->pins_.clear();
-    
+
     switch (d->type_) {
         case ComponentType::AND_GATE:
         case ComponentType::OR_GATE:
@@ -163,13 +218,39 @@ void ComponentItem::update_pins() {
             add_pin({"Q", QPointF(30, -10), false, 1});
             add_pin({"QN", QPointF(30, 10), false, 1});
             break;
+        case ComponentType::RESISTOR:
+        case ComponentType::CAPACITOR:
+        case ComponentType::INDUCTOR:
+        case ComponentType::VARISTOR:
+        case ComponentType::THERMISTOR_NTC:
+        case ComponentType::THERMISTOR_PTC:
+        case ComponentType::TRIMMER:
+        case ComponentType::CAP_ELEC:
+        case ComponentType::CAP_CER:
+        case ComponentType::CAP_FILM:
+        case ComponentType::CAP_TANT:
+        case ComponentType::CAP_TRIM:
+        case ComponentType::IND_FERRITE:
+        case ComponentType::IND_VAR:
+        case ComponentType::LED:
+        case ComponentType::SCHOTTKY:
+        case ComponentType::PHOTODIODE:
+            add_pin({"A", QPointF(-30, 0), true, 1});
+            add_pin({"B", QPointF(30, 0), true, 1});
+            break;
+        case ComponentType::SOURCE:
+            add_pin({"+", QPointF(0, -20), false, 1});
+            add_pin({"-", QPointF(0, 20), true, 1});
+            break;
         case ComponentType::VCC:
             add_pin({"VCC", QPointF(0, 20), false, 1});
             break;
         case ComponentType::GROUND:
-            add_pin({"GND", QPointF(0, 20), false, 1});
+            add_pin({"GND", QPointF(0, -20), true, 1});
             break;
         default:
+            add_pin({"A", QPointF(-30, 0), true, 1});
+            add_pin({"B", QPointF(30, 0), true, 1});
             break;
     }
 }

@@ -12,8 +12,6 @@ namespace deepiri {
 
 class ComponentItem;
 
-// Shows the label and pin list of the currently selected schematic component,
-// and lets the label be edited live.
 class PropertyEditor : public QWidget {
     Q_OBJECT
 
@@ -32,6 +30,7 @@ private:
     QFormLayout* form_ = nullptr;
     QLabel* typeLabel_ = nullptr;
     QLineEdit* labelEdit_ = nullptr;
+    QLineEdit* valueEdit_ = nullptr;
     QLabel* pinsLabel_ = nullptr;
 };
 

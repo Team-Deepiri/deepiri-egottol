@@ -1,5 +1,7 @@
 #include "waveform_plotter.h"
 
+#include "../io/waveform_writer.h"
+
 #include <QPainter>
 #include <QPaintEvent>
 #include <QTimer>
@@ -53,6 +55,23 @@ void WaveformPlotter::setTrace(const QString& name, const std::vector<double>& t
     t.color = color.isValid() ? color : kPalette[traces_.size() % (sizeof(kPalette) / sizeof(kPalette[0]))];
     traces_.push_back(std::move(t));
     update();
+}
+
+bool WaveformPlotter::exportCSV(const QString& filename) const {
+    if (traces_.empty()) return false;
+    std::vector<WaveformData> waveforms;
+    waveforms.reserve(traces_.size());
+    for (const auto& t : traces_) {
+        WaveformData wd;
+        wd.name = t.name.toStdString();
+        wd.unit = "V";
+        wd.time_points = t.timePoints;
+        wd.values = t.values;
+        waveforms.push_back(std::move(wd));
+    }
+    WaveformWriter writer;
+    writer.setFormat(WaveformFormat::CSV);
+    return writer.writeCSV(filename.toStdString(), waveforms);
 }
 
 void WaveformPlotter::animateSweep(int durationMs) {
