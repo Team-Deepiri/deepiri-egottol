@@ -14,7 +14,7 @@ public:
 
     void setInductance(double l) { L_ = l; L0_ = l; }
     double inductance() const { return L_; }
-    void setInitialCurrent(double i) { iInitial_ = i; }
+    void setInitialCurrent(double i) { iInitial_ = i; i_ = i; }
     double initialCurrent() const { return iInitial_; }
     void setCoupling(size_t otherInductor, double k);
 
@@ -27,6 +27,8 @@ public:
 
     void getInitialGuess(std::vector<double>& guess) const override;
     void updateState(const std::vector<double>& state) override;
+    void prepareTransientStep(double h, const std::vector<double>& prevNodeVoltages) override;
+    void acceptTransientStep(const std::vector<double>& nodeVoltages) override;
 
     double flux() const { return flux_; }
     double current() const { return i_; }
@@ -37,6 +39,9 @@ private:
     double i_, iInitial_;
     double flux_;
     std::map<size_t, double> couplingMap_;
+    bool transientActive_ = false;
+    double geq_ = 0.0;
+    double ieq_ = 0.0;
 };
 
 }

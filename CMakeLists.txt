@@ -26,6 +26,7 @@ set(CORE_SOURCES
     core/circuit.cpp
     core/device_mgr.cpp
     core/ac_analysis.cpp
+    core/spice_engine.cpp
 )
 
 set(MODELS_SOURCES

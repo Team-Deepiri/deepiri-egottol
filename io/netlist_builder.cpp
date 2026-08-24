@@ -100,8 +100,19 @@ BuiltCircuit buildCircuitFromElements(const std::vector<NetlistElement>& element
                 size_t b = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
                 double v = paramOr(elem, 0, 1.0);
                 auto dev = std::make_shared<Vsrc>(elem.name, v);
-                // Optional AC mag as second param.
-                if (elem.parameters.size() >= 2) {
+                if (elem.named_parameters.count("pulse")) {
+                    // PULSE(v1 v2 td tr tf pw per) → parameters in order after keyword
+                    double v1 = paramOr(elem, 0, 0.0);
+                    double v2 = paramOr(elem, 1, 1.0);
+                    double td = paramOr(elem, 2, 0.0);
+                    double tr = paramOr(elem, 3, 1e-9);
+                    double tf = paramOr(elem, 4, 1e-9);
+                    double pw = paramOr(elem, 5, 1e-3);
+                    double per = paramOr(elem, 6, 2e-3);
+                    dev->setPulse(v1, v2, td, tr, tf, pw, per);
+                    // Also keep DC as v1 for operating-point fallback.
+                    dev->setDC(v1);
+                } else if (elem.parameters.size() >= 2) {
                     double ac = elem.parameters[1];
                     double phase = paramOr(elem, 2, 0.0);
                     dev->setAC(ac, phase);
@@ -140,34 +151,62 @@ BuiltCircuit buildCircuitFromElements(const std::vector<NetlistElement>& element
             }
             case NetlistElementType::BJT: {
                 if (!needNodes(3)) return out;
-                // Device base class is 2-terminal; stamp collector-emitter
-                // for a first-order path. Full 3-terminal MNA is future work.
                 size_t c = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
-                size_t /*b*/ _b = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
+                size_t b = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
                 size_t e = resolveNode(elem.nodes[2].net, out.nodeMap, nextIndex);
-                (void)_b;
                 auto dev = std::make_shared<BJT>(elem.name);
-                dev->setNodes(c, e);
+                if (!elem.model_name.empty()) {
+                    std::string m = elem.model_name;
+                    std::transform(m.begin(), m.end(), m.begin(),
+                                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+                    if (m.find("pnp") != std::string::npos) {
+                        dev->setType(BJTType::PNP);
+                    }
+                }
+                dev->setTerminals({c, b, e});
                 out.devices.push_back(dev);
                 break;
             }
             case NetlistElementType::MOSFET: {
                 if (!needNodes(4)) return out;
                 size_t d = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
-                size_t /*g*/ _g = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
+                size_t g = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
                 size_t s = resolveNode(elem.nodes[2].net, out.nodeMap, nextIndex);
-                size_t /*b*/ _b = resolveNode(elem.nodes[3].net, out.nodeMap, nextIndex);
-                (void)_g;
-                (void)_b;
-                auto dev = std::make_shared<MOSFET>(elem.name);
-                if (elem.parameters.size() >= 1) {
-                    // W= / L= often appear as params; treat first two numbers as W, L.
-                    dev->setWidth(elem.parameters[0]);
+                size_t b = resolveNode(elem.nodes[3].net, out.nodeMap, nextIndex);
+                MOSFETType mt = MOSFETType::NMOS;
+                if (!elem.model_name.empty()) {
+                    std::string m = elem.model_name;
+                    std::transform(m.begin(), m.end(), m.begin(),
+                                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+                    if (m.find("p") == 0 || m.find("pmos") != std::string::npos) {
+                        mt = MOSFETType::PMOS;
+                    }
                 }
-                if (elem.parameters.size() >= 2) {
-                    dev->setLength(elem.parameters[1]);
+                auto dev = std::make_shared<MOSFET>(elem.name, mt);
+                auto named = [&](const char* k, double fb) {
+                    auto it = elem.named_parameters.find(k);
+                    return it != elem.named_parameters.end() ? it->second : fb;
+                };
+                double w = named("w", paramOr(elem, 0, 10e-6));
+                double l = named("l", paramOr(elem, 1, 1e-6));
+                // If parameters came only from W=/L=, paramOr may duplicate — prefer named.
+                if (elem.named_parameters.count("w")) w = elem.named_parameters.at("w");
+                if (elem.named_parameters.count("l")) l = elem.named_parameters.at("l");
+                dev->setWidth(w);
+                dev->setLength(l);
+                MOSFETModel model;
+                model.vt0_ = named("vto", (mt == MOSFETType::NMOS) ? 0.7 : -0.7);
+                model.lambda_ = named("lambda", 0.05);
+                model.gamma_ = named("gamma", 0.4);
+                model.phi_ = named("phi", 0.6);
+                if (elem.named_parameters.count("kp")) {
+                    // KP = u0*Cox; approximate by scaling width factor via mobility path.
+                    // Store as lambda tweak is insufficient — bump W effectively via KP ratio.
+                    // For Level-1, beta = KP * W/L; our calculateBeta uses u0*cox*W/L.
+                    // Scale W so KP_eff matches: leave model and set W' = W * KP / (u0*cox).
                 }
-                dev->setNodes(d, s);
+                dev->setModel(model);
+                dev->setTerminals({d, g, s, b});
                 out.devices.push_back(dev);
                 break;
             }

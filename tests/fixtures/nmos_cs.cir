@@ -1,0 +1,8 @@
+* NMOS common-source amplifier (Level-1 style)
+VDD dd 0 5
+VIN g 0 1.5
+R1 dd d 1k
+M1 d g 0 0 NMOS W=10u L=1u
+.model NMOS NMOS (VTO=0.7 KP=2e-5 LAMBDA=0.05)
+.op
+.end

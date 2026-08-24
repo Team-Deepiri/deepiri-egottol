@@ -69,9 +69,34 @@ NetlistElementType typeFromNamePrefix(const std::string& name) {
 
 bool looksNumeric(const std::string& token) {
     if (token.empty()) return false;
+    // KEY=value → treat as not a plain node
+    if (token.find('=') != std::string::npos) return false;
     char c0 = token[0];
     if (c0 == '+' || c0 == '-' || c0 == '.') return token.size() > 1 && std::isdigit(static_cast<unsigned char>(token[1]));
     return std::isdigit(static_cast<unsigned char>(c0));
+}
+
+// Expand PULSE(a b c) / SIN(...) into separate tokens; split KEY=VAL.
+std::vector<std::string> tokenizeSpice(const std::string& raw) {
+    std::string s = raw;
+    // Replace parentheses with spaces so PULSE(0 1 0) → PULSE 0 1 0
+    for (char& c : s) {
+        if (c == '(' || c == ')' || c == ',') c = ' ';
+    }
+    std::istringstream iss(s);
+    std::vector<std::string> tokens;
+    std::string tok;
+    while (iss >> tok) {
+        tokens.push_back(tok);
+    }
+    return tokens;
+}
+
+bool parseKeyedValue(const std::string& token, std::string& key, double& value) {
+    size_t eq = token.find('=');
+    if (eq == std::string::npos || eq == 0) return false;
+    key = toLower(token.substr(0, eq));
+    return NetlistParser::parseValue(token.substr(eq + 1), value);
 }
 
 std::string controlKind(const std::string& line) {
@@ -227,12 +252,7 @@ bool NetlistParser::parse(const std::string& netlist_content) {
             return;
         }
 
-        std::istringstream line_iss(raw);
-        std::vector<std::string> tokens;
-        std::string tok;
-        while (line_iss >> tok) {
-            tokens.push_back(tok);
-        }
+        std::vector<std::string> tokens = tokenizeSpice(raw);
         if (tokens.empty()) return;
 
         NetlistElement elem;
@@ -276,8 +296,12 @@ bool NetlistParser::parse(const std::string& netlist_content) {
                         pImpl->nets_[n.net].push_back(elem.name);
                     }
                     for (size_t i = static_cast<size_t>(subIdx) + 1; i < rest.size(); ++i) {
+                        std::string key;
                         double v = 0.0;
-                        if (parseValue(rest[i], v)) {
+                        if (parseKeyedValue(rest[i], key, v)) {
+                            elem.named_parameters[key] = v;
+                            elem.parameters.push_back(v);
+                        } else if (parseValue(rest[i], v)) {
                             elem.parameters.push_back(v);
                         }
                     }
@@ -294,16 +318,28 @@ bool NetlistParser::parse(const std::string& netlist_content) {
         } else {
             size_t i = 0;
             for (; i < rest.size() && static_cast<int>(elem.nodes.size()) < nNodes; ++i) {
+                // Don't treat KEY=val as a node name.
+                if (rest[i].find('=') != std::string::npos) break;
                 NetlistNode n;
                 n.name = rest[i];
                 n.net = rest[i];
                 elem.nodes.push_back(n);
                 pImpl->nets_[n.net].push_back(elem.name);
             }
-            // Remaining tokens: model name (non-numeric) and/or parameter values.
+            // Remaining: PULSE/SIN keywords, model name, keyed params, values.
             for (; i < rest.size(); ++i) {
+                std::string key;
                 double v = 0.0;
-                if (parseValue(rest[i], v)) {
+                std::string low = toLower(rest[i]);
+                if (low == "pulse" || low == "sin" || low == "exp" || low == "pwl" || low == "ac") {
+                    // Collect following numeric args into parameters; mark source type via named flag.
+                    elem.named_parameters[low] = 1.0;
+                    continue;
+                }
+                if (parseKeyedValue(rest[i], key, v)) {
+                    elem.named_parameters[key] = v;
+                    elem.parameters.push_back(v);
+                } else if (parseValue(rest[i], v)) {
                     elem.parameters.push_back(v);
                 } else if (elem.model_name.empty()) {
                     elem.model_name = rest[i];

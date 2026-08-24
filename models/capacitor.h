@@ -13,7 +13,7 @@ public:
 
     void setCapacitance(double c) { C_ = c; C0_ = c; }
     double capacitance() const { return C_; }
-    void setInitialVoltage(double v) { vInitial_ = v; }
+    void setInitialVoltage(double v) { vInitial_ = v; v_ = v; }
     double initialVoltage() const { return vInitial_; }
     void setVC1(double vc) { vc1_ = vc; }
     void setVC2(double vc) { vc2_ = vc; }
@@ -27,6 +27,8 @@ public:
 
     void getInitialGuess(std::vector<double>& guess) const override;
     void updateState(const std::vector<double>& state) override;
+    void prepareTransientStep(double h, const std::vector<double>& prevNodeVoltages) override;
+    void acceptTransientStep(const std::vector<double>& nodeVoltages) override;
 
     double charge() const { return q_; }
     double voltage() const { return v_; }
@@ -37,6 +39,10 @@ private:
     double v_, vInitial_;
     double q_;
     double vc1_, vc2_;
+    // Companion model (backward Euler): Geq = C/h, Ieq = Geq * v_prev
+    bool transientActive_ = false;
+    double geq_ = 0.0;
+    double ieq_ = 0.0;  // current into + terminal from companion source
 };
 
 }

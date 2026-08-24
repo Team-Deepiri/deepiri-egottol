@@ -2,7 +2,7 @@
 #include "../io/netlist_builder.h"
 #include "../io/waveform_writer.h"
 #include "../core/mna_solver.h"
-#include "../core/transient.h"
+#include "../core/spice_engine.h"
 #include "../core/ac_analysis.h"
 
 #include <cstdio>
@@ -109,8 +109,12 @@ int cmdSim(int argc, char** argv) {
     }
 
     if (mode == Mode::Op) {
-        MNASolver solver;
-        auto sol = solver.solve(circuit.devices, circuit.nodeMap, {});
+        DcOperatingPoint dc;
+        auto sol = dc.solve(circuit.devices, circuit.nodeMap);
+        if (!sol.success) {
+            // Fallback to linear MNA for purely linear netlists.
+            sol = MNASolver().solve(circuit.devices, circuit.nodeMap, {});
+        }
         if (!sol.success) {
             std::fprintf(stderr, "DC solve failed: %s\n", sol.message.c_str());
             return 2;
@@ -125,7 +129,6 @@ int cmdSim(int argc, char** argv) {
         }
         if (!outPath.empty()) {
             WaveformData wd;
-            wd.name = "V";
             wd.time_points = {0.0};
             size_t probe = pickProbe(circuit);
             wd.name = "V(" + nodeName(circuit, probe) + ")";
@@ -148,11 +151,10 @@ int cmdSim(int argc, char** argv) {
         if (tstop <= tstep) tstop = tstep * 100;
 
         size_t probe = pickProbe(circuit);
-        size_t n = std::max(circuit.numNodes, probe);
-        if (n == 0) n = 1;
 
-        Transient transient;
-        auto sim = transient.simulate(0.0, tstop, tstep, circuit.devices, n);
+        SpiceTransient::Options opts;
+        SpiceTransient transient(opts);
+        auto sim = transient.simulate(0.0, tstop, tstep, circuit.devices, circuit.nodeMap);
         if (!sim.converged) {
             std::fprintf(stderr, "Transient failed: %s\n", sim.message.c_str());
             return 2;
@@ -169,7 +171,7 @@ int cmdSim(int argc, char** argv) {
             wd.values.push_back(v);
         }
 
-        std::printf("Transient: %zu points, probe %s\n",
+        std::printf("Transient (companion MNA): %zu points, probe %s\n",
                     wd.time_points.size(), wd.name.c_str());
         if (!outPath.empty()) {
             WaveformWriter writer;

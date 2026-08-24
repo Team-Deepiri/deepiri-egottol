@@ -46,6 +46,9 @@ public:
     void getInitialGuess(std::vector<double>& guess) const override;
     void updateState(const std::vector<double>& state) override;
 
+    std::vector<size_t> terminals() const override;
+    void setTerminals(const std::vector<size_t>& nodes) override;
+
 private:
     MOSFETType type_;
     std::string name_;

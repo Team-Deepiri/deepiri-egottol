@@ -31,6 +31,7 @@ struct NetlistElement {
     std::string name;
     std::vector<NetlistNode> nodes;
     std::vector<double> parameters;
+    std::map<std::string, double> named_parameters;  // W=10u, VTO=0.7, …
     std::string model_name;
     std::string subckt_name;
 };
