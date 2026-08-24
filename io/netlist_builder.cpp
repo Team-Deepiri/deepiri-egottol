@@ -10,10 +10,15 @@
 #include "../models/mosfet.h"
 #include "../models/vcvs.h"
 #include "../models/vccs.h"
+#include "../models/cccs.h"
+#include "../models/ccvs.h"
+#include "../models/vswitch.h"
+#include "../models/coupled_inductor.h"
 #include "../models/source_signal.h"
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 
 namespace deepiri {
@@ -49,12 +54,14 @@ double paramOr(const NetlistElement& e, size_t i, double fallback) {
 }  // namespace
 
 BuiltCircuit buildCircuitFromNetlist(const NetlistParser& parser) {
-    return buildCircuitFromElements(parser.expandedElements(), parser.getModels());
+    return buildCircuitFromElements(
+        parser.expandedElements(), parser.getModels(), parser.getControlDirectives());
 }
 
 BuiltCircuit buildCircuitFromElements(
     const std::vector<NetlistElement>& elements,
-    const std::map<std::string, SpiceModel>& models
+    const std::map<std::string, SpiceModel>& models,
+    const std::vector<NetlistControl>& /*controls*/
 ) {
     BuiltCircuit out;
     size_t nextIndex = 1;
@@ -300,7 +307,97 @@ BuiltCircuit buildCircuitFromElements(
                 out.devices.push_back(dev);
                 break;
             }
+            case NetlistElementType::CCCS: {
+                if (!needNodes(2)) return out;
+                size_t np = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
+                size_t nn = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
+                double gain = paramOr(elem, 0, 1.0);
+                auto dev = std::make_shared<CCCS>(elem.name, gain);
+                if (!elem.model_name.empty()) dev->setSenseName(elem.model_name);
+                dev->setNodes(np, nn);
+                out.devices.push_back(dev);
+                break;
+            }
+            case NetlistElementType::CCVS: {
+                if (!needNodes(2)) return out;
+                size_t np = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
+                size_t nn = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
+                double gain = paramOr(elem, 0, 1.0);
+                auto dev = std::make_shared<CCVS>(elem.name, gain);
+                if (!elem.model_name.empty()) dev->setSenseName(elem.model_name);
+                dev->setNodes(np, nn);
+                out.devices.push_back(dev);
+                break;
+            }
+            case NetlistElementType::VSwitch: {
+                if (!needNodes(4)) return out;
+                size_t np = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
+                size_t nn = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
+                size_t ncp = resolveNode(elem.nodes[2].net, out.nodeMap, nextIndex);
+                size_t ncn = resolveNode(elem.nodes[3].net, out.nodeMap, nextIndex);
+                double vt = 0.0, ron = 1.0, roff = 1e12;
+                const SpiceModel* mod = lookupModel(elem.model_name);
+                if (mod) {
+                    vt = modelParam(mod, "vt", vt);
+                    ron = modelParam(mod, "ron", ron);
+                    roff = modelParam(mod, "roff", roff);
+                }
+                if (elem.named_parameters.count("vt")) vt = elem.named_parameters.at("vt");
+                if (elem.named_parameters.count("ron")) ron = elem.named_parameters.at("ron");
+                if (elem.named_parameters.count("roff")) roff = elem.named_parameters.at("roff");
+                auto dev = std::make_shared<VSwitch>(elem.name, vt, ron, roff);
+                dev->setNodes(np, nn, ncp, ncn);
+                out.devices.push_back(dev);
+                break;
+            }
+            case NetlistElementType::Mutual:
+                // Applied in a second pass after all inductors exist.
+                break;
         }
+    }
+
+    // Second pass: Kxxx L1 L2 k → CoupledInductor replacing L1/L2.
+    for (const auto& elem : elements) {
+        if (elem.type != NetlistElementType::Mutual) continue;
+        if (elem.subckt_name.empty() || elem.model_name.empty() || elem.parameters.empty()) {
+            out.error = "Mutual " + elem.name + " needs L1 L2 k";
+            out.ok = false;
+            return out;
+        }
+        std::string l1n = elem.subckt_name;
+        std::string l2n = elem.model_name;
+        double k = elem.parameters[0];
+        auto lower = [](std::string s) {
+            std::transform(s.begin(), s.end(), s.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return s;
+        };
+        std::shared_ptr<Inductor> a, b;
+        size_t ia = out.devices.size(), ib = out.devices.size();
+        for (size_t i = 0; i < out.devices.size(); ++i) {
+            if (out.devices[i]->type() != "Inductor") continue;
+            if (lower(out.devices[i]->name()) == lower(l1n)) {
+                a = std::dynamic_pointer_cast<Inductor>(out.devices[i]);
+                ia = i;
+            }
+            if (lower(out.devices[i]->name()) == lower(l2n)) {
+                b = std::dynamic_pointer_cast<Inductor>(out.devices[i]);
+                ib = i;
+            }
+        }
+        if (!a || !b) {
+            out.error = "Mutual " + elem.name + ": inductors not found";
+            out.ok = false;
+            return out;
+        }
+        auto coupled = std::make_shared<CoupledInductor>(
+            elem.name, a->inductance(), b->inductance(), k,
+            a->nodeP(), a->nodeN(), b->nodeP(), b->nodeN());
+        // Remove higher index first
+        if (ia > ib) std::swap(ia, ib);
+        out.devices.erase(out.devices.begin() + static_cast<std::ptrdiff_t>(ib));
+        out.devices.erase(out.devices.begin() + static_cast<std::ptrdiff_t>(ia));
+        out.devices.push_back(coupled);
     }
 
     out.numNodes = nextIndex > 0 ? nextIndex - 1 : 0;
@@ -310,6 +407,97 @@ BuiltCircuit buildCircuitFromElements(
         out.ok = false;
     }
     return out;
+}
+
+std::vector<MeasureResult> evaluateMeasures(
+    const std::vector<NetlistControl>& controls,
+    const BuiltCircuit& circuit,
+    const std::vector<double>& timePoints,
+    const std::vector<std::vector<double>>& nodeVoltages
+) {
+    std::vector<MeasureResult> results;
+    auto nodeIdx = [&](const std::string& net) -> int {
+        auto it = circuit.nodeMap.find(net);
+        if (it == circuit.nodeMap.end() || it->second == 0) return -1;
+        return static_cast<int>(it->second - 1);
+    };
+    auto parseProbe = [&](const std::string& tok) -> int {
+        // V(out) or out
+        if (tok.size() >= 4 && (tok[0] == 'V' || tok[0] == 'v') && tok[1] == '(' && tok.back() == ')') {
+            return nodeIdx(tok.substr(2, tok.size() - 3));
+        }
+        return nodeIdx(tok);
+    };
+
+    for (const auto& d : controls) {
+        if (d.kind != "measure" && d.kind != "meas") continue;
+        MeasureResult mr;
+        // .measure [tran|dc|ac] name OP V(node)
+        size_t ti = 0;
+        if (!d.tokens.empty()) {
+            std::string t0 = d.tokens[0];
+            std::transform(t0.begin(), t0.end(), t0.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (t0 == "tran" || t0 == "dc" || t0 == "ac" || t0 == "op") ti = 1;
+        }
+        mr.name = (ti < d.tokens.size()) ? d.tokens[ti] : "meas";
+        std::string op = "max";
+        int probe = -1;
+        for (size_t i = 0; i < d.tokens.size(); ++i) {
+            std::string t = d.tokens[i];
+            std::string low = t;
+            std::transform(low.begin(), low.end(), low.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (low == "max" || low == "min" || low == "avg" || low == "mean" ||
+                low == "find" || low == "pp" || low == "rms") {
+                op = low;
+            }
+            int p = parseProbe(t);
+            if (p >= 0) probe = p;
+        }
+        if (probe < 0 || timePoints.empty() || nodeVoltages.empty()) {
+            mr.message = "measure probe missing";
+            results.push_back(mr);
+            continue;
+        }
+        double acc = 0.0;
+        double mn = 1e300, mx = -1e300;
+        size_t n = 0;
+        for (size_t i = 0; i < nodeVoltages.size(); ++i) {
+            if (static_cast<size_t>(probe) >= nodeVoltages[i].size()) continue;
+            double v = nodeVoltages[i][static_cast<size_t>(probe)];
+            mn = std::min(mn, v);
+            mx = std::max(mx, v);
+            acc += v;
+            ++n;
+        }
+        if (n == 0) {
+            mr.message = "no samples";
+            results.push_back(mr);
+            continue;
+        }
+        if (op == "max") mr.value = mx;
+        else if (op == "min") mr.value = mn;
+        else if (op == "avg" || op == "mean") mr.value = acc / static_cast<double>(n);
+        else if (op == "pp") mr.value = mx - mn;
+        else if (op == "rms") {
+            double s = 0.0;
+            for (size_t i = 0; i < nodeVoltages.size(); ++i) {
+                if (static_cast<size_t>(probe) >= nodeVoltages[i].size()) continue;
+                double v = nodeVoltages[i][static_cast<size_t>(probe)];
+                s += v * v;
+            }
+            mr.value = std::sqrt(s / static_cast<double>(n));
+        } else if (op == "find") {
+            mr.value = nodeVoltages.back()[static_cast<size_t>(probe)];
+        } else {
+            mr.value = mx;
+        }
+        mr.ok = true;
+        mr.message = "ok";
+        results.push_back(mr);
+    }
+    return results;
 }
 
 std::map<std::string, double> parseNodeVoltagesFromControls(

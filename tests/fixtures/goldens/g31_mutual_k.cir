@@ -1,0 +1,9 @@
+* Coupled inductors (ideal transformer-ish short check at DC via shorts)
+* Transient: primary pulse couples to secondary
+V1 p1 0 PULSE(0 1 0 1n 1n 0.5u 1u)
+L1 p1 0 1m
+L2 s1 0 1m
+K1 L1 L2 0.99
+Rload s1 0 1k
+.tran 20n 2u
+.end

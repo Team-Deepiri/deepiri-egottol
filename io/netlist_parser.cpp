@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <set>
@@ -51,6 +52,10 @@ NetlistElementType typeFromKeyword(const std::string& t) {
     if (l == "d" || l == "diode") return NetlistElementType::Diode;
     if (l == "e" || l == "vcvs") return NetlistElementType::VCVS;
     if (l == "g" || l == "vccs") return NetlistElementType::VCCS;
+    if (l == "f" || l == "cccs") return NetlistElementType::CCCS;
+    if (l == "h" || l == "ccvs") return NetlistElementType::CCVS;
+    if (l == "s" || l == "sw" || l == "switch") return NetlistElementType::VSwitch;
+    if (l == "k") return NetlistElementType::Mutual;
     if (l == "x") return NetlistElementType::Instance;
     return NetlistElementType::Instance;
 }
@@ -69,6 +74,10 @@ NetlistElementType typeFromNamePrefix(const std::string& name) {
         case 'D': return NetlistElementType::Diode;
         case 'E': return NetlistElementType::VCVS;
         case 'G': return NetlistElementType::VCCS;
+        case 'F': return NetlistElementType::CCCS;
+        case 'H': return NetlistElementType::CCVS;
+        case 'S': return NetlistElementType::VSwitch;
+        case 'K': return NetlistElementType::Mutual;
         case 'X': return NetlistElementType::Instance;
         default:  return NetlistElementType::Instance;
     }
@@ -136,6 +145,7 @@ public:
     std::vector<NetlistControl> directives_;
     std::map<std::string, SpiceModel> models_;
     std::map<std::string, SpiceSubckt> subckts_;
+    std::map<std::string, double> params_;
     std::string activeSubckt_;  // empty = top-level
     std::string baseDir_ = ".";
     std::set<std::string> includeStack_;
@@ -210,7 +220,13 @@ int NetlistParser::expectedNodeCount(NetlistElementType type) {
             return 4;
         case NetlistElementType::VCVS:
         case NetlistElementType::VCCS:
+        case NetlistElementType::VSwitch:
             return 4;
+        case NetlistElementType::CCCS:
+        case NetlistElementType::CCVS:
+            return 2;
+        case NetlistElementType::Mutual:
+            return 0;
         case NetlistElementType::Subckt:
         case NetlistElementType::Instance:
         default:
@@ -266,6 +282,17 @@ bool NetlistParser::parse(const std::string& netlist_content) {
             }
             if (isKnownControl(ctrl.kind) || !ctrl.kind.empty()) {
                 pImpl->directives_.push_back(ctrl);
+            }
+            if (ctrl.kind == "param") {
+                for (const auto& t : ctrl.tokens) {
+                    size_t eq = t.find('=');
+                    if (eq == std::string::npos || eq == 0) continue;
+                    std::string key = toLower(t.substr(0, eq));
+                    double val = 0.0;
+                    if (parseValue(t.substr(eq + 1), val)) {
+                        pImpl->params_[key] = val;
+                    }
+                }
             }
             if (ctrl.kind == "model" && ctrl.tokens.size() >= 2) {
                 SpiceModel model;
@@ -371,8 +398,35 @@ bool NetlistParser::parse(const std::string& netlist_content) {
         std::vector<std::string> rest(tokens.begin() + static_cast<std::ptrdiff_t>(restStart),
                                       tokens.end());
 
+        auto expandTok = [&](std::string t) -> std::string {
+            if (t.size() >= 3 && t.front() == '{' && t.back() == '}') {
+                std::string key = toLower(t.substr(1, t.size() - 2));
+                auto it = pImpl->params_.find(key);
+                if (it != pImpl->params_.end()) {
+                    char buf[64];
+                    std::snprintf(buf, sizeof(buf), "%.16g", it->second);
+                    return buf;
+                }
+            }
+            auto it = pImpl->params_.find(toLower(t));
+            if (it != pImpl->params_.end() && !looksNumeric(t)) {
+                char buf[64];
+                std::snprintf(buf, sizeof(buf), "%.16g", it->second);
+                return buf;
+            }
+            return t;
+        };
+
         int nNodes = expectedNodeCount(elem.type);
-        if (nNodes < 0) {
+        if (elem.type == NetlistElementType::Mutual) {
+            // Kname L1 L2 k
+            if (rest.size() >= 3) {
+                elem.subckt_name = rest[0];
+                elem.model_name = rest[1];
+                double k = 0.0;
+                if (parseValue(expandTok(rest[2]), k)) elem.parameters.push_back(k);
+            }
+        } else if (nNodes < 0) {
             if (!rest.empty()) {
                 int subIdx = static_cast<int>(rest.size()) - 1;
                 while (subIdx >= 0 && looksNumeric(rest[static_cast<size_t>(subIdx)])) {
@@ -427,12 +481,20 @@ bool NetlistParser::parse(const std::string& netlist_content) {
                     continue;
                 }
                 if (parseKeyedValue(rest[i], key, v)) {
-                    elem.named_parameters[key] = v;
-                    elem.parameters.push_back(v);
-                } else if (parseValue(rest[i], v)) {
+                    // Expand RHS of KEY=VAL through params when needed
+                    std::string rhs = rest[i].substr(rest[i].find('=') + 1);
+                    if (parseValue(expandTok(rhs), v)) {
+                        elem.named_parameters[key] = v;
+                        elem.parameters.push_back(v);
+                    }
+                } else if (parseValue(expandTok(rest[i]), v)) {
                     elem.parameters.push_back(v);
                 } else if (elem.model_name.empty()) {
                     elem.model_name = rest[i];
+                } else if (elem.subckt_name.empty() &&
+                           (elem.type == NetlistElementType::CCCS ||
+                            elem.type == NetlistElementType::CCVS)) {
+                    // already have sense in model_name
                 }
             }
         }
@@ -508,6 +570,10 @@ std::map<std::string, SpiceModel> NetlistParser::getModels() const {
 
 std::map<std::string, SpiceSubckt> NetlistParser::getSubckts() const {
     return pImpl->subckts_;
+}
+
+std::map<std::string, double> NetlistParser::getParams() const {
+    return pImpl->params_;
 }
 
 std::vector<NetlistElement> NetlistParser::expandedElements() const {

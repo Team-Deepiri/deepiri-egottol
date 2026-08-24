@@ -1,0 +1,8 @@
+* Parametric divider + measure on RC step
+.param Rval=1k Cval=1n
+V1 in 0 PULSE(0 1 0 1n 1n 1 2)
+R1 in out {Rval}
+C1 out 0 {Cval}
+.tran 10n 5u
+.measure tran vmax MAX V(out)
+.end

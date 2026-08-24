@@ -18,6 +18,10 @@ enum class NetlistElementType {
     Diode,
     VCVS,
     VCCS,
+    CCCS,
+    CCVS,
+    VSwitch,
+    Mutual,
     Subckt,
     Instance
 };
@@ -74,6 +78,7 @@ public:
     std::vector<NetlistControl> getControlDirectives() const;
     std::map<std::string, SpiceModel> getModels() const;
     std::map<std::string, SpiceSubckt> getSubckts() const;
+    std::map<std::string, double> getParams() const;
 
     // Flatten X instances using defined .subckt bodies (port map + name prefix).
     std::vector<NetlistElement> expandedElements() const;

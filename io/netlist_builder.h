@@ -22,7 +22,22 @@ struct BuiltCircuit {
 BuiltCircuit buildCircuitFromNetlist(const NetlistParser& parser);
 BuiltCircuit buildCircuitFromElements(
     const std::vector<NetlistElement>& elements,
-    const std::map<std::string, SpiceModel>& models = {}
+    const std::map<std::string, SpiceModel>& models = {},
+    const std::vector<NetlistControl>& controls = {}
+);
+
+// Evaluate simple .measure cards against a transient result.
+struct MeasureResult {
+    std::string name;
+    double value = 0.0;
+    bool ok = false;
+    std::string message;
+};
+std::vector<MeasureResult> evaluateMeasures(
+    const std::vector<NetlistControl>& controls,
+    const BuiltCircuit& circuit,
+    const std::vector<double>& timePoints,
+    const std::vector<std::vector<double>>& nodeVoltages
 );
 
 // Parse `.ic` / `.nodeset` cards → net name → voltage.

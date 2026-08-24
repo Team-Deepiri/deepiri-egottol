@@ -2,8 +2,12 @@
 #include "../models/device.h"
 #include "../models/vsrc.h"
 #include "../models/vcvs.h"
+#include "../models/ccvs.h"
+#include "../models/cccs.h"
 #include "matrix.h"
+#include <cctype>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 
 namespace deepiri {
@@ -11,7 +15,25 @@ namespace deepiri {
 namespace {
 
 bool needsAux(const Device& d) {
-    return d.type() == "Vsrc" || d.type() == "VCVS";
+    return d.type() == "Vsrc" || d.type() == "VCVS" || d.type() == "CCVS";
+}
+
+std::string lowerName(std::string s) {
+    for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+std::map<std::string, size_t> vsrcAuxMap(
+    const std::vector<std::shared_ptr<Device>>& devices
+) {
+    std::map<std::string, size_t> out;
+    size_t aux = 0;
+    for (const auto& d : devices) {
+        if (!needsAux(*d)) continue;
+        if (d->type() == "Vsrc") out[lowerName(d->name())] = aux;
+        ++aux;
+    }
+    return out;
 }
 
 }  // namespace
@@ -37,6 +59,7 @@ size_t MNASolver::buildStampMatrix(
     );
     auxRHS.assign(auxCount, 0.0);
 
+    auto senseAux = vsrcAuxMap(devices);
     size_t vsIndex = 0;
     for (auto& device : devices) {
         if (needsAux(*device)) {
@@ -60,25 +83,43 @@ size_t MNASolver::buildStampMatrix(
                 if (ncp > 0 && ncp <= numNodes) stamp[auxRow][ncp - 1] -= gain;
                 if (ncn > 0 && ncn <= numNodes) stamp[auxRow][ncn - 1] += gain;
                 auxRHS[vsIndex] = 0.0;
+            } else if (auto* h = dynamic_cast<CCVS*>(device.get())) {
+                auto it = senseAux.find(lowerName(h->senseName()));
+                if (it != senseAux.end()) {
+                    stamp[auxRow][numNodes + it->second] -= h->gain();
+                }
+                auxRHS[vsIndex] = 0.0;
             }
             vsIndex++;
             continue;
         }
 
+        if (device->type() == "CCCS") continue;
+
         auto terms = device->terminals();
         auto g = device->getConductanceMatrix();
-        auto current = device->getCurrent();
         for (size_t a = 0; a < terms.size() && a < g.size(); ++a) {
             size_t na = terms[a];
             if (na == 0 || na > numNodes) continue;
-            // RHS filled in solve()
             for (size_t b = 0; b < terms.size() && b < g[a].size(); ++b) {
                 size_t nb = terms[b];
                 if (nb == 0 || nb > numNodes) continue;
                 stamp[na - 1][nb - 1] += g[a][b];
             }
         }
-        (void)current;
+    }
+
+    for (auto& device : devices) {
+        auto* f = dynamic_cast<CCCS*>(device.get());
+        if (!f) continue;
+        auto it = senseAux.find(lowerName(f->senseName()));
+        if (it == senseAux.end()) continue;
+        size_t col = numNodes + it->second;
+        size_t np = f->nodeP();
+        size_t nn = f->nodeN();
+        double g = f->gain();
+        if (np > 0 && np <= numNodes) stamp[np - 1][col] -= g;
+        if (nn > 0 && nn <= numNodes) stamp[nn - 1][col] += g;
     }
 
     return auxCount;
@@ -133,7 +174,7 @@ MNASolver::Solution MNASolver::solve(
     std::vector<double> rhs(matrixSize, 0.0);
 
     for (auto& device : devices) {
-        if (needsAux(*device)) continue;
+        if (needsAux(*device) || device->type() == "CCCS") continue;
         auto terms = device->terminals();
         auto current = device->getCurrent();
         for (size_t a = 0; a < terms.size() && a < current.size(); ++a) {

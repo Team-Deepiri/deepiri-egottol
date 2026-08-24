@@ -4,12 +4,15 @@
 #include "../models/device.h"
 #include "../models/vsrc.h"
 #include "../models/vcvs.h"
+#include "../models/ccvs.h"
+#include "../models/cccs.h"
 #include "../models/capacitor.h"
 #include "../models/inductor.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <map>
 
 namespace deepiri {
 
@@ -24,7 +27,7 @@ size_t maxNodeIndex(const std::map<std::string, size_t>& nodeMap) {
 }
 
 bool needsAuxBranch(const Device& d) {
-    return d.type() == "Vsrc" || d.type() == "VCVS";
+    return d.type() == "Vsrc" || d.type() == "VCVS" || d.type() == "CCVS";
 }
 
 size_t countAuxBranches(const std::vector<std::shared_ptr<Device>>& devices) {
@@ -35,7 +38,27 @@ size_t countAuxBranches(const std::vector<std::shared_ptr<Device>>& devices) {
     return n;
 }
 
-// Stamp a device's G and I onto the reduced MNA system (nodes 1..N, no ground row).
+std::string lowerName(std::string s) {
+    for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+// Map Vsrc name → auxiliary branch index (0-based among aux unknowns).
+std::map<std::string, size_t> vsrcAuxMap(
+    const std::vector<std::shared_ptr<Device>>& devices
+) {
+    std::map<std::string, size_t> out;
+    size_t aux = 0;
+    for (const auto& d : devices) {
+        if (!needsAuxBranch(*d)) continue;
+        if (d->type() == "Vsrc") {
+            out[lowerName(d->name())] = aux;
+        }
+        ++aux;
+    }
+    return out;
+}
+
 void stampDevice(
     std::vector<std::vector<double>>& G,
     std::vector<double>& rhs,
@@ -69,6 +92,7 @@ void stampAuxBranches(
     double sourceScale,
     double timeSec = 0.0
 ) {
+    auto senseAux = vsrcAuxMap(devices);
     size_t auxIndex = 0;
     for (const auto& device : devices) {
         if (!needsAuxBranch(*device)) continue;
@@ -87,15 +111,58 @@ void stampAuxBranches(
         if (auto* v = dynamic_cast<Vsrc*>(device.get())) {
             rhs[aux] = sourceScale * v->getVoltage(timeSec);
         } else if (auto* e = dynamic_cast<VCVS*>(device.get())) {
-            // Vp − Vn − gain·(Vcp − Vcn) = 0
             size_t ncp = e->nodeCP();
             size_t ncn = e->nodeCN();
             double gain = e->gain();
             if (ncp > 0 && ncp <= numNodes) G[aux][ncp - 1] -= gain;
             if (ncn > 0 && ncn <= numNodes) G[aux][ncn - 1] += gain;
             rhs[aux] = 0.0;
+        } else if (auto* h = dynamic_cast<CCVS*>(device.get())) {
+            // Vp − Vn − gain·I(Vsense) = 0
+            auto it = senseAux.find(lowerName(h->senseName()));
+            if (it != senseAux.end()) {
+                G[aux][numNodes + it->second] -= h->gain();
+            }
+            rhs[aux] = 0.0;
         }
         ++auxIndex;
+    }
+
+    // CCCS: I(n+→n−) = gain · I(Vsense)
+    for (const auto& device : devices) {
+        auto* f = dynamic_cast<CCCS*>(device.get());
+        if (!f) continue;
+        auto it = senseAux.find(lowerName(f->senseName()));
+        if (it == senseAux.end()) continue;
+        size_t col = numNodes + it->second;
+        size_t np = f->nodeP();
+        size_t nn = f->nodeN();
+        double g = f->gain();
+        // Match VCCS / Isrc injection convention used by this MNA (positive out).
+        if (np > 0 && np <= numNodes) G[np - 1][col] -= g;
+        if (nn > 0 && nn <= numNodes) G[nn - 1][col] += g;
+    }
+}
+
+void shortInductiveDevices(
+    std::vector<std::vector<double>>& G,
+    const std::vector<std::shared_ptr<Device>>& devices,
+    size_t numNodes
+) {
+    const double gshort = 1e6;
+    for (const auto& d : devices) {
+        if (d->type() != "Inductor" && d->type() != "CoupledInductor") continue;
+        auto terms = d->terminals();
+        // Short each winding pair: (0,1) and optionally (2,3)
+        for (size_t p = 0; p + 1 < terms.size(); p += 2) {
+            size_t a = terms[p], b = terms[p + 1];
+            if (a > 0 && a <= numNodes) G[a - 1][a - 1] += gshort;
+            if (b > 0 && b <= numNodes) G[b - 1][b - 1] += gshort;
+            if (a > 0 && b > 0 && a <= numNodes && b <= numNodes) {
+                G[a - 1][b - 1] -= gshort;
+                G[b - 1][a - 1] -= gshort;
+            }
+        }
     }
 }
 
@@ -144,23 +211,14 @@ MNASolver::Solution DcOperatingPoint::solve(
             for (const auto& d : devices) {
                 if (needsAuxBranch(*d)) continue;
                 if (d->type() == "Capacitor") continue;
-                if (d->type() == "Inductor") {
-                    auto terms = d->terminals();
-                    if (terms.size() >= 2) {
-                        size_t a = terms[0], b = terms[1];
-                        const double gshort = 1e6;
-                        if (a > 0 && a <= numNodes) G[a - 1][a - 1] += gshort;
-                        if (b > 0 && b <= numNodes) G[b - 1][b - 1] += gshort;
-                        if (a > 0 && b > 0 && a <= numNodes && b <= numNodes) {
-                            G[a - 1][b - 1] -= gshort;
-                            G[b - 1][a - 1] -= gshort;
-                        }
-                    }
-                    continue;
+                if (d->type() == "Inductor" || d->type() == "CoupledInductor") {
+                    continue;  // shorted below
                 }
+                if (d->type() == "CCCS") continue;  // stamped with aux branches
                 d->setAnalysisTime(0.0);
                 stampDevice(G, rhs, *d, numNodes);
             }
+            shortInductiveDevices(G, devices, numNodes);
             stampAuxBranches(G, rhs, devices, numNodes, scale);
 
             Matrix A(N, N);
@@ -274,6 +332,7 @@ MNASolver::Solution SpiceTransient::solveLinearized(
 
     for (const auto& d : devices) {
         if (needsAuxBranch(*d)) continue;
+        if (d->type() == "CCCS") continue;
         d->setAnalysisTime(timeSec);
         stampDevice(G, rhs, *d, numNodes);
     }

@@ -31,7 +31,7 @@ void printUsage(const char* argv0) {
         "  %s help\n"
         "\n"
         "Analyses: .op / .tran / .ac / .dc (source sweep). Sources: DC PULSE SIN EXP PWL.\n"
-        "Devices: R C L V I D M Q E(VCVS) G(VCCS) X(.subckt).\n"
+        "Devices: R C L V I D M Q E G F H S K X(.subckt).  .param / .measure supported.\n"
         "Exit codes: 0 success, 1 usage/parse error, 2 simulation failure\n",
         argv0, argv0, argv0, argv0);
 }
@@ -270,6 +270,15 @@ int cmdSim(int argc, char** argv) {
 
         std::printf("Transient (companion MNA): %zu points, probe %s\n",
                     wd.time_points.size(), wd.name.c_str());
+        auto measures = evaluateMeasures(
+            parser.getControlDirectives(), circuit, sim.timePoints, sim.nodeVoltages);
+        for (const auto& m : measures) {
+            if (m.ok) {
+                std::printf("  .measure %s = %.6g\n", m.name.c_str(), m.value);
+            } else {
+                std::printf("  .measure %s failed: %s\n", m.name.c_str(), m.message.c_str());
+            }
+        }
         if (!outPath.empty()) {
             WaveformWriter writer;
             if (!writer.writeCSV(outPath, {wd})) {

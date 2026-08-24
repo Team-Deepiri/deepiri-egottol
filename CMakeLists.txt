@@ -41,6 +41,10 @@ set(MODELS_SOURCES
     models/isrc.cpp
     models/vccs.cpp
     models/vcvs.cpp
+    models/cccs.cpp
+    models/ccvs.cpp
+    models/vswitch.cpp
+    models/coupled_inductor.cpp
     models/opamp.cpp
     models/transmission_line.cpp
     models/josephson_junction.cpp

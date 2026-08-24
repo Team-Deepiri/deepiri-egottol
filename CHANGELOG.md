@@ -8,12 +8,13 @@ All notable changes to **deepiri-egottol** are documented here.
 - Production SPICE engine: nonlinear DC OP (Newton + gmin/source stepping) and companion-model transient (backward Euler + trapezoidal, optional LTE)
 - `.model` cards for diodes, MOSFETs, and BJTs; diode `Rs` expands to an explicit series resistor
 - `.subckt` / `X` instance expansion with **nested** subcircuits and `.include` / `.inc` libraries
-- Controlled sources **E (VCVS)** and **G (VCCS)** with correct MNA stamps (DC / transient / AC)
+- Controlled sources **E/G (VCVS/VCCS)** and **F/H (CCCS/CCVS)** with correct MNA stamps
+- Voltage-controlled **S switch** (Ron/Roff vs VT) and **K mutual inductance** (coupled L pair)
 - Independent-source waveforms: **DC, PULSE, SIN, EXP, PWL** (V and I)
-- **`.dc` source sweep**, **`.ic` / `.nodeset`** initial conditions for transient
+- **`.dc` source sweep**, **`.ic` / `.nodeset`**, **`.param {name}`**, **`.measure`** (MAX/MIN/AVG/PP/RMS)
 - Headless `egottol-cli` (`sim --op|--tran|--ac|--dcsweep`, `ee <query>`, `--trap`, `--lte`) and Python `egottol.simulate` / `egottol.export`
 - Native Qt schematic → **production** SPICE (`DcOperatingPoint` / `SpiceTransient`); demos only on empty canvas
-- 26-circuit golden corpus + design fixtures (LED/RC/flyback/buck/boost/H-bridge) + ngspice cross-check + perf baseline
+- 31-circuit golden corpus + design fixtures + ngspice cross-check + perf baseline
 - **EE design knowledge base** (`docs/ee/`): series/parallel, combinations, transistors+C/L, motors, symptom→fix, PCB floorplanning; Copilot + CLI `ee` lookup
 
 ### Verified

@@ -263,6 +263,43 @@ int main() {
         }
     }
 
+    checkOp("g27_cccs.cir", "out", 20.0, 0.05);
+    checkOp("g28_ccvs.cir", "out", 10.0, 0.05);
+    checkOp("g29_switch.cir", "out", 4.99, 0.05);
+
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g30_param_meas.cir"), "g30 load");
+        expect(p.getParams().count("rval") == 1, "g30 param");
+        auto c = buildCircuitFromNetlist(p);
+        expect(c.ok, "g30 build");
+        SpiceTransient::Options opts;
+        opts.tolerance = 1e-4;
+        auto sim = SpiceTransient(opts).simulate(0.0, 5e-6, 10e-9, c.devices, c.nodeMap);
+        expect(sim.converged, "g30 tran");
+        auto ms = evaluateMeasures(p.getControlDirectives(), c, sim.timePoints, sim.nodeVoltages);
+        expect(!ms.empty() && ms[0].ok, "g30 measure");
+        if (!ms.empty() && ms[0].ok) {
+            expect(ms[0].value > 0.5, "g30 vmax");
+            std::printf("  param/meas vmax=%.4f\n", ms[0].value);
+        }
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g31_mutual_k.cir"), "g31 load");
+        auto c = buildCircuitFromNetlist(p);
+        expect(c.ok, "g31 build");
+        bool hasCoupled = false;
+        for (const auto& d : c.devices) {
+            if (d->type() == "CoupledInductor") hasCoupled = true;
+        }
+        expect(hasCoupled, "g31 coupled device");
+        SpiceTransient::Options opts;
+        opts.tolerance = 1e-4;
+        auto sim = SpiceTransient(opts).simulate(0.0, 2e-6, 20e-9, c.devices, c.nodeMap);
+        expect(sim.converged && !sim.timePoints.empty(), "g31 mutual tran");
+    }
+
     {
         NetlistParser p;
         expect(loadCir(p, "g05_diode_model.cir"), "g05 load");
