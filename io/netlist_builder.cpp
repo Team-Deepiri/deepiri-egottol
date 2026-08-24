@@ -45,7 +45,7 @@ double paramOr(const NetlistElement& e, size_t i, double fallback) {
 }  // namespace
 
 BuiltCircuit buildCircuitFromNetlist(const NetlistParser& parser) {
-    return buildCircuitFromElements(parser.getElements(), parser.getModels());
+    return buildCircuitFromElements(parser.expandedElements(), parser.getModels());
 }
 
 BuiltCircuit buildCircuitFromElements(
@@ -163,13 +163,25 @@ BuiltCircuit buildCircuitFromElements(
                 if (itIs != elem.named_parameters.end()) is = itIs->second;
                 auto itN = elem.named_parameters.find("n");
                 if (itN != elem.named_parameters.end()) n = itN->second;
-                auto dev = std::make_shared<Diode>(elem.name, is, n);
-                // Series Rs in the companion stamp needs a consistent Thevenin form;
-                // skip applying Rs until the diode model stamps it correctly.
-                (void)modelParam(mod, "rs", 0.0);
+                double rs = modelParam(mod, "rs", 0.0);
+                auto itRs = elem.named_parameters.find("rs");
+                if (itRs != elem.named_parameters.end()) rs = itRs->second;
                 double bv = modelParam(mod, "bv", 0.0);
+
+                size_t anode = a;
+                if (rs > 0.0) {
+                    // Explicit series resistor (stable) instead of folded Thevenin Rs.
+                    size_t mid = nextIndex++;
+                    std::string midName = elem.name + "#rs";
+                    out.nodeMap[midName] = mid;
+                    auto rser = std::make_shared<Resistor>(elem.name + "_rs", rs);
+                    rser->setNodes(a, mid);
+                    out.devices.push_back(rser);
+                    anode = mid;
+                }
+                auto dev = std::make_shared<Diode>(elem.name, is, n);
                 if (bv > 0) dev->setBreakdownVoltage(bv);
-                dev->setNodes(a, b);
+                dev->setNodes(anode, b);
                 out.devices.push_back(dev);
                 break;
             }

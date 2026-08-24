@@ -136,13 +136,76 @@ void test_ngspice_batch_compare() {
         std::printf("SKIP: ngspice golden batch (rc=%d)\n", rc);
         return;
     }
-    // Parse ngspice "v(mid) = 2.50000e+00" style if present; else just confirm we match 2.5.
+    // Parse ngspice "v(mid) = 2.50000e+00" style if present.
+    double ng = NAN;
+    {
+        std::ifstream in("/tmp/egottol_golden_div.out");
+        std::string line;
+        while (std::getline(in, line)) {
+            auto pos = line.find("v(mid)");
+            if (pos == std::string::npos) {
+                pos = line.find("V(mid)");
+            }
+            if (pos == std::string::npos) continue;
+            auto eq = line.find('=', pos);
+            if (eq == std::string::npos) continue;
+            try {
+                ng = std::stod(line.substr(eq + 1));
+                break;
+            } catch (...) {}
+        }
+    }
     NetlistParser p;
     p.parse("V1 in 0 10\nR1 in mid 3k\nR2 mid 0 1k\n.op\n");
     auto c = buildCircuitFromNetlist(p);
     auto sol = dcSolve(c);
-    expectNear(nodeV(sol, c, "mid"), 2.5, 1e-6, "egottol vs analytical (ngspice ran)");
-    std::printf("  ngspice batch OK — divider 2.5 V\n");
+    double ours = nodeV(sol, c, "mid");
+    expectNear(ours, 2.5, 1e-6, "egottol vs analytical");
+    if (std::isfinite(ng)) {
+        expectNear(ours, ng, 1e-3, "egottol vs ngspice V(mid)");
+        std::printf("  ngspice V(mid)=%.6g egottol=%.6g\n", ng, ours);
+    } else {
+        std::printf("  ngspice batch OK — divider 2.5 V (print parse skipped)\n");
+    }
+}
+
+void test_nmos_ids_level1() {
+    // Level-1 saturation: Id = 0.5*KP*(W/L)*(Vgs-Vt)^2*(1+λVds)
+    const double KP = 120e-6, W = 10e-6, L = 1e-6, Vt = 0.7, lam = 0.05;
+    const double Vgs = 2.0, Vds = 3.0;
+    const double von = Vgs - Vt;
+    const double idWant = 0.5 * KP * (W / L) * von * von * (1.0 + lam * Vds);
+
+    const char* nl =
+        "Vds d 0 3\n"
+        "Vgs g 0 2\n"
+        "M1 d g 0 0 NMOS W=10u L=1u\n"
+        ".model NMOS NMOS (VTO=0.7 KP=120u LAMBDA=0.05)\n"
+        ".op\n";
+    NetlistParser p;
+    p.parse(nl);
+    auto c = buildCircuitFromNetlist(p);
+    auto sol = DcOperatingPoint().solve(c.devices, c.nodeMap);
+    expect(sol.success, "ids dc");
+    // Current through Vds ≈ Id (second auxiliary unknown after voltages)
+    expect(!sol.currents.empty(), "has source currents");
+    if (!sol.currents.empty()) {
+        // Vds is first Vsrc → current[0] into + of Vds (drain side convention)
+        double id = std::fabs(sol.currents[0]);
+        expectNear(id, idWant, idWant * 0.15 + 1e-8, "NMOS Id Level-1");
+        std::printf("  NMOS Id=%.6g want≈%.6g\n", id, idWant);
+    }
+}
+
+void test_dc_full_scale_rails() {
+    NetlistParser p;
+    expect(loadCir(p, "g11_nmos_model.cir"), "g11 fullscale load");
+    auto c = buildCircuitFromNetlist(p);
+    auto sol = DcOperatingPoint().solve(c.devices, c.nodeMap);
+    expect(sol.success, "g11 fullscale dc");
+    if (sol.success && c.nodeMap.count("vdd")) {
+        expectNear(nodeV(sol, c, "vdd"), 5.0, 1e-3, "Vdd full scale 5V");
+    }
 }
 
 }  // namespace
@@ -155,6 +218,11 @@ int main() {
     checkOp("g04_bridge.cir", "sense", 4.0, 1e-3);
     checkOp("g08_ladder.cir", "mid2", 10.0 / 3.0, 1e-2);
     checkOp("g09_parallel.cir", "mid", 5.0, 1e-3);
+    checkOp("g13_subckt_div.cir", "mid", 2.5, 1e-3);
+    checkOp("g15_subckt_series.cir", "mid", 5.0, 1e-3);
+    checkOp("g17_star.cir", "c", 10.0 / 3.0, 1e-2);
+    checkOp("g18_current_div.cir", "n1", 0.5, 1e-3);
+    checkOp("g20_thevenin.cir", "mid", 2.5, 1e-3);
 
     {
         NetlistParser p;
@@ -165,6 +233,18 @@ int main() {
         if (sol.success && c.nodeMap.count("a")) {
             double va = nodeV(sol, c, "a");
             expect(va > 0.4 && va < 1.2, "g05 Vf");
+        }
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g14_diode_rs.cir"), "g14 load");
+        auto c = buildCircuitFromNetlist(p);
+        auto sol = DcOperatingPoint().solve(c.devices, c.nodeMap);
+        expect(sol.success, "g14 diode+Rs dc");
+        if (sol.success && c.nodeMap.count("a")) {
+            double va = nodeV(sol, c, "a");
+            expect(std::isfinite(va) && va > 0.4 && va < 1.5, "g14 Vf with Rs");
+            std::printf("  diode+Rs Va=%.4f V\n", va);
         }
     }
     {
@@ -182,6 +262,16 @@ int main() {
         expect(sim.converged, "g06 tran");
         size_t out = c.nodeMap["out"];
         if (out >= 1) expectNear(sim.nodeVoltages.back()[out - 1], 0.993, 0.05, "g06 @5tau");
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g16_rc_2k.cir"), "g16 load");
+        auto c = buildCircuitFromNetlist(p);
+        // tau=2ms; at 10ms=5tau → ~0.993
+        auto sim = SpiceTransient().simulate(0.0, 10e-3, 50e-6, c.devices, c.nodeMap);
+        expect(sim.converged, "g16 tran");
+        size_t out = c.nodeMap["out"];
+        if (out >= 1) expectNear(sim.nodeVoltages.back()[out - 1], 0.993, 0.06, "g16 @5tau");
     }
     {
         NetlistParser p;
@@ -207,11 +297,26 @@ int main() {
         expect(sol.success, "g12 dc");
         if (sol.success && c.nodeMap.count("c")) {
             double vc = nodeV(sol, c, "c");
-            expect(vc < 5.0, "g12 Vc < Vcc");
-            std::printf("  bjt Vc=%.4f V\n", vc);
+            double vcc = c.nodeMap.count("vcc") ? nodeV(sol, c, "vcc") : 5.0;
+            expect(vc < vcc - 0.05, "g12 Vc pulled below Vcc");
+            std::printf("  bjt Vc=%.4f V (Vcc=%.4f)\n", vc, vcc);
+        }
+    }
+    {
+        NetlistParser p;
+        expect(loadCir(p, "g19_pmos_model.cir"), "g19 load");
+        auto c = buildCircuitFromNetlist(p);
+        auto sol = dcSolve(c);
+        expect(sol.success, "g19 pmos dc");
+        if (sol.success && c.nodeMap.count("d")) {
+            double vd = nodeV(sol, c, "d");
+            expect(std::isfinite(vd), "g19 Vd finite");
+            std::printf("  pmos Vd=%.4f V\n", vd);
         }
     }
 
+    test_dc_full_scale_rails();
+    test_nmos_ids_level1();
     test_rl_step();
     test_trap_rc();
     test_ngspice_batch_compare();
@@ -220,6 +325,6 @@ int main() {
         std::fprintf(stderr, "%d failure(s) in golden_spice_test\n", failures);
         return 1;
     }
-    std::printf("golden_spice_test: all passed (%d circuits)\n", 12);
+    std::printf("golden_spice_test: all passed (%d circuits)\n", 20);
     return 0;
 }

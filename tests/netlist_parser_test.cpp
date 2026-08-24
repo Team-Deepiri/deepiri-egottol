@@ -3,6 +3,7 @@
 #include "../io/netlist_builder.h"
 #include "../core/mna_solver.h"
 #include "../core/ac_analysis.h"
+#include "../core/spice_engine.h"
 
 #include <cmath>
 #include <cstdio>
@@ -197,6 +198,31 @@ void test_model_card() {
     expect(c.ok, "build with model");
 }
 
+void test_subckt_expand() {
+    const char* nl =
+        ".subckt DIV in mid\n"
+        "R1 in mid 3k\n"
+        "R2 mid 0 1k\n"
+        ".ends\n"
+        "V1 in 0 10\n"
+        "X1 in mid DIV\n"
+        ".op\n";
+    NetlistParser p;
+    expect(p.parse(nl), "parse subckt");
+    expect(p.getSubckts().count("div") == 1, "subckt stored");
+    expect(p.getElements().size() == 2, "top-level V+X only");
+    auto flat = p.expandedElements();
+    expect(flat.size() == 3, "expanded to V+R+R");  // V + 2R
+    auto c = buildCircuitFromNetlist(p);
+    expect(c.ok, "subckt build");
+    auto sol = MNASolver().solve(c.devices, c.nodeMap, {});
+    if (!sol.success) sol = DcOperatingPoint().solve(c.devices, c.nodeMap);
+    expect(sol.success, "subckt dc");
+    if (sol.success && c.nodeMap.count("mid")) {
+        expect(std::fabs(sol.voltages[c.nodeMap["mid"] - 1] - 2.5) < 1e-3, "subckt mid=2.5");
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -208,6 +234,7 @@ int main() {
     test_rc_netlist_ac();
     test_mosfet_bjt_diode_lines();
     test_model_card();
+    test_subckt_expand();
 
     if (failures > 0) {
         std::fprintf(stderr, "%d failure(s)\n", failures);

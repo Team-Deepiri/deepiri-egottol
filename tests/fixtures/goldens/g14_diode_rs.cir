@@ -1,0 +1,7 @@
+* Diode with series Rs from .model
+V1 in 0 5
+R1 in a 1k
+D1 a 0 DRS
+.model DRS D (IS=1e-14 N=1 RS=10)
+.op
+.end

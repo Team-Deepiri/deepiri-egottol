@@ -121,8 +121,89 @@ MNASolver::Solution DcOperatingPoint::solve(
     const int srcSteps = std::max(1, opts_.sourceSteps);
     const int gminSteps = std::max(1, opts_.gminSteps);
 
+    auto runNewton = [&](double scale, double gmin, std::vector<double>& state) -> bool {
+        for (int iter = 0; iter < opts_.maxNewton; ++iter) {
+            for (auto& d : devices) {
+                d->updateState(state);
+            }
+
+            size_t nV = countVsrc(devices);
+            size_t N = numNodes + nV;
+            std::vector<std::vector<double>> G(N, std::vector<double>(N, 0.0));
+            std::vector<double> rhs(N, 0.0);
+
+            for (size_t i = 0; i < numNodes; ++i) {
+                G[i][i] += gmin;
+            }
+
+            for (const auto& d : devices) {
+                if (d->type() == "Vsrc") continue;
+                if (d->type() == "Capacitor") continue;
+                if (d->type() == "Inductor") {
+                    auto terms = d->terminals();
+                    if (terms.size() >= 2) {
+                        size_t a = terms[0], b = terms[1];
+                        const double gshort = 1e6;
+                        if (a > 0 && a <= numNodes) G[a - 1][a - 1] += gshort;
+                        if (b > 0 && b <= numNodes) G[b - 1][b - 1] += gshort;
+                        if (a > 0 && b > 0 && a <= numNodes && b <= numNodes) {
+                            G[a - 1][b - 1] -= gshort;
+                            G[b - 1][a - 1] -= gshort;
+                        }
+                    }
+                    continue;
+                }
+                stampDevice(G, rhs, *d, numNodes);
+            }
+            stampVoltageSources(G, rhs, devices, numNodes, scale);
+
+            Matrix A(N, N);
+            for (size_t i = 0; i < N; ++i)
+                for (size_t j = 0; j < N; ++j)
+                    A.at(i, j) = G[i][j];
+
+            std::vector<double> sol;
+            try {
+                sol = A.solveGaussian(rhs);
+            } catch (const std::exception& e) {
+                best.message = std::string("DC matrix singular: ") + e.what();
+                return false;
+            }
+
+            double maxDx = 0.0;
+            for (size_t i = 0; i < numNodes && i < sol.size(); ++i) {
+                double dx = sol[i] - state[i];
+                // Damped Newton — kills period-2 oscillation on hard nonlinearities.
+                constexpr double damp = 0.7;
+                constexpr double vLim = 0.8;
+                if (dx > vLim) dx = vLim;
+                if (dx < -vLim) dx = -vLim;
+                double next = state[i] + damp * dx;
+                maxDx = std::max(maxDx, std::abs(next - state[i]));
+                state[i] = next;
+            }
+
+            if (opts_.verbose) {
+                std::cout << "DC NR iter " << iter << " dx=" << maxDx
+                          << " gmin=" << gmin << " scale=" << scale << "\n";
+            }
+
+            if (maxDx < opts_.tolerance) {
+                best.currents.clear();
+                for (size_t i = numNodes; i < sol.size(); ++i) {
+                    best.currents.push_back(sol[i]);
+                }
+                return true;
+            }
+        }
+        return false;
+    };
+
     for (int s = 1; s <= srcSteps; ++s) {
         double scale = static_cast<double>(s) / static_cast<double>(srcSteps);
+        bool scaleOk = false;
+        std::vector<double> lastGood = x;
+
         for (int g = 0; g <= gminSteps; ++g) {
             double gmin = (g == gminSteps)
                 ? opts_.gminEnd
@@ -130,88 +211,42 @@ MNASolver::Solution DcOperatingPoint::solve(
                       opts_.gminEnd / opts_.gminStart,
                       static_cast<double>(g) / static_cast<double>(gminSteps));
 
-            bool stepOk = false;
-            for (int iter = 0; iter < opts_.maxNewton; ++iter) {
-                for (auto& d : devices) {
-                    d->updateState(x);
-                }
-
-                size_t nV = countVsrc(devices);
-                size_t N = numNodes + nV;
-                std::vector<std::vector<double>> G(N, std::vector<double>(N, 0.0));
-                std::vector<double> rhs(N, 0.0);
-
-                for (size_t i = 0; i < numNodes; ++i) {
-                    G[i][i] += gmin;  // Gmin to ground
-                }
-
-                for (const auto& d : devices) {
-                    if (d->type() == "Vsrc") continue;
-                    // Open capacitors/inductors at DC: skip C, short L via large G.
-                    if (d->type() == "Capacitor") continue;
-                    if (d->type() == "Inductor") {
-                        // DC short: large conductance between terminals.
-                        auto terms = d->terminals();
-                        if (terms.size() >= 2) {
-                            size_t a = terms[0], b = terms[1];
-                            const double gshort = 1e6;
-                            if (a > 0 && a <= numNodes) G[a - 1][a - 1] += gshort;
-                            if (b > 0 && b <= numNodes) G[b - 1][b - 1] += gshort;
-                            if (a > 0 && b > 0 && a <= numNodes && b <= numNodes) {
-                                G[a - 1][b - 1] -= gshort;
-                                G[b - 1][a - 1] -= gshort;
-                            }
-                        }
-                        continue;
-                    }
-                    stampDevice(G, rhs, *d, numNodes);
-                }
-                stampVoltageSources(G, rhs, devices, numNodes, scale);
-
-                Matrix A(N, N);
-                for (size_t i = 0; i < N; ++i)
-                    for (size_t j = 0; j < N; ++j)
-                        A.at(i, j) = G[i][j];
-
-                std::vector<double> sol;
-                try {
-                    sol = A.solveGaussian(rhs);
-                } catch (const std::exception& e) {
-                    best.message = std::string("DC matrix singular: ") + e.what();
-                    break;
-                }
-
-                double maxDx = 0.0;
-                for (size_t i = 0; i < numNodes && i < sol.size(); ++i) {
-                    maxDx = std::max(maxDx, std::abs(sol[i] - x[i]));
-                    x[i] = sol[i];
-                }
-
-                if (opts_.verbose) {
-                    std::cout << "DC NR iter " << iter << " dx=" << maxDx
-                              << " gmin=" << gmin << " scale=" << scale << "\n";
-                }
-
-                if (maxDx < opts_.tolerance) {
-                    stepOk = true;
-                    best.success = true;
-                    best.voltages.assign(sol.begin(), sol.begin() + static_cast<std::ptrdiff_t>(numNodes));
-                    best.currents.clear();
-                    for (size_t i = numNodes; i < sol.size(); ++i) {
-                        best.currents.push_back(sol[i]);
-                    }
-                    best.message = "DC operating point converged";
-                    break;
-                }
-            }
-            if (!stepOk) {
-                // Try next gmin / abort source step
-                if (g == gminSteps) {
-                    return best;
-                }
+            std::vector<double> trial = x;
+            if (runNewton(scale, gmin, trial)) {
+                x = trial;
+                lastGood = trial;
+                scaleOk = true;
+                // Continue to tighter gmin; keep lastGood if tighter fails.
+            } else if (scaleOk) {
+                // Revert to last converged gmin for this scale and stop tightening.
+                x = lastGood;
+                break;
+            } else {
+                break;
             }
         }
+
+        // Only accept a solution from the full source scale as the OP result.
+        if (s == srcSteps) {
+            if (scaleOk) {
+                best.success = true;
+                best.voltages = x;
+                best.message = "DC operating point converged";
+            } else {
+                best.success = false;
+                if (best.message == "DC OP failed" || best.message.empty()) {
+                    best.message = "DC OP failed at full source scale";
+                }
+            }
+            return best;
+        }
+
+        if (!scaleOk) {
+            // Mid-scale failure: continue ramping with whatever state we have.
+            best.message = "DC OP struggling at source scale " + std::to_string(scale);
+        }
     }
+
     return best;
 }
 

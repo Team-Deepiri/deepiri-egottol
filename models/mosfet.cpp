@@ -101,11 +101,10 @@ void MOSFET::setTerminals(const std::vector<size_t>& nodes) {
 
 std::vector<double> MOSFET::getCurrent() const {
     // Terminals: [D, G, S, B]
-    // Channel current Ids from D→S; gate/bulk ideal DC = 0.
-    // Newton: iD ≈ ids0 + gm*vgs + gds*vds + gmb*vbs
-    //       = gm*(vg-vs) + gds*(vd-vs) + gmb*(vb-vs) + (ids0 - gm*vgs0 - gds*vds0 - gmb*vbs0)
-    double ieqD = ids_ - gm_ * vgs_ - gds_ * vds_ - gmb_ * vbs_;
-    // iD into drain, -iD into source; G/B zero eq current for now.
+    // Linearized: iD ≈ ids0 + gm·Δvgs + gds·Δvds + gmb·Δvbs
+    //            = (ids0 - gm·vgs0 - gds·vds0 - gmb·vbs0) + G·v
+    // MNA uses G·v = rhs with rhs = -(i0 - G·v0) = G·v0 - i0  (same as diode).
+    double ieqD = gm_ * vgs_ + gds_ * vds_ + gmb_ * vbs_ - ids_;
     return {ieqD, 0.0, -ieqD, 0.0};
 }
 
@@ -127,9 +126,11 @@ std::vector<std::vector<double>> MOSFET::getConductanceMatrix() const {
 }
 
 void MOSFET::getInitialGuess(std::vector<double>& guess) const {
+    // Mild guesses — avoid forcing rails that fight bias sources.
     auto t = terminals();
-    if (t.size() >= 1 && t[0] > 0 && t[0] - 1 < guess.size()) guess[t[0] - 1] = 5.0;
-    if (t.size() >= 2 && t[1] > 0 && t[1] - 1 < guess.size()) guess[t[1] - 1] = 5.0;
+    if (t.size() >= 1 && t[0] > 0 && t[0] - 1 < guess.size() && guess[t[0] - 1] == 0.0) {
+        guess[t[0] - 1] = 1.0;
+    }
 }
 
 void MOSFET::updateState(const std::vector<double>& state) {

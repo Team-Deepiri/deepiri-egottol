@@ -51,6 +51,13 @@ struct SpiceModel {
     std::map<std::string, double> params;
 };
 
+// `.subckt name port1 port2 …` … `.ends`
+struct SpiceSubckt {
+    std::string name;
+    std::vector<std::string> ports;
+    std::vector<NetlistElement> elements;
+};
+
 class NetlistParser {
 public:
     NetlistParser();
@@ -64,6 +71,10 @@ public:
     std::vector<std::string> getControls() const;
     std::vector<NetlistControl> getControlDirectives() const;
     std::map<std::string, SpiceModel> getModels() const;
+    std::map<std::string, SpiceSubckt> getSubckts() const;
+
+    // Flatten X instances using defined .subckt bodies (port map + name prefix).
+    std::vector<NetlistElement> expandedElements() const;
 
     std::string toNetlist() const;
 

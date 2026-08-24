@@ -43,12 +43,13 @@ void BJT::setTerminals(const std::vector<size_t>& nodes) {
 }
 
 std::vector<double> BJT::getCurrent() const {
-    // Terminals [C, B, E]. Newton Ieq for transport model.
-    // iC ≈ ic0 + gm*vbe + go*vce ... simplified: use eq currents
-    // iC = gm*vbe + gmu*(vbc) + ... ; use:
-    // ieqC = ic - gm*vbe - gmu*vbc (approx)
-    double ieqC = ic_ - gm_ * vbe_ - gmu_ * vbc_;
-    double ieqB = ib_ - gpi_ * vbe_ - gmu_ * vbc_;
+    // Terminals [C, B, E]. RHS form matches diode: rhs = G·v0 - i0.
+    double ieqC = gm_ * vbe_ + gmu_ * vbc_ - ic_;
+    // Also account for Early go·vce in the G matrix; include go·vce in RHS.
+    double go = (VAF_ > 0) ? std::abs(ic_) / VAF_ : 0.0;
+    double vce = vbe_ - vbc_;  // (vb-ve) - (vb-vc) = vc - ve? Wait vbe-vbc = (vb-ve)-(vb-vc)=vc-ve = vce
+    ieqC += go * vce;
+    double ieqB = gpi_ * vbe_ + gmu_ * vbc_ - ib_;
     double ieqE = -(ieqC + ieqB);
     return {ieqC, ieqB, ieqE};
 }

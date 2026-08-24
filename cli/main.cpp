@@ -21,7 +21,7 @@ void printUsage(const char* argv0) {
     std::fprintf(stderr,
         "egottol-cli — headless Deepiri Egottol simulator\n"
         "Usage:\n"
-        "  %s sim <file.cir> [--op|--tran|--ac] [-o out.csv]\n"
+        "  %s sim <file.cir> [--op|--tran|--ac] [--trap] [--lte] [-o out.csv]\n"
         "  %s version\n"
         "  %s help\n"
         "\n"
@@ -65,12 +65,16 @@ int cmdSim(int argc, char** argv) {
     enum class Mode { Auto, Op, Tran, Ac };
     Mode mode = Mode::Auto;
     std::string outPath;
+    bool useTrap = false;
+    bool useLte = false;
 
     for (int i = 3; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--op" || a == "--dc") mode = Mode::Op;
         else if (a == "--tran") mode = Mode::Tran;
         else if (a == "--ac") mode = Mode::Ac;
+        else if (a == "--trap") useTrap = true;
+        else if (a == "--lte") useLte = true;
         else if ((a == "-o" || a == "--output") && i + 1 < argc) {
             outPath = argv[++i];
         } else if (a == "-h" || a == "--help") {
@@ -153,6 +157,8 @@ int cmdSim(int argc, char** argv) {
         size_t probe = pickProbe(circuit);
 
         SpiceTransient::Options opts;
+        opts.useTrapezoidal = useTrap;
+        opts.adaptiveLte = useLte;
         SpiceTransient transient(opts);
         auto sim = transient.simulate(0.0, tstop, tstep, circuit.devices, circuit.nodeMap);
         if (!sim.converged) {
