@@ -206,25 +206,38 @@ poetry install
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
 
-### Run the Schematic Editor
+### Run the Native Desktop App
+
+```bash
+./build/egottol
+```
+
+Draw a circuit (Resistor / Capacitor / Source / Ground), wire pins together, then
+**Simulate → Run DC / Transient / AC**. File → Save writes a `.egt` project;
+File → Export Waveform CSV dumps the plotter traces.
+
+Legacy Python UI (still available):
 
 ```bash
 poetry run python -m egottol.ui.main
 ```
 
-### Run a Headless Simulation
+### Headless Simulation (CLI)
 
 ```bash
-poetry run python -m egottol.simulate --circuit my_circuit.egt
+./build/egottol-cli sim tests/fixtures/divider.cir --op
+./build/egottol-cli sim tests/fixtures/divider.cir --tran -o /tmp/wave.csv
+./build/egottol-cli sim my_circuit.cir --ac -o /tmp/bode.csv
 ```
+
+Exit codes: `0` success, `1` usage/parse error, `2` simulation failure.
 
 ### Export to UQE (Quantum)
 
-```bash
-poetry run python -m egottol.export --format uqe --input my_circuit.egt
-```
+Not shipped yet — see Phase 9 in [TODO.md](TODO.md).
 
 ---
 
