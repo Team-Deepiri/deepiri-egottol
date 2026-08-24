@@ -3,7 +3,8 @@
 **Binary Electrical Systems Simulation Lab — v1.0.0**
 
 egottol is a multi-domain circuit simulation platform: production-grade analog SPICE (MNA), event-driven digital logic, VHDL blocks, GPU-oriented compute hooks, and avionics protocol simulation — with a native Qt desktop app and a headless CLI.
-<img width="1865" height="1050" alt="image" src="https://github.com/user-attachments/assets/fac32901-a19d-4525-bfec-783f40ccb6e9" />
+
+<img src="packaging/egottol-logo.jpg" alt="Egottol logo" width="400" />
 
 **Electrical design knowledge** (series/parallel, RC/RL/LC, transistor+C/L, motors, symptom→fix, PCB floorplanning) lives in [`docs/ee/`](docs/ee/README.md) and is searchable from Copilot via `lookup_ee_design`.
 
