@@ -39,15 +39,6 @@ private:
         const std::map<std::string, size_t>& nodeMap,
         size_t numNodes
     );
-
-    void addDeviceStamp(
-        std::vector<std::vector<double>>& stamp,
-        const std::vector<std::vector<double>>& deviceG,
-        const std::vector<double>& deviceRHS,
-        size_t nodeP,
-        size_t nodeN,
-        size_t auxIndex
-    );
 };
 
 }

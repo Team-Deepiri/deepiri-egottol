@@ -125,29 +125,6 @@ size_t MNASolver::buildStampMatrix(
     return auxCount;
 }
 
-void MNASolver::addDeviceStamp(
-    std::vector<std::vector<double>>& stamp,
-    const std::vector<std::vector<double>>& deviceG,
-    const std::vector<double>& deviceRHS,
-    size_t nodeP,
-    size_t nodeN,
-    size_t auxIndex
-) {
-    if (nodeP == 0 || nodeN == 0) return;
-    if (nodeP >= stamp.size() || nodeN >= stamp.size()) return;
-
-    for (size_t i = 0; i < deviceG.size(); ++i) {
-        for (size_t j = 0; j < deviceG[i].size(); ++j) {
-            if (i == 0 && j == 0) stamp[nodeP - 1][nodeP - 1] += deviceG[i][j];
-            if (i == 0 && j == 1) stamp[nodeP - 1][nodeN - 1] += deviceG[i][j];
-            if (i == 1 && j == 0) stamp[nodeN - 1][nodeP - 1] += deviceG[i][j];
-            if (i == 1 && j == 1) stamp[nodeN - 1][nodeN - 1] += deviceG[i][j];
-        }
-    }
-    (void)deviceRHS;
-    (void)auxIndex;
-}
-
 MNASolver::Solution MNASolver::solve(
     const std::vector<std::shared_ptr<Device>>& devices,
     const std::map<std::string, size_t>& nodeMap,

@@ -16,39 +16,7 @@ struct Entry {
     const char* use;
 };
 
-const Entry kEntries[] = {
-    {"flyback", "relay solenoid motor spike inductive kick flyback diode kills transistor mosfet",
-     "Diode || coil (reversed)", "Recirculates inductive current when switch opens",
-     "Mandatory on every relay/solenoid/motor driver"},
-    {"led-burn", "led burned current bright resistor series",
-     "Resistor + LED (series)", "Limits LED current", "Every indicator LED"},
-    {"decouple", "noise rail ringing brownout decoupling capacitor",
-     "0.1uF || IC pins + bulk nearby", "Shunts HF; bulk holds di/dt", "Every digital/analog IC"},
-    {"ac-couple", "dc offset audio mic block dc capacitor series",
-     "Capacitor in series with signal", "High-pass; blocks DC", "Audio / BJT base coupling"},
-    {"rc-lpf", "low pass anti alias high frequency noise filter",
-     "R series + C to GND", "Passes DC/low; attenuates HF", "ADC anti-alias, sensors"},
-    {"rc-hpf", "high pass tweeter bass crossover",
-     "C series + R to GND", "Blocks DC/low; passes HF", "Audio crossovers"},
-    {"lc-tank", "radio tuner resonance tank frequency",
-     "L || C parallel tank", "Peak Z at f0", "Tuners / band-stop"},
-    {"boost", "step up boost converter flash hv 5v to 12v",
-     "L + switch + diode + Cout", "Flyback energy raises Vout", "Boost converters"},
-    {"buck", "step down buck efficient 12v to 5v vrm",
-     "MOSFET + L + C || load + freewheel", "PWM averages voltage; L smooths I", "CPU/USB regulators"},
-    {"crystal", "crystal clock oscillate mux two crystals",
-     "Load caps + bias R; MUX for two clocks", "Never parallel crystals", "MCU clocks"},
-    {"hbridge", "motor reverse bidirectional h-bridge",
-     "Four transistors + motor", "Reverses polarity", "Robot drives"},
-    {"floorplan", "pcb place floorplan dirty clean zone",
-     "Dirty / Digital / Clean zones", "Partition by noise before routing", "All boards"},
-    {"darlington", "high beta tiny current darlington",
-     "BJT Darlington pair", "β multiplies", "High-gain switches"},
-    {"gate-protect", "mosfet gate overvoltage floating zener",
-     "Pull-down R + Zener || G-S", "Hold off + clamp Vgs", "Logic / industrial FETs"},
-    {"pdn", "voltage droop power integrity pdn",
-     "Bulk + mid + HF capacitor hierarchy", "Keep Z < ΔV/ΔI", "SoC boards"},
-};
+#include "ee_lookup_entries.inc"
 
 std::string lower(std::string s) {
     for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -61,7 +29,8 @@ std::vector<EeHit> lookupEeDesign(const std::string& query, int limit) {
     std::string q = lower(query);
     struct Scored { int score; EeHit hit; };
     std::vector<Scored> scored;
-    for (const auto& e : kEntries) {
+    for (size_t i = 0; i < kEntryCount; ++i) {
+        const auto& e = kEntries[i];
         std::string bag = lower(std::string(e.symptoms) + " " + e.combination + " " + e.use);
         int score = 0;
         std::istringstream iss(q);
