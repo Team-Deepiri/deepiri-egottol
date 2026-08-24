@@ -18,6 +18,7 @@ Capacitor::Capacitor(const std::string& name, double capacitance, double initial
 void Capacitor::initializeDC() {
     v_ = vInitial_;
     q_ = C_ * v_;
+    i_ = 0.0;
     transientActive_ = false;
     geq_ = 0.0;
     ieq_ = 0.0;
@@ -27,8 +28,6 @@ std::vector<double> Capacitor::getCurrent() const {
     if (!transientActive_) {
         return {0.0, 0.0};  // open at DC
     }
-    // Companion: i_+ = geq*v - ieq_internal; we stamp geq in G and put ieq on RHS.
-    // i = geq*(v - v_prev) = geq*v - geq*v_prev → RHS += geq*v_prev at +
     return {ieq_, -ieq_};
 }
 
@@ -64,13 +63,23 @@ void Capacitor::prepareTransientStep(double h, const std::vector<double>& prevNo
     double vp = (nodeP_ > 0 && nodeP_ - 1 < prevNodeVoltages.size()) ? prevNodeVoltages[nodeP_ - 1] : 0.0;
     double vn = (nodeN_ > 0 && nodeN_ - 1 < prevNodeVoltages.size()) ? prevNodeVoltages[nodeN_ - 1] : 0.0;
     double vPrev = vp - vn;
-    geq_ = C_ / h;
-    ieq_ = geq_ * vPrev;  // RHS at + terminal
+    if (useTrap_) {
+        // Trapezoidal: i = (2C/h)v − [(2C/h)v_prev + i_prev]
+        geq_ = 2.0 * C_ / h;
+        ieq_ = geq_ * vPrev + i_;
+    } else {
+        // Backward Euler: i = (C/h)(v − v_prev)
+        geq_ = C_ / h;
+        ieq_ = geq_ * vPrev;
+    }
     transientActive_ = true;
 }
 
 void Capacitor::acceptTransientStep(const std::vector<double>& nodeVoltages) {
     updateState(nodeVoltages);
+    if (transientActive_) {
+        i_ = geq_ * v_ - ieq_;
+    }
 }
 
 }

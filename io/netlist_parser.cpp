@@ -127,6 +127,7 @@ public:
     std::map<std::string, std::vector<std::string>> nets_;
     std::vector<std::string> controls_;
     std::vector<NetlistControl> directives_;
+    std::map<std::string, SpiceModel> models_;
 };
 
 bool NetlistParser::parseValue(const std::string& token, double& out) {
@@ -211,6 +212,7 @@ bool NetlistParser::parse(const std::string& netlist_content) {
     pImpl->nets_.clear();
     pImpl->controls_.clear();
     pImpl->directives_.clear();
+    pImpl->models_.clear();
 
     std::istringstream iss(netlist_content);
     std::string line;
@@ -247,7 +249,47 @@ bool NetlistParser::parse(const std::string& netlist_content) {
                 }
             }
             if (isKnownControl(ctrl.kind) || !ctrl.kind.empty()) {
-                pImpl->directives_.push_back(std::move(ctrl));
+                pImpl->directives_.push_back(ctrl);
+            }
+            // `.model Name TYPE (IS=1e-14 N=1 VTO=0.7 …)`
+            if (ctrl.kind == "model" && ctrl.tokens.size() >= 2) {
+                SpiceModel model;
+                model.name = toLower(ctrl.tokens[0]);
+                model.type = toLower(ctrl.tokens[1]);
+                for (size_t ti = 2; ti < ctrl.tokens.size(); ++ti) {
+                    std::string key;
+                    double val = 0.0;
+                    // tokens may still be KEY=VAL or bare numbers after TYPE
+                    size_t eq = ctrl.tokens[ti].find('=');
+                    if (eq != std::string::npos && eq > 0) {
+                        key = toLower(ctrl.tokens[ti].substr(0, eq));
+                        if (parseValue(ctrl.tokens[ti].substr(eq + 1), val)) {
+                            model.params[key] = val;
+                        }
+                    }
+                }
+                // Also accept parenthesized form already flattened by tokenizeSpice on element
+                // lines; for control lines we still have raw. Re-tokenize raw for KEY=VAL.
+                std::string rawFlat = ctrl.raw;
+                for (char& c : rawFlat) {
+                    if (c == '(' || c == ')' || c == ',') c = ' ';
+                }
+                std::istringstream rs(rawFlat);
+                std::string rt;
+                rs >> rt;  // .model
+                if (rs >> rt) model.name = toLower(rt);
+                if (rs >> rt) model.type = toLower(rt);
+                while (rs >> rt) {
+                    size_t eq = rt.find('=');
+                    if (eq != std::string::npos && eq > 0) {
+                        std::string key = toLower(rt.substr(0, eq));
+                        double val = 0.0;
+                        if (parseValue(rt.substr(eq + 1), val)) {
+                            model.params[key] = val;
+                        }
+                    }
+                }
+                pImpl->models_[model.name] = model;
             }
             return;
         }
@@ -395,6 +437,10 @@ std::vector<std::string> NetlistParser::getControls() const {
 
 std::vector<NetlistControl> NetlistParser::getControlDirectives() const {
     return pImpl->directives_;
+}
+
+std::map<std::string, SpiceModel> NetlistParser::getModels() const {
+    return pImpl->models_;
 }
 
 std::string NetlistParser::toNetlist() const {

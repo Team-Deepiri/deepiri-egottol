@@ -1,0 +1,6 @@
+* RL step — L short at DC so out→1 after long time; check early rise
+V1 in 0 PULSE(0 1 0 1n 1n 1 2)
+R1 in out 1k
+L1 out 0 1m
+.tran 1u 50u
+.end

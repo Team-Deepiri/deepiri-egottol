@@ -44,6 +44,13 @@ struct NetlistControl {
     std::vector<double> numbers;      // numeric args with unit suffixes applied
 };
 
+// `.model name type (PARAM=val …)`
+struct SpiceModel {
+    std::string name;
+    std::string type;  // d, npn, pnp, nmos, pmos, …
+    std::map<std::string, double> params;
+};
+
 class NetlistParser {
 public:
     NetlistParser();
@@ -56,6 +63,7 @@ public:
     std::map<std::string, std::vector<std::string>> getNets() const;
     std::vector<std::string> getControls() const;
     std::vector<NetlistControl> getControlDirectives() const;
+    std::map<std::string, SpiceModel> getModels() const;
 
     std::string toNetlist() const;
 

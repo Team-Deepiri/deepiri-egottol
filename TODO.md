@@ -7,11 +7,14 @@
 - [x] PULSE() sources, W=/L= params, keyed SPICE tokens
 - [x] `spice_production_test` + ngspice presence check
 - [x] CLI uses SpiceTransient / DcOperatingPoint
+- [x] `.model` card parse + apply (D/M/Q: IS/N/VTO/KP/BF/…)
+- [x] Trapezoidal C/L companions + optional LTE timestep control
+- [x] 12-circuit golden corpus (`golden_spice_test` + `tests/fixtures/goldens/`)
 
 ## Still open for “beyond LTspice” credibility
-- [ ] ~20-circuit ngspice golden corpus (automated compare)
-- [ ] Full `.model` card application (VTO/KP/Is from .model lines)
+- [ ] Expand goldens toward ~20 + tighter ngspice numeric parse compare
 - [ ] Subcircuit expansion (X instances)
-- [ ] Trapezoidal integration + LTE timestep control
+- [ ] Diode Rs consistent Thevenin stamp
 - [ ] MOSFET/BJT curve family validation plots
 - [ ] Perf baseline vs node count in CI
+- [ ] DC source-stepping must only accept full-scale solution as final

@@ -1,0 +1,9 @@
+* BJT with .model NPN — Vc below Vcc when biased on
+Vcc c 0 5
+Rc c 0 1k
+Vb b 0 0.8
+Q1 c b e NPN
+Re e 0 1k
+.model NPN NPN (IS=1e-15 BF=100)
+.op
+.end

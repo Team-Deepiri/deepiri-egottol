@@ -21,15 +21,13 @@ void Inductor::initializeDC() {
     i_ = iInitial_;
     flux_ = L_ * i_;
     transientActive_ = false;
+    vPrev_ = 0.0;
 }
 
 std::vector<double> Inductor::getCurrent() const {
     if (!transientActive_) {
-        return {0.0, 0.0};  // DC handled as short in DcOperatingPoint
+        return {0.0, 0.0};
     }
-    // Backward Euler: i = (h/L)*v + i_prev = geq*v + i_prev
-    // i_+ = geq*v + i_prev → RHS at + gets -i_prev if we define carefully.
-    // i = geq*v - (-i_prev); stamp geq, RHS_+ = -i_prev
     return {ieq_, -ieq_};
 }
 
@@ -46,20 +44,25 @@ std::vector<std::vector<double>> Inductor::getConductanceMatrix() const {
 void Inductor::getInitialGuess(std::vector<double>& guess) const {}
 
 void Inductor::updateState(const std::vector<double>& state) {
-    double vp = (nodeP_ > 0 && nodeP_ - 1 < state.size()) ? state[nodeP_ - 1] : 0.0;
-    double vn = (nodeN_ > 0 && nodeN_ - 1 < state.size()) ? state[nodeN_ - 1] : 0.0;
-    (void)vp;
-    (void)vn;
+    (void)state;
 }
 
-void Inductor::prepareTransientStep(double h, const std::vector<double>& /*prev*/) {
+void Inductor::prepareTransientStep(double h, const std::vector<double>& prevNodeVoltages) {
     if (h <= 0.0 || L_ == 0.0) {
         transientActive_ = false;
         return;
     }
-    geq_ = h / L_;
-    // i_new = geq * v_new + i_old  →  geq*v - (-i_old) 
-    ieq_ = -i_;  // RHS at + terminal
+    double vp = (nodeP_ > 0 && nodeP_ - 1 < prevNodeVoltages.size()) ? prevNodeVoltages[nodeP_ - 1] : 0.0;
+    double vn = (nodeN_ > 0 && nodeN_ - 1 < prevNodeVoltages.size()) ? prevNodeVoltages[nodeN_ - 1] : 0.0;
+    vPrev_ = vp - vn;
+    if (useTrap_) {
+        // Trap: i = (h/2L)v + i_prev + (h/2L)v_prev
+        geq_ = h / (2.0 * L_);
+        ieq_ = -(i_ + geq_ * vPrev_);
+    } else {
+        geq_ = h / L_;
+        ieq_ = -i_;
+    }
     transientActive_ = true;
 }
 
@@ -68,7 +71,6 @@ void Inductor::acceptTransientStep(const std::vector<double>& nodeVoltages) {
     double vn = (nodeN_ > 0 && nodeN_ - 1 < nodeVoltages.size()) ? nodeVoltages[nodeN_ - 1] : 0.0;
     double v = vp - vn;
     if (transientActive_) {
-        // i_new = geq*v + i_old, and ieq_ was set to -i_old at prepare.
         i_ = geq_ * v - ieq_;
     }
     flux_ = L_ * i_;

@@ -45,12 +45,30 @@ double paramOr(const NetlistElement& e, size_t i, double fallback) {
 }  // namespace
 
 BuiltCircuit buildCircuitFromNetlist(const NetlistParser& parser) {
-    return buildCircuitFromElements(parser.getElements());
+    return buildCircuitFromElements(parser.getElements(), parser.getModels());
 }
 
-BuiltCircuit buildCircuitFromElements(const std::vector<NetlistElement>& elements) {
+BuiltCircuit buildCircuitFromElements(
+    const std::vector<NetlistElement>& elements,
+    const std::map<std::string, SpiceModel>& models
+) {
     BuiltCircuit out;
     size_t nextIndex = 1;
+
+    auto lookupModel = [&](const std::string& name) -> const SpiceModel* {
+        if (name.empty()) return nullptr;
+        std::string key = name;
+        std::transform(key.begin(), key.end(), key.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        auto it = models.find(key);
+        return it == models.end() ? nullptr : &it->second;
+    };
+
+    auto modelParam = [](const SpiceModel* m, const char* key, double fb) {
+        if (!m) return fb;
+        auto it = m->params.find(key);
+        return it != m->params.end() ? it->second : fb;
+    };
 
     for (const auto& elem : elements) {
         auto needNodes = [&](size_t n) -> bool {
@@ -138,13 +156,19 @@ BuiltCircuit buildCircuitFromElements(const std::vector<NetlistElement>& element
                 if (!needNodes(2)) return out;
                 size_t a = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
                 size_t b = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
-                auto dev = std::make_shared<Diode>(elem.name);
-                if (!elem.parameters.empty()) {
-                    dev->setSaturationCurrent(elem.parameters[0]);
-                }
-                if (elem.parameters.size() >= 2) {
-                    dev->setEmissionCoefficient(elem.parameters[1]);
-                }
+                const SpiceModel* mod = lookupModel(elem.model_name);
+                double is = modelParam(mod, "is", paramOr(elem, 0, 1e-14));
+                double n = modelParam(mod, "n", paramOr(elem, 1, 1.0));
+                auto itIs = elem.named_parameters.find("is");
+                if (itIs != elem.named_parameters.end()) is = itIs->second;
+                auto itN = elem.named_parameters.find("n");
+                if (itN != elem.named_parameters.end()) n = itN->second;
+                auto dev = std::make_shared<Diode>(elem.name, is, n);
+                // Series Rs in the companion stamp needs a consistent Thevenin form;
+                // skip applying Rs until the diode model stamps it correctly.
+                (void)modelParam(mod, "rs", 0.0);
+                double bv = modelParam(mod, "bv", 0.0);
+                if (bv > 0) dev->setBreakdownVoltage(bv);
                 dev->setNodes(a, b);
                 out.devices.push_back(dev);
                 break;
@@ -154,14 +178,22 @@ BuiltCircuit buildCircuitFromElements(const std::vector<NetlistElement>& element
                 size_t c = resolveNode(elem.nodes[0].net, out.nodeMap, nextIndex);
                 size_t b = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
                 size_t e = resolveNode(elem.nodes[2].net, out.nodeMap, nextIndex);
-                auto dev = std::make_shared<BJT>(elem.name);
+                const SpiceModel* mod = lookupModel(elem.model_name);
+                BJTType bt = BJTType::NPN;
+                if (mod && mod->type.find("pnp") != std::string::npos) bt = BJTType::PNP;
                 if (!elem.model_name.empty()) {
                     std::string m = elem.model_name;
                     std::transform(m.begin(), m.end(), m.begin(),
                                    [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-                    if (m.find("pnp") != std::string::npos) {
-                        dev->setType(BJTType::PNP);
-                    }
+                    if (m.find("pnp") != std::string::npos) bt = BJTType::PNP;
+                }
+                double is = modelParam(mod, "is", 1e-16);
+                double bf = modelParam(mod, "bf", 100.0);
+                auto dev = std::make_shared<BJT>(elem.name, bt, is, bf);
+                if (mod) {
+                    if (mod->params.count("br")) dev->setBR(mod->params.at("br"));
+                    if (mod->params.count("vaf")) dev->setVAF(mod->params.at("vaf"));
+                    if (mod->params.count("var")) dev->setVAR(mod->params.at("var"));
                 }
                 dev->setTerminals({c, b, e});
                 out.devices.push_back(dev);
@@ -173,14 +205,16 @@ BuiltCircuit buildCircuitFromElements(const std::vector<NetlistElement>& element
                 size_t g = resolveNode(elem.nodes[1].net, out.nodeMap, nextIndex);
                 size_t s = resolveNode(elem.nodes[2].net, out.nodeMap, nextIndex);
                 size_t b = resolveNode(elem.nodes[3].net, out.nodeMap, nextIndex);
+                const SpiceModel* mod = lookupModel(elem.model_name);
                 MOSFETType mt = MOSFETType::NMOS;
+                if (mod && (mod->type.find("p") == 0 || mod->type.find("pmos") != std::string::npos)) {
+                    mt = MOSFETType::PMOS;
+                }
                 if (!elem.model_name.empty()) {
                     std::string m = elem.model_name;
                     std::transform(m.begin(), m.end(), m.begin(),
                                    [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-                    if (m.find("p") == 0 || m.find("pmos") != std::string::npos) {
-                        mt = MOSFETType::PMOS;
-                    }
+                    if (m.find("p") == 0 || m.find("pmos") != std::string::npos) mt = MOSFETType::PMOS;
                 }
                 auto dev = std::make_shared<MOSFET>(elem.name, mt);
                 auto named = [&](const char* k, double fb) {
@@ -189,22 +223,23 @@ BuiltCircuit buildCircuitFromElements(const std::vector<NetlistElement>& element
                 };
                 double w = named("w", paramOr(elem, 0, 10e-6));
                 double l = named("l", paramOr(elem, 1, 1e-6));
-                // If parameters came only from W=/L=, paramOr may duplicate — prefer named.
                 if (elem.named_parameters.count("w")) w = elem.named_parameters.at("w");
                 if (elem.named_parameters.count("l")) l = elem.named_parameters.at("l");
                 dev->setWidth(w);
                 dev->setLength(l);
                 MOSFETModel model;
-                model.vt0_ = named("vto", (mt == MOSFETType::NMOS) ? 0.7 : -0.7);
-                model.lambda_ = named("lambda", 0.05);
-                model.gamma_ = named("gamma", 0.4);
-                model.phi_ = named("phi", 0.6);
-                if (elem.named_parameters.count("kp")) {
-                    // KP = u0*Cox; approximate by scaling width factor via mobility path.
-                    // Store as lambda tweak is insufficient — bump W effectively via KP ratio.
-                    // For Level-1, beta = KP * W/L; our calculateBeta uses u0*cox*W/L.
-                    // Scale W so KP_eff matches: leave model and set W' = W * KP / (u0*cox).
-                }
+                double defVt = (mt == MOSFETType::NMOS) ? 0.7 : -0.7;
+                // Model card first, instance KEY=val overrides.
+                model.vt0_ = modelParam(mod, "vto", defVt);
+                model.lambda_ = modelParam(mod, "lambda", 0.05);
+                model.gamma_ = modelParam(mod, "gamma", 0.4);
+                model.phi_ = modelParam(mod, "phi", 0.6);
+                model.kp_ = modelParam(mod, "kp", 2e-5);
+                if (elem.named_parameters.count("vto")) model.vt0_ = elem.named_parameters.at("vto");
+                if (elem.named_parameters.count("lambda")) model.lambda_ = elem.named_parameters.at("lambda");
+                if (elem.named_parameters.count("gamma")) model.gamma_ = elem.named_parameters.at("gamma");
+                if (elem.named_parameters.count("phi")) model.phi_ = elem.named_parameters.at("phi");
+                if (elem.named_parameters.count("kp")) model.kp_ = elem.named_parameters.at("kp");
                 dev->setModel(model);
                 dev->setTerminals({d, g, s, b});
                 out.devices.push_back(dev);

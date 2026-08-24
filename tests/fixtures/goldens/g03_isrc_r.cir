@@ -1,0 +1,5 @@
+* Current into grounded R — v = I*R = 2 V
+I1 0 n1 1m
+R1 n1 0 2k
+.op
+.end

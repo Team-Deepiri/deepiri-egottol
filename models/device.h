@@ -46,6 +46,7 @@ public:
 
     // Transient companion (backward Euler / trapezoidal). Called each time step
     // BEFORE getConductanceMatrix/getCurrent so C and L stamp as G+Ieq.
+    virtual void setTrapezoidal(bool trap) { (void)trap; }
     virtual void prepareTransientStep(double h, const std::vector<double>& prevNodeVoltages) {
         (void)h;
         (void)prevNodeVoltages;

@@ -179,6 +179,24 @@ void test_mosfet_bjt_diode_lines() {
     expect(elems[2].type == NetlistElementType::MOSFET && elems[2].nodes.size() == 4, "mos 4 nodes");
 }
 
+void test_model_card() {
+    const char* nl =
+        ".model mynmos NMOS (VTO=0.5 KP=50u LAMBDA=0.02)\n"
+        "M1 d g 0 0 mynmos W=20u L=2u\n"
+        "Vdd d 0 3\n"
+        "Vg g 0 1\n";
+    NetlistParser p;
+    expect(p.parse(nl), "parse .model");
+    auto models = p.getModels();
+    expect(models.count("mynmos") == 1, "mynmos present");
+    if (models.count("mynmos")) {
+        expect(std::fabs(models["mynmos"].params["vto"] - 0.5) < 1e-9, "VTO");
+        expect(std::fabs(models["mynmos"].params["kp"] - 50e-6) < 1e-12, "KP");
+    }
+    auto c = buildCircuitFromNetlist(p);
+    expect(c.ok, "build with model");
+}
+
 }  // namespace
 
 int main() {
@@ -189,6 +207,7 @@ int main() {
     test_builder_solves_divider();
     test_rc_netlist_ac();
     test_mosfet_bjt_diode_lines();
+    test_model_card();
 
     if (failures > 0) {
         std::fprintf(stderr, "%d failure(s)\n", failures);

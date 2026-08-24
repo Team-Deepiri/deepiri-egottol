@@ -34,9 +34,8 @@ double MOSFET::calculateVth(double vbs) {
 }
 
 double MOSFET::calculateBeta(double /*vds*/, double /*vgs*/, double /*vth*/) {
-    double u0 = mobility(0, 0);
-    double cox = eps_ox_ / 10e-9;  // tox ~ 10nm default
-    return u0 * cox * W_ / std::max(L_, 1e-9);
+    // Level-1: β = KP · W/L
+    return model_.kp_ * W_ / std::max(L_, 1e-9);
 }
 
 void MOSFET::calculateIds(double vgs, double vds, double vbs) {

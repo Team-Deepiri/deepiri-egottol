@@ -27,6 +27,7 @@ public:
 
     void getInitialGuess(std::vector<double>& guess) const override;
     void updateState(const std::vector<double>& state) override;
+    void setTrapezoidal(bool trap) override { useTrap_ = trap; }
     void prepareTransientStep(double h, const std::vector<double>& prevNodeVoltages) override;
     void acceptTransientStep(const std::vector<double>& nodeVoltages) override;
 
@@ -40,8 +41,10 @@ private:
     double flux_;
     std::map<size_t, double> couplingMap_;
     bool transientActive_ = false;
+    bool useTrap_ = false;
     double geq_ = 0.0;
     double ieq_ = 0.0;
+    double vPrev_ = 0.0;
 };
 
 }

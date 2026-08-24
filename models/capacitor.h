@@ -27,11 +27,13 @@ public:
 
     void getInitialGuess(std::vector<double>& guess) const override;
     void updateState(const std::vector<double>& state) override;
+    void setTrapezoidal(bool trap) override { useTrap_ = trap; }
     void prepareTransientStep(double h, const std::vector<double>& prevNodeVoltages) override;
     void acceptTransientStep(const std::vector<double>& nodeVoltages) override;
 
     double charge() const { return q_; }
     double voltage() const { return v_; }
+    double current() const { return i_; }
 
 private:
     std::string name_;
@@ -39,10 +41,11 @@ private:
     double v_, vInitial_;
     double q_;
     double vc1_, vc2_;
-    // Companion model (backward Euler): Geq = C/h, Ieq = Geq * v_prev
     bool transientActive_ = false;
+    bool useTrap_ = false;
     double geq_ = 0.0;
-    double ieq_ = 0.0;  // current into + terminal from companion source
+    double ieq_ = 0.0;  // RHS inject at + terminal
+    double i_ = 0.0;     // branch current (for trap history)
 };
 
 }

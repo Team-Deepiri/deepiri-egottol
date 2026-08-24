@@ -48,6 +48,10 @@ public:
         int maxNewtonPerStep = 20;
         double gmin = 1e-12;
         bool useTrapezoidal = false;  // false = backward Euler (more stable)
+        bool adaptiveLte = false;     // enable for trap + variable step
+        double lteRelTol = 1e-3;
+        double hMin = 1e-15;
+        double hMaxFactor = 1.0;      // max step relative to requested stepSize
         bool verbose = false;
     };
 

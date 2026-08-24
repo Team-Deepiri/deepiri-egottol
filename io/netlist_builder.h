@@ -19,9 +19,10 @@ struct BuiltCircuit {
     bool ok = false;
 };
 
-// Converts parsed netlist elements into Device instances ready for
-// MNASolver / Transient / ACAnalysis. Ground nets: "0", "gnd", "ground".
 BuiltCircuit buildCircuitFromNetlist(const NetlistParser& parser);
-BuiltCircuit buildCircuitFromElements(const std::vector<NetlistElement>& elements);
+BuiltCircuit buildCircuitFromElements(
+    const std::vector<NetlistElement>& elements,
+    const std::map<std::string, SpiceModel>& models = {}
+);
 
 }

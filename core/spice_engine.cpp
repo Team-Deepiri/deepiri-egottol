@@ -6,6 +6,7 @@
 #include "../models/capacitor.h"
 #include "../models/inductor.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -287,6 +288,7 @@ SpiceTransient::Result SpiceTransient::simulate(
     }
 
     for (auto& d : devices) {
+        d->setTrapezoidal(opts_.useTrapezoidal);
         d->initializeDC();
         d->updateState(v);
         d->acceptTransientStep(v);
@@ -294,24 +296,22 @@ SpiceTransient::Result SpiceTransient::simulate(
 
     double t = tStart;
     double h = stepSize;
+    const double hMax = stepSize * std::max(1.0, opts_.hMaxFactor);
     result.timePoints.push_back(t);
     result.nodeVoltages.push_back(v);
     result.converged = true;
     result.message = "Transient completed";
 
+    std::vector<double> vOlder = v;
+
     while (t < tEnd - 1e-18) {
         if (t + h > tEnd) h = tEnd - t;
         std::vector<double> vPrev = v;
-
-        for (auto& d : devices) {
-            d->prepareTransientStep(h, vPrev);
-        }
 
         bool stepOk = false;
         for (int iter = 0; iter < opts_.maxNewtonPerStep; ++iter) {
             for (auto& d : devices) {
                 d->updateState(v);
-                // Re-apply companion using previous accepted voltages (not iterating v).
                 d->prepareTransientStep(h, vPrev);
             }
 
@@ -334,10 +334,9 @@ SpiceTransient::Result SpiceTransient::simulate(
         }
 
         if (!stepOk) {
-            // Cut timestep and retry once.
             h *= 0.5;
             v = vPrev;
-            if (h < 1e-15) {
+            if (h < opts_.hMin) {
                 result.converged = false;
                 result.message = "Transient failed to converge";
                 return result;
@@ -345,23 +344,41 @@ SpiceTransient::Result SpiceTransient::simulate(
             continue;
         }
 
+        // LTE estimate via linear extrapolation residual (predictor–corrector style).
+        if (opts_.adaptiveLte && result.timePoints.size() >= 2) {
+            double lte = 0.0;
+            for (size_t i = 0; i < numNodes; ++i) {
+                double pred = vPrev[i] + (vPrev[i] - vOlder[i]);
+                double scale = std::max({1.0, std::abs(v[i]), std::abs(pred)});
+                lte = std::max(lte, std::abs(v[i] - pred) / scale);
+            }
+            if (lte > opts_.lteRelTol) {
+                h *= 0.5;
+                v = vPrev;
+                if (h < opts_.hMin) {
+                    result.converged = false;
+                    result.message = "Transient LTE control failed";
+                    return result;
+                }
+                continue;
+            }
+            if (lte < opts_.lteRelTol * 0.1 && h < hMax) {
+                h = std::min(hMax, h * 1.5);
+            }
+        }
+
         for (auto& d : devices) {
             d->acceptTransientStep(v);
         }
 
-        // Time-varying sources: update Vsrc pulse at new time.
-        for (auto& d : devices) {
-            if (auto* vs = dynamic_cast<Vsrc*>(d.get())) {
-                (void)vs;
-            }
-        }
-
+        vOlder = vPrev;
         t += h;
         result.timePoints.push_back(t);
         result.nodeVoltages.push_back(v);
 
-        // Mild adaptive growth after success.
-        if (h < stepSize) h = std::min(stepSize, h * 1.5);
+        if (!opts_.adaptiveLte && h < stepSize) {
+            h = std::min(stepSize, h * 1.5);
+        }
     }
 
     return result;
