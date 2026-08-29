@@ -7,6 +7,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+# MSVC does not define M_PI in <cmath> unless this is set.
+if(MSVC)
+    add_compile_definitions(_USE_MATH_DEFINES)
+endif()
+
 option(ENABLE_QT "Build Qt GUI" ON)
 option(ENABLE_AVIONICS "Build avionics" ON)
 option(BUILD_PYTHON_BINDINGS "Build pybind11 module egottol._native" OFF)
