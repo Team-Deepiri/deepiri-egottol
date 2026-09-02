@@ -3,12 +3,15 @@
 #include <QObject>
 #include <QString>
 #include <vector>
+#include <string>
 
 namespace deepiri {
 
-// Runs demo circuits directly through the native core/ solver (MNASolver,
-// Transient) so the desktop app exercises the real C++ engine end to end,
-// independent of the Python engines.
+class SchematicScene;
+
+// Runs simulations through the native core solvers. Prefer the schematic when
+// Simulate drawn schematics via production SPICE; demos only when allowed
+// (empty canvas). Never silently substitute a demo for a failed extract.
 class SimulationController : public QObject {
     Q_OBJECT
 
@@ -26,30 +29,36 @@ public:
         QString message;
         std::vector<double> timePoints;
         std::vector<double> values;
+        QString traceName;
     };
-
-    // 5V source into a 1k/1k divider, solved via MNASolver.
-    DcResult runDemoDcOperatingPoint();
-
-    // Constant current into a floating node pair, integrated via Transient.
-    TransientResult runDemoTransient();
 
     struct AcResult {
         bool success = false;
         QString message;
         std::vector<double> frequenciesHz;
         std::vector<double> magnitude;
+        QString traceName;
     };
-
-    // RC low-pass (R=1k, C=1uF) swept via the native ACAnalysis solver.
-    AcResult runDemoAcAnalysis();
 
     struct EiiResult {
         bool ran = false;
         QString summary;
     };
 
-    // Feeds a synthetic step signal through the native Phi->Psi->Gamma EII pipeline.
+    // Simulate whatever is drawn. Falls back to demos only when the scene is
+    // null/empty and allowDemoFallback is true.
+    DcResult runDcOperatingPoint(const SchematicScene* scene, bool allowDemoFallback = true);
+    TransientResult runTransient(const SchematicScene* scene, bool allowDemoFallback = true);
+    AcResult runAcAnalysis(const SchematicScene* scene, bool allowDemoFallback = true);
+
+    // Explicit netlist path (CLI / tests).
+    DcResult runDcFromNetlist(const std::string& netlist);
+    TransientResult runTransientFromNetlist(const std::string& netlist);
+    AcResult runAcFromNetlist(const std::string& netlist);
+
+    DcResult runDemoDcOperatingPoint();
+    TransientResult runDemoTransient();
+    AcResult runDemoAcAnalysis();
     EiiResult runDemoEiiPipeline();
 };
 

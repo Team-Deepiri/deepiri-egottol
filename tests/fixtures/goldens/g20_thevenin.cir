@@ -1,0 +1,6 @@
+* Thevenin: Vth=5, Rth=500 → load 500 → mid=2.5
+V1 in 0 5
+R1 in mid 500
+Rload mid 0 500
+.op
+.end

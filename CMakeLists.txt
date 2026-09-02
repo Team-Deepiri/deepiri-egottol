@@ -31,6 +31,8 @@ set(CORE_SOURCES
     core/circuit.cpp
     core/device_mgr.cpp
     core/ac_analysis.cpp
+    core/spice_engine.cpp
+    core/spice_extra.cpp
 )
 
 set(MODELS_SOURCES
@@ -45,6 +47,11 @@ set(MODELS_SOURCES
     models/isrc.cpp
     models/vccs.cpp
     models/vcvs.cpp
+    models/cccs.cpp
+    models/ccvs.cpp
+    models/vswitch.cpp
+    models/iswitch.cpp
+    models/coupled_inductor.cpp
     models/opamp.cpp
     models/transmission_line.cpp
     models/josephson_junction.cpp
@@ -86,6 +93,7 @@ set(EII_SOURCES
 
 set(IO_SOURCES
     io/netlist_parser.cpp
+    io/netlist_builder.cpp
     io/project_loader.cpp
     io/symbol_library.cpp
     io/waveform_writer.cpp
@@ -104,6 +112,8 @@ if(Qt6_FOUND AND ENABLE_QT)
         gui/waveform_plotter.cpp
         gui/property_editor.cpp
         gui/simulation_controller.cpp
+        gui/schematic_netlist.cpp
+        gui/schematic_mermaid.cpp
     )
 endif()
 
@@ -118,6 +128,7 @@ endif()
 set(INFRA_SOURCES
     infra/zepgpu_client.cpp
     infra/uqe_bridge.cpp
+    infra/uqe_logic.cpp
     infra/config_manager.cpp
 )
 
@@ -150,6 +161,26 @@ add_library(deepiri_eii STATIC ${EII_SOURCES})
 target_link_libraries(deepiri_eii PUBLIC deepiri_core)
 
 add_library(deepiri_io STATIC ${IO_SOURCES})
+target_link_libraries(deepiri_io PUBLIC deepiri_models)
+
+# Headless CLI — no Qt dependency; usable in CI and scripts.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+set(EE_LOOKUP_GEN "${CMAKE_BINARY_DIR}/generated/cli/ee_lookup_entries.inc")
+add_custom_command(
+    OUTPUT "${EE_LOOKUP_GEN}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/generated/cli"
+    COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tools/gen_ee_lookup.py"
+            "${CMAKE_SOURCE_DIR}/egottol/knowledge/ee_symptoms.json"
+            "${EE_LOOKUP_GEN}"
+    DEPENDS "${CMAKE_SOURCE_DIR}/egottol/knowledge/ee_symptoms.json"
+            "${CMAKE_SOURCE_DIR}/tools/gen_ee_lookup.py"
+    COMMENT "Generating EE lookup table from ee_symptoms.json"
+)
+add_executable(egottol_cli cli/main.cpp cli/ee_lookup.cpp "${EE_LOOKUP_GEN}")
+target_include_directories(egottol_cli PRIVATE "${CMAKE_BINARY_DIR}/generated/cli")
+target_link_libraries(egottol_cli PRIVATE deepiri_io deepiri_core deepiri_models)
+set_target_properties(egottol_cli PROPERTIES OUTPUT_NAME "egottol-cli")
+install(TARGETS egottol_cli RUNTIME DESTINATION bin)
 
 if(ENABLE_AVIONICS)
     add_library(deepiri_avionics STATIC ${AVIONICS_SOURCES})
@@ -162,7 +193,7 @@ if(Qt6_FOUND AND ENABLE_QT)
     add_library(deepiri_gui STATIC ${GUI_SOURCES})
     target_link_libraries(deepiri_gui PUBLIC
         deepiri_core deepiri_models deepiri_io deepiri_logic
-        deepiri_analog deepiri_ai deepiri_eii
+        deepiri_analog deepiri_ai deepiri_eii deepiri_infra
         Qt6::Core Qt6::Gui Qt6::Widgets
     )
     if(ENABLE_AVIONICS)

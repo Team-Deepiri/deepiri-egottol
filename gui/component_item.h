@@ -7,6 +7,7 @@
 #include <QSizeF>
 #include <QRectF>
 #include <QColor>
+#include <QMap>
 
 QT_BEGIN_NAMESPACE
 class QPainter;
@@ -234,6 +235,12 @@ public:
     ComponentType component_type() const;
     QString label() const;
     void set_label(const QString& label);
+
+    // Electrical / display properties (e.g. "value" → "1k").
+    QString property(const QString& key, const QString& fallback = QString()) const;
+    void set_property(const QString& key, const QString& value);
+    QMap<QString, QString> properties() const;
+    void set_properties(const QMap<QString, QString>& props);
 
     QList<Pin> pins() const;
     void add_pin(const Pin& pin);

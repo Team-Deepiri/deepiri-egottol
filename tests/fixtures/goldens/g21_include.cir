@@ -1,0 +1,6 @@
+* Top-level netlist that .includes a library
+.include lib_rdiv.cir
+V1 in 0 10
+X1 in mid RDIV
+.op
+.end

@@ -30,6 +30,9 @@ public:
     void setTrace(const QString& name, const std::vector<double>& timePoints,
                   const std::vector<double>& values, const QColor& color = QColor());
 
+    const std::vector<Trace>& traces() const { return traces_; }
+    bool exportCSV(const QString& filename) const;
+
     // Animates the sweep from 0% to 100% of the traces over durationMs,
     // like an oscilloscope trigger sweep, instead of drawing the full
     // buffer instantly.

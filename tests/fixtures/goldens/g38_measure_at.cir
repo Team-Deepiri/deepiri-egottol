@@ -1,0 +1,8 @@
+* FIND V(out) AT= on RC step (PULSE)
+V1 in 0 PULSE(0 1 0 1n 1n 10u 20u)
+R1 in out 1k
+C1 out 0 1n
+.tran 10n 15u
+.measure tran v_at FIND V(out) AT=5u
+.measure tran v_max MAX V(out)
+.end

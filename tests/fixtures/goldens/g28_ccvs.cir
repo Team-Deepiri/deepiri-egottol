@@ -1,0 +1,8 @@
+* CCVS: H gain=1k → V(out)=10 (I_sense=10mA)
+V1 in 0 10
+R1 in mid 1k
+Vs mid 0 0
+H1 out 0 Vs 1k
+R2 out 0 10k
+.op
+.end

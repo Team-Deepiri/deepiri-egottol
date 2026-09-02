@@ -1,0 +1,6 @@
+* VCCS gm=0.002: G1 out 0 in 0 2m, Rload=1k → Vout = gm*Vin*R = 2
+V1 in 0 1
+G1 out 0 in 0 2m
+R1 out 0 1k
+.op
+.end

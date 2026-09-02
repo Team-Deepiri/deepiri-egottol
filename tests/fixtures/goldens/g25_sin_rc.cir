@@ -1,0 +1,6 @@
+* SIN source into RC — smoke that SIN parses and transient runs
+V1 in 0 SIN(0 1 1k 0 0 0)
+R1 in out 1k
+C1 out 0 1u
+.tran 10u 2m
+.end

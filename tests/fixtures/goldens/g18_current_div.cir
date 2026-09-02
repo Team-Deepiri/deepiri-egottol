@@ -1,0 +1,6 @@
+* Current divider into two equal R — each 0.5mA, v=0.5
+I1 0 n1 1m
+R1 n1 0 1k
+R2 n1 0 1k
+.op
+.end

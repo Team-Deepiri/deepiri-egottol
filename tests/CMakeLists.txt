@@ -2,6 +2,40 @@ add_executable(core_regression_test core_regression_test.cpp)
 target_link_libraries(core_regression_test PRIVATE deepiri_core deepiri_models)
 add_test(NAME core_regression_test COMMAND core_regression_test)
 
+add_executable(netlist_parser_test netlist_parser_test.cpp)
+target_link_libraries(netlist_parser_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME netlist_parser_test COMMAND netlist_parser_test)
+
+add_executable(io_roundtrip_test io_roundtrip_test.cpp)
+target_link_libraries(io_roundtrip_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME io_roundtrip_test COMMAND io_roundtrip_test)
+
+# Headless CLI smoke: DC solve on the fixture divider.
+add_test(
+    NAME egottol_cli_divider
+    COMMAND $<TARGET_FILE:egottol_cli> sim ${CMAKE_SOURCE_DIR}/tests/fixtures/divider.cir --op
+)
+
+add_executable(golden_waveform_test golden_waveform_test.cpp)
+target_link_libraries(golden_waveform_test PRIVATE deepiri_io deepiri_core deepiri_models deepiri_infra)
+add_test(NAME golden_waveform_test COMMAND golden_waveform_test)
+
+add_executable(spice_production_test spice_production_test.cpp)
+target_link_libraries(spice_production_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME spice_production_test COMMAND spice_production_test)
+
+add_executable(golden_spice_test golden_spice_test.cpp)
+target_link_libraries(golden_spice_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME golden_spice_test COMMAND golden_spice_test)
+
+add_executable(perf_baseline_test perf_baseline_test.cpp)
+target_link_libraries(perf_baseline_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME perf_baseline_test COMMAND perf_baseline_test)
+
+add_executable(design_fixtures_test design_fixtures_test.cpp)
+target_link_libraries(design_fixtures_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME design_fixtures_test COMMAND design_fixtures_test)
+
 add_executable(ac_analysis_test ac_analysis_test.cpp)
 target_link_libraries(ac_analysis_test PRIVATE deepiri_core deepiri_models)
 add_test(NAME ac_analysis_test COMMAND ac_analysis_test)
