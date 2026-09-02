@@ -1,10 +1,15 @@
 #include "netlist_parser.h"
+#include "param_expr.h"
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
+#include <set>
+#include <filesystem>
+#include <functional>
 
 namespace deepiri {
 
@@ -46,6 +51,13 @@ NetlistElementType typeFromKeyword(const std::string& t) {
     if (l == "m" || l == "mos") return NetlistElementType::MOSFET;
     if (l == "q" || l == "bjt") return NetlistElementType::BJT;
     if (l == "d" || l == "diode") return NetlistElementType::Diode;
+    if (l == "e" || l == "vcvs") return NetlistElementType::VCVS;
+    if (l == "g" || l == "vccs") return NetlistElementType::VCCS;
+    if (l == "f" || l == "cccs") return NetlistElementType::CCCS;
+    if (l == "h" || l == "ccvs") return NetlistElementType::CCVS;
+    if (l == "s" || l == "sw" || l == "switch") return NetlistElementType::VSwitch;
+    if (l == "w") return NetlistElementType::ISwitch;
+    if (l == "k") return NetlistElementType::Mutual;
     if (l == "x") return NetlistElementType::Instance;
     return NetlistElementType::Instance;
 }
@@ -62,6 +74,13 @@ NetlistElementType typeFromNamePrefix(const std::string& name) {
         case 'M': return NetlistElementType::MOSFET;
         case 'Q': return NetlistElementType::BJT;
         case 'D': return NetlistElementType::Diode;
+        case 'E': return NetlistElementType::VCVS;
+        case 'G': return NetlistElementType::VCCS;
+        case 'F': return NetlistElementType::CCCS;
+        case 'H': return NetlistElementType::CCVS;
+        case 'S': return NetlistElementType::VSwitch;
+        case 'W': return NetlistElementType::ISwitch;
+        case 'K': return NetlistElementType::Mutual;
         case 'X': return NetlistElementType::Instance;
         default:  return NetlistElementType::Instance;
     }
@@ -69,9 +88,34 @@ NetlistElementType typeFromNamePrefix(const std::string& name) {
 
 bool looksNumeric(const std::string& token) {
     if (token.empty()) return false;
+    // KEY=value → treat as not a plain node
+    if (token.find('=') != std::string::npos) return false;
     char c0 = token[0];
     if (c0 == '+' || c0 == '-' || c0 == '.') return token.size() > 1 && std::isdigit(static_cast<unsigned char>(token[1]));
     return std::isdigit(static_cast<unsigned char>(c0));
+}
+
+// Expand PULSE(a b c) / SIN(...) into separate tokens; split KEY=VAL.
+std::vector<std::string> tokenizeSpice(const std::string& raw) {
+    std::string s = raw;
+    // Replace parentheses with spaces so PULSE(0 1 0) → PULSE 0 1 0
+    for (char& c : s) {
+        if (c == '(' || c == ')' || c == ',') c = ' ';
+    }
+    std::istringstream iss(s);
+    std::vector<std::string> tokens;
+    std::string tok;
+    while (iss >> tok) {
+        tokens.push_back(tok);
+    }
+    return tokens;
+}
+
+bool parseKeyedValue(const std::string& token, std::string& key, double& value) {
+    size_t eq = token.find('=');
+    if (eq == std::string::npos || eq == 0) return false;
+    key = toLower(token.substr(0, eq));
+    return NetlistParser::parseValue(token.substr(eq + 1), value);
 }
 
 std::string controlKind(const std::string& line) {
@@ -102,6 +146,14 @@ public:
     std::map<std::string, std::vector<std::string>> nets_;
     std::vector<std::string> controls_;
     std::vector<NetlistControl> directives_;
+    std::map<std::string, SpiceModel> models_;
+    std::map<std::string, SpiceSubckt> subckts_;
+    std::map<std::string, double> params_;
+    std::map<std::string, double> paramOverrides_;
+    std::string storedContent_;
+    std::string activeSubckt_;  // empty = top-level
+    std::string baseDir_ = ".";
+    std::set<std::string> includeStack_;
 };
 
 bool NetlistParser::parseValue(const std::string& token, double& out) {
@@ -171,6 +223,16 @@ int NetlistParser::expectedNodeCount(NetlistElementType type) {
             return 3;
         case NetlistElementType::MOSFET:
             return 4;
+        case NetlistElementType::VCVS:
+        case NetlistElementType::VCCS:
+        case NetlistElementType::VSwitch:
+            return 4;
+        case NetlistElementType::CCCS:
+        case NetlistElementType::CCVS:
+        case NetlistElementType::ISwitch:
+            return 2;
+        case NetlistElementType::Mutual:
+            return 0;
         case NetlistElementType::Subckt:
         case NetlistElementType::Instance:
         default:
@@ -182,22 +244,27 @@ NetlistParser::NetlistParser() : pImpl(std::make_unique<Impl>()) {}
 NetlistParser::~NetlistParser() = default;
 
 bool NetlistParser::parse(const std::string& netlist_content) {
+    pImpl->storedContent_ = netlist_content;
     pImpl->elements_.clear();
     pImpl->nets_.clear();
     pImpl->controls_.clear();
     pImpl->directives_.clear();
+    pImpl->models_.clear();
+    pImpl->subckts_.clear();
+    pImpl->params_.clear();
+    pImpl->activeSubckt_.clear();
 
     std::istringstream iss(netlist_content);
     std::string line;
     std::string continued;
 
-    auto flushLine = [&](std::string raw) {
+    std::function<void(std::string)> flushLine;
+    flushLine = [&](std::string raw) {
         raw = trim(raw);
         if (raw.empty() || raw[0] == '*' || raw[0] == ';') {
             return;
         }
 
-        // Strip inline comments starting with ';' or unquoted '*'.
         size_t comment = raw.find(';');
         if (comment != std::string::npos) {
             raw = trim(raw.substr(0, comment));
@@ -212,7 +279,7 @@ bool NetlistParser::parse(const std::string& netlist_content) {
 
             std::istringstream cs(raw);
             std::string first;
-            cs >> first;  // ".tran" etc.
+            cs >> first;
             std::string tok;
             while (cs >> tok) {
                 ctrl.tokens.push_back(tok);
@@ -222,24 +289,108 @@ bool NetlistParser::parse(const std::string& netlist_content) {
                 }
             }
             if (isKnownControl(ctrl.kind) || !ctrl.kind.empty()) {
-                pImpl->directives_.push_back(std::move(ctrl));
+                pImpl->directives_.push_back(ctrl);
+            }
+            if (ctrl.kind == "param") {
+                for (const auto& t : ctrl.tokens) {
+                    size_t eq = t.find('=');
+                    if (eq == std::string::npos || eq == 0) continue;
+                    std::string key = toLower(t.substr(0, eq));
+                    std::string rhs = t.substr(eq + 1);
+                    double val = 0.0;
+                    if (evalSpiceExpr(rhs, pImpl->params_, val) || parseValue(rhs, val)) {
+                        pImpl->params_[key] = val;
+                    }
+                }
+            }
+            if (ctrl.kind == "model" && ctrl.tokens.size() >= 2) {
+                SpiceModel model;
+                model.name = toLower(ctrl.tokens[0]);
+                model.type = toLower(ctrl.tokens[1]);
+                std::string rawFlat = ctrl.raw;
+                for (char& c : rawFlat) {
+                    if (c == '(' || c == ')' || c == ',') c = ' ';
+                }
+                std::istringstream rs(rawFlat);
+                std::string rt;
+                rs >> rt;
+                if (rs >> rt) model.name = toLower(rt);
+                if (rs >> rt) model.type = toLower(rt);
+                while (rs >> rt) {
+                    size_t eq = rt.find('=');
+                    if (eq != std::string::npos && eq > 0) {
+                        std::string key = toLower(rt.substr(0, eq));
+                        double val = 0.0;
+                        if (parseValue(rt.substr(eq + 1), val)) {
+                            model.params[key] = val;
+                        }
+                    }
+                }
+                pImpl->models_[model.name] = model;
+            }
+            if (ctrl.kind == "subckt" && !ctrl.tokens.empty()) {
+                SpiceSubckt sc;
+                sc.name = toLower(ctrl.tokens[0]);
+                for (size_t i = 1; i < ctrl.tokens.size(); ++i) {
+                    sc.ports.push_back(toLower(ctrl.tokens[i]));
+                }
+                pImpl->subckts_[sc.name] = sc;
+                pImpl->activeSubckt_ = sc.name;
+            }
+            if (ctrl.kind == "ends") {
+                pImpl->activeSubckt_.clear();
+            }
+            if (ctrl.kind == "include" || ctrl.kind == "inc") {
+                if (ctrl.tokens.empty()) return;
+                std::string inc = ctrl.tokens[0];
+                if (inc.size() >= 2 && ((inc.front() == '"' && inc.back() == '"') ||
+                                        (inc.front() == '\'' && inc.back() == '\''))) {
+                    inc = inc.substr(1, inc.size() - 2);
+                }
+                std::filesystem::path incPath(inc);
+                if (incPath.is_relative()) {
+                    incPath = std::filesystem::path(pImpl->baseDir_) / incPath;
+                }
+                std::error_code ec;
+                auto canon = std::filesystem::weakly_canonical(incPath, ec);
+                std::string resolved = ec ? incPath.string() : canon.string();
+                if (!pImpl->includeStack_.insert(resolved).second) {
+                    return;  // cycle
+                }
+                std::ifstream ifs(resolved);
+                if (!ifs.is_open()) {
+                    pImpl->includeStack_.erase(resolved);
+                    return;
+                }
+                std::string savedDir = pImpl->baseDir_;
+                auto parent = std::filesystem::path(resolved).parent_path();
+                if (!parent.empty()) pImpl->baseDir_ = parent.string();
+                std::string iline, icont;
+                while (std::getline(ifs, iline)) {
+                    std::string t = trim(iline);
+                    if (!t.empty() && t[0] == '+') {
+                        icont += " " + t.substr(1);
+                        continue;
+                    }
+                    if (!icont.empty()) {
+                        flushLine(icont);
+                        icont.clear();
+                    }
+                    icont = iline;
+                }
+                if (!icont.empty()) flushLine(icont);
+                pImpl->baseDir_ = savedDir;
+                pImpl->includeStack_.erase(resolved);
             }
             return;
         }
 
-        std::istringstream line_iss(raw);
-        std::vector<std::string> tokens;
-        std::string tok;
-        while (line_iss >> tok) {
-            tokens.push_back(tok);
-        }
+        std::vector<std::string> tokens = tokenizeSpice(raw);
         if (tokens.empty()) return;
 
         NetlistElement elem;
         size_t restStart = 0;
 
-        // Named-type form: `R name n1 n2 1k` — first token is an exact type keyword.
-        // Standard SPICE form: `R1 n1 n2 1k` — first token is the instance name.
         if (tokens.size() >= 2 && isExactTypeKeyword(tokens[0])) {
             elem.type = typeFromKeyword(tokens[0]);
             elem.name = tokens[1];
@@ -256,11 +407,45 @@ bool NetlistParser::parse(const std::string& netlist_content) {
         std::vector<std::string> rest(tokens.begin() + static_cast<std::ptrdiff_t>(restStart),
                                       tokens.end());
 
+        auto expandTok = [&](std::string t) -> std::string {
+            std::map<std::string, double> merged = pImpl->params_;
+            for (const auto& kv : pImpl->paramOverrides_) merged[kv.first] = kv.second;
+
+            double ev = 0.0;
+            if (evalSpiceExpr(t, merged, ev)) {
+                char buf[64];
+                std::snprintf(buf, sizeof(buf), "%.16g", ev);
+                return buf;
+            }
+            if (t.size() >= 3 && t.front() == '{' && t.back() == '}') {
+                std::string key = toLower(t.substr(1, t.size() - 2));
+                auto it = merged.find(key);
+                if (it != merged.end()) {
+                    char buf[64];
+                    std::snprintf(buf, sizeof(buf), "%.16g", it->second);
+                    return buf;
+                }
+            }
+            auto it = merged.find(toLower(t));
+            if (it != merged.end() && !looksNumeric(t)) {
+                char buf[64];
+                std::snprintf(buf, sizeof(buf), "%.16g", it->second);
+                return buf;
+            }
+            return t;
+        };
+
         int nNodes = expectedNodeCount(elem.type);
-        if (nNodes < 0) {
-            // Instance / X: last non-numeric token is subcircuit/model name; rest are nodes.
+        if (elem.type == NetlistElementType::Mutual) {
+            // Kname L1 L2 k
+            if (rest.size() >= 3) {
+                elem.subckt_name = rest[0];
+                elem.model_name = rest[1];
+                double k = 0.0;
+                if (parseValue(expandTok(rest[2]), k)) elem.parameters.push_back(k);
+            }
+        } else if (nNodes < 0) {
             if (!rest.empty()) {
-                // Find last token that does not parse as a value → subckt name.
                 int subIdx = static_cast<int>(rest.size()) - 1;
                 while (subIdx >= 0 && looksNumeric(rest[static_cast<size_t>(subIdx)])) {
                     --subIdx;
@@ -276,8 +461,12 @@ bool NetlistParser::parse(const std::string& netlist_content) {
                         pImpl->nets_[n.net].push_back(elem.name);
                     }
                     for (size_t i = static_cast<size_t>(subIdx) + 1; i < rest.size(); ++i) {
+                        std::string key;
                         double v = 0.0;
-                        if (parseValue(rest[i], v)) {
+                        if (parseKeyedValue(rest[i], key, v)) {
+                            elem.named_parameters[key] = v;
+                            elem.parameters.push_back(v);
+                        } else if (parseValue(rest[i], v)) {
                             elem.parameters.push_back(v);
                         }
                     }
@@ -294,28 +483,51 @@ bool NetlistParser::parse(const std::string& netlist_content) {
         } else {
             size_t i = 0;
             for (; i < rest.size() && static_cast<int>(elem.nodes.size()) < nNodes; ++i) {
+                if (rest[i].find('=') != std::string::npos) break;
                 NetlistNode n;
                 n.name = rest[i];
                 n.net = rest[i];
                 elem.nodes.push_back(n);
                 pImpl->nets_[n.net].push_back(elem.name);
             }
-            // Remaining tokens: model name (non-numeric) and/or parameter values.
             for (; i < rest.size(); ++i) {
+                std::string key;
                 double v = 0.0;
-                if (parseValue(rest[i], v)) {
+                std::string low = toLower(rest[i]);
+                if (low == "pulse" || low == "sin" || low == "exp" || low == "pwl" || low == "ac") {
+                    elem.named_parameters[low] = 1.0;
+                    continue;
+                }
+                if (parseKeyedValue(rest[i], key, v)) {
+                    // Expand RHS of KEY=VAL through params when needed
+                    std::string rhs = rest[i].substr(rest[i].find('=') + 1);
+                    if (parseValue(expandTok(rhs), v)) {
+                        elem.named_parameters[key] = v;
+                        elem.parameters.push_back(v);
+                    }
+                } else if (parseValue(expandTok(rest[i]), v)) {
                     elem.parameters.push_back(v);
                 } else if (elem.model_name.empty()) {
                     elem.model_name = rest[i];
+                } else if (elem.subckt_name.empty() &&
+                           (elem.type == NetlistElementType::CCCS ||
+                            elem.type == NetlistElementType::CCVS)) {
+                    // already have sense in model_name
+                } else if (elem.subckt_name.empty() &&
+                           elem.type == NetlistElementType::ISwitch) {
+                    elem.subckt_name = rest[i];
                 }
             }
         }
 
-        pImpl->elements_.push_back(std::move(elem));
+        if (!pImpl->activeSubckt_.empty()) {
+            pImpl->subckts_[pImpl->activeSubckt_].elements.push_back(std::move(elem));
+        } else {
+            pImpl->elements_.push_back(std::move(elem));
+        }
     };
 
     while (std::getline(iss, line)) {
-        // SPICE line continuation: lines starting with '+' append to previous.
         std::string t = trim(line);
         if (!t.empty() && t[0] == '+') {
             continued += " " + t.substr(1);
@@ -340,9 +552,21 @@ bool NetlistParser::loadFromFile(const std::string& filename) {
         return false;
     }
 
+    std::filesystem::path fp(filename);
+    auto parent = fp.parent_path();
+    pImpl->baseDir_ = parent.empty() ? "." : parent.string();
+
     std::stringstream buffer;
     buffer << file.rdbuf();
-    return parse(buffer.str());
+
+    pImpl->includeStack_.clear();
+    std::error_code ec;
+    auto canon = std::filesystem::weakly_canonical(fp, ec);
+    pImpl->includeStack_.insert(ec ? fp.string() : canon.string());
+
+    bool ok = parse(buffer.str());
+    pImpl->includeStack_.clear();
+    return ok;
 }
 
 std::vector<NetlistElement> NetlistParser::getElements() const {
@@ -359,6 +583,91 @@ std::vector<std::string> NetlistParser::getControls() const {
 
 std::vector<NetlistControl> NetlistParser::getControlDirectives() const {
     return pImpl->directives_;
+}
+
+std::map<std::string, SpiceModel> NetlistParser::getModels() const {
+    return pImpl->models_;
+}
+
+std::map<std::string, SpiceSubckt> NetlistParser::getSubckts() const {
+    return pImpl->subckts_;
+}
+
+std::map<std::string, double> NetlistParser::getParams() const {
+    return pImpl->params_;
+}
+
+void NetlistParser::setParam(const std::string& name, double value) {
+    pImpl->paramOverrides_[toLower(name)] = value;
+    if (!pImpl->storedContent_.empty()) {
+        parse(pImpl->storedContent_);
+    } else {
+        pImpl->params_[toLower(name)] = value;
+    }
+}
+
+std::vector<NetlistElement> NetlistParser::expandedElements() const {
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return s;
+    };
+    auto isGnd = [&](const std::string& net) {
+        std::string l = lower(net);
+        return l == "0" || l == "gnd" || l == "ground" || l == "gnd!";
+    };
+
+    std::function<std::vector<NetlistElement>(const NetlistElement&, int)> expandInst;
+    expandInst = [&](const NetlistElement& elem, int depth) -> std::vector<NetlistElement> {
+        std::vector<NetlistElement> out;
+        if (elem.type != NetlistElementType::Instance) {
+            out.push_back(elem);
+            return out;
+        }
+        if (depth > 32) {
+            out.push_back(elem);  // bail — keep opaque instance
+            return out;
+        }
+        std::string key = lower(elem.subckt_name.empty() ? elem.model_name : elem.subckt_name);
+        auto it = pImpl->subckts_.find(key);
+        if (it == pImpl->subckts_.end()) {
+            out.push_back(elem);
+            return out;
+        }
+        const SpiceSubckt& sc = it->second;
+        std::map<std::string, std::string> portMap;
+        for (size_t i = 0; i < sc.ports.size() && i < elem.nodes.size(); ++i) {
+            portMap[lower(sc.ports[i])] = elem.nodes[i].net;
+        }
+        for (const auto& body : sc.elements) {
+            NetlistElement e = body;
+            e.name = elem.name + "." + body.name;
+            for (auto& n : e.nodes) {
+                auto pm = portMap.find(lower(n.net));
+                if (pm != portMap.end()) {
+                    n.net = pm->second;
+                    n.name = pm->second;
+                } else if (!isGnd(n.net)) {
+                    n.net = elem.name + "." + n.net;
+                    n.name = n.net;
+                }
+            }
+            if (e.type == NetlistElementType::Instance) {
+                auto nested = expandInst(e, depth + 1);
+                out.insert(out.end(), nested.begin(), nested.end());
+            } else {
+                out.push_back(std::move(e));
+            }
+        }
+        return out;
+    };
+
+    std::vector<NetlistElement> out;
+    for (const auto& elem : pImpl->elements_) {
+        auto part = expandInst(elem, 0);
+        out.insert(out.end(), part.begin(), part.end());
+    }
+    return out;
 }
 
 std::string NetlistParser::toNetlist() const {

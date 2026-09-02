@@ -7,7 +7,7 @@ from egottol.engines.eii.actuators import FeedbackActuator
 from egottol.engines.eii.detectors import ImpulseDetector
 from egottol.engines.eii.encoders import EncodingManifold
 from egottol.engines.eii.inference import InferenceEngine
-from egottol.engines.eii.types import EIIConfig, EIIState, ImpulseEvent
+from egottol.engines.eii.types import EIIConfig, EIIState
 from egottol.models.eii import EIIPipelineConfig
 
 logger = logging.getLogger(__name__)
@@ -19,8 +19,11 @@ class EIIPipeline:
     def __init__(self, config: Optional[EIIPipelineConfig] = None):
         self.pipeline_config = config or EIIPipelineConfig()
         self.config = EIIConfig(**self.pipeline_config.to_runtime_config())
-        self.detector = ImpulseDetector(self.pipeline_config.detector)
-        self.encoder = EncodingManifold(self.pipeline_config.encoder)
+        # Detector / encoder take the runtime EIIConfig, not the Pydantic sub-models.
+        self.detector = ImpulseDetector(self.config)
+        self.encoder = EncodingManifold(self.config)
+        if hasattr(self.pipeline_config.detector, "threshold"):
+            self.detector.threshold = float(self.pipeline_config.detector.threshold)
         self.inference = InferenceEngine(
             self.pipeline_config.inference,
             self.pipeline_config.default_weights(),
@@ -52,8 +55,8 @@ class EIIPipeline:
 
     def reset(self) -> None:
         self.state = self._initial_state()
-        self.history.clear()
         self.encoder.reset_filter(self.state)
+        self.history.clear()
 
     def step(
         self,
@@ -73,7 +76,7 @@ class EIIPipeline:
         self.state.voltages = v[:n]
         self.state.currents = i[:n]
 
-        events = self.detector.detect(self.state, v, i, dt)
+        events = self.detector.detect(self.state, dt)
         self.state.event_history.extend(events)
         self.state.window_events.extend(events)
 
@@ -85,12 +88,15 @@ class EIIPipeline:
             "prediction": None,
             "confidence": 0.0,
             "control": self.state.control.copy(),
+            "inference_ran": False,
         }
 
         window = self.config.window_T
         if window > 0 and self._window_boundary(self.state.t, window):
             window_start = self.state.t - window
-            z = self.encoder.encode(self.state, self.state.window_events, v, window_start)
+            z = self.encoder.encode(
+                self.state, self.state.window_events, window_start=window_start
+            )
             y_hat, confidence = self.inference.infer(z)
             control = self.actuator.actuate(
                 self.state,
@@ -105,7 +111,8 @@ class EIIPipeline:
             self.state.confidence = confidence
             self.state.control = control
             self.state.window_events.clear()
-            self.encoder.reset_filter(self.state)
+            if self.config.encoder_mode == "filter":
+                self.encoder.reset_filter(self.state)
 
             result.update(
                 {
@@ -116,8 +123,6 @@ class EIIPipeline:
                     "inference_ran": True,
                 }
             )
-        else:
-            result["inference_ran"] = False
 
         self.history.append(result)
         return result
@@ -169,8 +174,12 @@ class EIIPipeline:
                         config.detector.mode = DetectorMode(str(params["mode"]))
                     except ValueError:
                         pass
-                config.detector.num_channels = int(params.get("num_channels", config.detector.num_channels))
-                config.detector.threshold = float(params.get("threshold", config.detector.threshold))
+                config.detector.num_channels = int(
+                    params.get("num_channels", config.detector.num_channels)
+                )
+                config.detector.threshold = float(
+                    params.get("threshold", config.detector.threshold)
+                )
             if key in ("INFERENCE_ENCODER", "EII_PIPELINE"):
                 if "mode" in params:
                     from egottol.models.eii import EncoderMode
@@ -178,7 +187,9 @@ class EIIPipeline:
                         config.encoder.mode = EncoderMode(str(params["mode"]))
                     except ValueError:
                         pass
-                config.encoder.window_T = float(params.get("window_T", config.encoder.window_T))
+                config.encoder.window_T = float(
+                    params.get("window_T", config.encoder.window_T)
+                )
             if key in ("INFERENCE_ENGINE", "EII_PIPELINE"):
                 if "backend" in params:
                     from egottol.models.eii import InferenceBackend

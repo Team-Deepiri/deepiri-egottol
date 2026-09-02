@@ -1,0 +1,8 @@
+* Parametric divider sweep
+.param Rval=500
+V1 in 0 1
+R1 in out {Rval}
+R2 out 0 1k
+.step param Rval 500 1500 500
+.op
+.end

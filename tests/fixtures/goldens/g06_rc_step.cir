@@ -1,0 +1,6 @@
+* RC step — expect ~0.993 at t=5ms
+V1 in 0 PULSE(0 1 0 1n 1n 1 2)
+R1 in out 1k
+C1 out 0 1u
+.tran 20u 5m
+.end

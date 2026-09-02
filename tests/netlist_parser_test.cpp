@@ -3,6 +3,7 @@
 #include "../io/netlist_builder.h"
 #include "../core/mna_solver.h"
 #include "../core/ac_analysis.h"
+#include "../core/spice_engine.h"
 
 #include <cmath>
 #include <cstdio>
@@ -179,6 +180,74 @@ void test_mosfet_bjt_diode_lines() {
     expect(elems[2].type == NetlistElementType::MOSFET && elems[2].nodes.size() == 4, "mos 4 nodes");
 }
 
+void test_model_card() {
+    const char* nl =
+        ".model mynmos NMOS (VTO=0.5 KP=50u LAMBDA=0.02)\n"
+        "M1 d g 0 0 mynmos W=20u L=2u\n"
+        "Vdd d 0 3\n"
+        "Vg g 0 1\n";
+    NetlistParser p;
+    expect(p.parse(nl), "parse .model");
+    auto models = p.getModels();
+    expect(models.count("mynmos") == 1, "mynmos present");
+    if (models.count("mynmos")) {
+        expect(std::fabs(models["mynmos"].params["vto"] - 0.5) < 1e-9, "VTO");
+        expect(std::fabs(models["mynmos"].params["kp"] - 50e-6) < 1e-12, "KP");
+    }
+    auto c = buildCircuitFromNetlist(p);
+    expect(c.ok, "build with model");
+}
+
+void test_subckt_expand() {
+    const char* nl =
+        ".subckt DIV in mid\n"
+        "R1 in mid 3k\n"
+        "R2 mid 0 1k\n"
+        ".ends\n"
+        "V1 in 0 10\n"
+        "X1 in mid DIV\n"
+        ".op\n";
+    NetlistParser p;
+    expect(p.parse(nl), "parse subckt");
+    expect(p.getSubckts().count("div") == 1, "subckt stored");
+    expect(p.getElements().size() == 2, "top-level V+X only");
+    auto flat = p.expandedElements();
+    expect(flat.size() == 3, "expanded to V+R+R");  // V + 2R
+    auto c = buildCircuitFromNetlist(p);
+    expect(c.ok, "subckt build");
+    auto sol = MNASolver().solve(c.devices, c.nodeMap, {});
+    if (!sol.success) sol = DcOperatingPoint().solve(c.devices, c.nodeMap);
+    expect(sol.success, "subckt dc");
+    if (sol.success && c.nodeMap.count("mid")) {
+        expect(std::fabs(sol.voltages[c.nodeMap["mid"] - 1] - 2.5) < 1e-3, "subckt mid=2.5");
+    }
+}
+
+void test_nested_subckt() {
+    const char* nl =
+        ".subckt RDIV in out\n"
+        "R1 in out 3k\n"
+        "R2 out 0 1k\n"
+        ".ends\n"
+        ".subckt OUTER in out\n"
+        "Xinner in out RDIV\n"
+        ".ends\n"
+        "V1 in 0 10\n"
+        "X1 in mid OUTER\n";
+    NetlistParser p;
+    expect(p.parse(nl), "parse nested");
+    auto flat = p.expandedElements();
+    // V + 2R (inner fully flattened)
+    expect(flat.size() == 3, "nested flattened to 3");
+    auto c = buildCircuitFromNetlist(p);
+    auto sol = DcOperatingPoint().solve(c.devices, c.nodeMap);
+    if (!sol.success) sol = MNASolver().solve(c.devices, c.nodeMap, {});
+    expect(sol.success, "nested dc");
+    if (c.nodeMap.count("mid")) {
+        expect(std::fabs(sol.voltages[c.nodeMap["mid"] - 1] - 2.5) < 1e-3, "nested mid=2.5");
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -189,6 +258,9 @@ int main() {
     test_builder_solves_divider();
     test_rc_netlist_ac();
     test_mosfet_bjt_diode_lines();
+    test_model_card();
+    test_subckt_expand();
+    test_nested_subckt();
 
     if (failures > 0) {
         std::fprintf(stderr, "%d failure(s)\n", failures);

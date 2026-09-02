@@ -10,7 +10,8 @@ namespace deepiri {
 class SchematicScene;
 
 // Runs simulations through the native core solvers. Prefer the schematic when
-// present; fall back to demo circuits for smoke-testing the engine.
+// Simulate drawn schematics via production SPICE; demos only when allowed
+// (empty canvas). Never silently substitute a demo for a failed extract.
 class SimulationController : public QObject {
     Q_OBJECT
 

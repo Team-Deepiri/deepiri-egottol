@@ -19,9 +19,43 @@ struct BuiltCircuit {
     bool ok = false;
 };
 
-// Converts parsed netlist elements into Device instances ready for
-// MNASolver / Transient / ACAnalysis. Ground nets: "0", "gnd", "ground".
 BuiltCircuit buildCircuitFromNetlist(const NetlistParser& parser);
-BuiltCircuit buildCircuitFromElements(const std::vector<NetlistElement>& elements);
+BuiltCircuit buildCircuitFromElements(
+    const std::vector<NetlistElement>& elements,
+    const std::map<std::string, SpiceModel>& models = {},
+    const std::vector<NetlistControl>& controls = {}
+);
+
+// Evaluate simple .measure cards against a transient result.
+struct MeasureResult {
+    std::string name;
+    double value = 0.0;
+    bool ok = false;
+    std::string message;
+};
+std::vector<MeasureResult> evaluateMeasures(
+    const std::vector<NetlistControl>& controls,
+    const BuiltCircuit& circuit,
+    const std::vector<double>& timePoints,
+    const std::vector<std::vector<double>>& nodeVoltages
+);
+
+// Parse `.ic` / `.nodeset` cards → net name → voltage.
+std::map<std::string, double> parseNodeVoltagesFromControls(
+    const std::vector<NetlistControl>& controls,
+    const char* kind  // "ic" or "nodeset"
+);
+
+// Map named IC voltages onto the circuit's 0-based voltage vector (size = numNodes).
+std::vector<double> initialConditionVector(
+    const BuiltCircuit& circuit,
+    const std::map<std::string, double>& named
+);
+
+// Find a Vsrc/Isrc by element name (case-insensitive).
+std::shared_ptr<Device> findSourceByName(
+    const BuiltCircuit& circuit,
+    const std::string& name
+);
 
 }

@@ -13,7 +13,7 @@ public:
 
     void setCapacitance(double c) { C_ = c; C0_ = c; }
     double capacitance() const { return C_; }
-    void setInitialVoltage(double v) { vInitial_ = v; }
+    void setInitialVoltage(double v) { vInitial_ = v; v_ = v; }
     double initialVoltage() const { return vInitial_; }
     void setVC1(double vc) { vc1_ = vc; }
     void setVC2(double vc) { vc2_ = vc; }
@@ -27,9 +27,13 @@ public:
 
     void getInitialGuess(std::vector<double>& guess) const override;
     void updateState(const std::vector<double>& state) override;
+    void setTrapezoidal(bool trap) override { useTrap_ = trap; }
+    void prepareTransientStep(double h, const std::vector<double>& prevNodeVoltages) override;
+    void acceptTransientStep(const std::vector<double>& nodeVoltages) override;
 
     double charge() const { return q_; }
     double voltage() const { return v_; }
+    double current() const { return i_; }
 
 private:
     std::string name_;
@@ -37,6 +41,11 @@ private:
     double v_, vInitial_;
     double q_;
     double vc1_, vc2_;
+    bool transientActive_ = false;
+    bool useTrap_ = false;
+    double geq_ = 0.0;
+    double ieq_ = 0.0;  // RHS inject at + terminal
+    double i_ = 0.0;     // branch current (for trap history)
 };
 
 }

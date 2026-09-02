@@ -1,0 +1,6 @@
+* Transfer function: divider gain = 0.5, Zin≈2k, Zout≈500
+V1 in 0 1
+R1 in mid 1k
+R2 mid 0 1k
+.tf V(mid) V1
+.end

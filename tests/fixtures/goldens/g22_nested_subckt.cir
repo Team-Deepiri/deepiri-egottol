@@ -1,0 +1,12 @@
+* Nested subcircuits: OUTER wraps RDIV
+.subckt RDIV in out
+R1 in out 3k
+R2 out 0 1k
+.ends
+.subckt OUTER in out
+Xinner in out RDIV
+.ends
+V1 in 0 10
+X1 in mid OUTER
+.op
+.end

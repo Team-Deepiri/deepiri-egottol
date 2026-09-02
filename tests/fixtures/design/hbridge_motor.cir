@@ -1,0 +1,9 @@
+* H-bridge load model: two half-bridges as complementary sources + motor RL
+* Midpoints drive motor winding; verifies multi-node DC OP / tran.
+* Left "ON high": Va=12, Vb=0 → current through motor.
+Va a 0 12
+Vb b 0 0
+Rm a mid 2
+Lm mid b 1m
+.tran 10u 2m
+.end
