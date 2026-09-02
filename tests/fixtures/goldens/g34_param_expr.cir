@@ -1,0 +1,8 @@
+* Param expressions: Rseries = Rbase*2, C = 1n
+.param Rbase=500 Cload=1n Rseries={Rbase}*2
+V1 in 0 5
+R1 in mid {Rseries}
+R2 mid 0 {Rbase}
+C1 mid 0 {Cload}
+.op
+.end

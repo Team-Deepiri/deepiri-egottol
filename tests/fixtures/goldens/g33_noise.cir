@@ -1,0 +1,6 @@
+* Resistor thermal noise at mid of divider
+V1 in 0 5
+R1 in mid 1k
+R2 mid 0 1k
+.noise V(mid) V1 dec 5 1 1meg
+.end

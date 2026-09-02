@@ -55,6 +55,7 @@ class EIIPipeline:
 
     def reset(self) -> None:
         self.state = self._initial_state()
+        self.encoder.reset_filter(self.state)
         self.history.clear()
 
     def step(
@@ -110,6 +111,8 @@ class EIIPipeline:
             self.state.confidence = confidence
             self.state.control = control
             self.state.window_events.clear()
+            if self.config.encoder_mode == "filter":
+                self.encoder.reset_filter(self.state)
 
             result.update(
                 {

@@ -8,25 +8,15 @@ from __future__ import annotations
 
 import argparse
 import csv
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-
-def _find_cli() -> str | None:
-    env = shutil.which("egottol-cli")
-    if env:
-        return env
-    here = Path(__file__).resolve().parents[1]
-    candidate = here / "build" / "egottol-cli"
-    if candidate.is_file():
-        return str(candidate)
-    return None
+from egottol.cli_util import find_egottol_cli
 
 
 def export_waveform(circuit: Path, out: Path, mode: str = "tran") -> int:
-    cli = _find_cli()
+    cli = find_egottol_cli()
     if cli is None:
         print("egottol-cli not found — build the native CLI first", file=sys.stderr)
         return 1

@@ -334,7 +334,9 @@ void MainWindow::insertComponent(int componentType) {
 }
 
 void MainWindow::runDcOperatingPoint() {
-    auto result = simController_->runDcOperatingPoint(scene_, /*allowDemoFallback=*/true);
+    // Empty canvas → demo; drawn circuit → never silently substitute a demo.
+    const bool empty = scene_->items().isEmpty();
+    auto result = simController_->runDcOperatingPoint(scene_, /*allowDemoFallback=*/empty);
     if (result.success) {
         statusBar()->showMessage(result.summary, 8000);
         QMessageBox::information(this, "DC Operating Point", result.summary);
@@ -344,7 +346,8 @@ void MainWindow::runDcOperatingPoint() {
 }
 
 void MainWindow::runTransient() {
-    auto result = simController_->runTransient(scene_, /*allowDemoFallback=*/true);
+    const bool empty = scene_->items().isEmpty();
+    auto result = simController_->runTransient(scene_, /*allowDemoFallback=*/empty);
     if (!result.converged) {
         QMessageBox::warning(this, "Transient simulation failed", result.message);
         return;
@@ -357,7 +360,8 @@ void MainWindow::runTransient() {
 }
 
 void MainWindow::runAcAnalysis() {
-    auto result = simController_->runAcAnalysis(scene_, /*allowDemoFallback=*/true);
+    const bool empty = scene_->items().isEmpty();
+    auto result = simController_->runAcAnalysis(scene_, /*allowDemoFallback=*/empty);
     if (!result.success) {
         QMessageBox::warning(this, "AC/Bode analysis failed", result.message);
         return;

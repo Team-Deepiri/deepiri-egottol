@@ -1,0 +1,8 @@
+* NMOS common-source DC with .model — Vd between rails
+Vdd vdd 0 5
+Rd vdd d 1k
+Vg g 0 2
+M1 d g 0 0 NMOS W=10u L=1u
+.model NMOS NMOS (VTO=0.7 KP=120u LAMBDA=0.05)
+.op
+.end

@@ -1,0 +1,8 @@
+* CCCS: sense ammeter Vs, F gain=2 → V(out)=20
+V1 in 0 10
+R1 in mid 1k
+Vs mid 0 0
+F1 out 0 Vs 2
+R2 out 0 1k
+.op
+.end

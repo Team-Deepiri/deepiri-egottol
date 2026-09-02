@@ -1,0 +1,8 @@
+* Voltage-controlled switch: Vctrl>0 → Ron path → V(out)≈5
+Vctrl g 0 1
+Vin in 0 5
+S1 in out g 0 SW
+.model SW SW (VT=0.5 RON=1 ROFF=1e12)
+Rload out 0 1k
+.op
+.end

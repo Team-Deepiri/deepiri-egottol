@@ -1,0 +1,6 @@
+* Diode series without model (defaults)
+V1 in 0 5
+R1 in a 1k
+D1 a 0
+.op
+.end

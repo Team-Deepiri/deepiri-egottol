@@ -1,0 +1,5 @@
+* Shared resistor divider subcircuit library
+.subckt RDIV in out
+Rhi in out 3k
+Rlo out 0 1k
+.ends

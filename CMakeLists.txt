@@ -26,6 +26,8 @@ set(CORE_SOURCES
     core/circuit.cpp
     core/device_mgr.cpp
     core/ac_analysis.cpp
+    core/spice_engine.cpp
+    core/spice_extra.cpp
 )
 
 set(MODELS_SOURCES
@@ -40,6 +42,11 @@ set(MODELS_SOURCES
     models/isrc.cpp
     models/vccs.cpp
     models/vcvs.cpp
+    models/cccs.cpp
+    models/ccvs.cpp
+    models/vswitch.cpp
+    models/iswitch.cpp
+    models/coupled_inductor.cpp
     models/opamp.cpp
     models/transmission_line.cpp
     models/josephson_junction.cpp
@@ -152,7 +159,20 @@ add_library(deepiri_io STATIC ${IO_SOURCES})
 target_link_libraries(deepiri_io PUBLIC deepiri_models)
 
 # Headless CLI — no Qt dependency; usable in CI and scripts.
-add_executable(egottol_cli cli/main.cpp)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+set(EE_LOOKUP_GEN "${CMAKE_BINARY_DIR}/generated/cli/ee_lookup_entries.inc")
+add_custom_command(
+    OUTPUT "${EE_LOOKUP_GEN}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/generated/cli"
+    COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tools/gen_ee_lookup.py"
+            "${CMAKE_SOURCE_DIR}/egottol/knowledge/ee_symptoms.json"
+            "${EE_LOOKUP_GEN}"
+    DEPENDS "${CMAKE_SOURCE_DIR}/egottol/knowledge/ee_symptoms.json"
+            "${CMAKE_SOURCE_DIR}/tools/gen_ee_lookup.py"
+    COMMENT "Generating EE lookup table from ee_symptoms.json"
+)
+add_executable(egottol_cli cli/main.cpp cli/ee_lookup.cpp "${EE_LOOKUP_GEN}")
+target_include_directories(egottol_cli PRIVATE "${CMAKE_BINARY_DIR}/generated/cli")
 target_link_libraries(egottol_cli PRIVATE deepiri_io deepiri_core deepiri_models)
 set_target_properties(egottol_cli PROPERTIES OUTPUT_NAME "egottol-cli")
 install(TARGETS egottol_cli RUNTIME DESTINATION bin)

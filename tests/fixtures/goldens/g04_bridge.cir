@@ -1,0 +1,6 @@
+* Bridge divider — sense = 4 V
+V1 top 0 8
+R1 top sense 1k
+R2 sense 0 1k
+.op
+.end

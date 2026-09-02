@@ -1,0 +1,10 @@
+* Simplified buck: square wave → L → C||R with freewheel diode
+* Averaged filter after PWM; production transient.
+Vin pwm 0 PULSE(0 12 0 1n 1n 5u 10u)
+L1 pwm sw 47u
+Dfw 0 sw
+.model Dfw D (IS=1e-14 N=1)
+Cout sw 0 100u
+Rload sw 0 10
+.tran 0.5u 200u
+.end

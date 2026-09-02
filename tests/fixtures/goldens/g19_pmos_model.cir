@@ -1,0 +1,8 @@
+* PMOS pull-up with .model
+Vdd vdd 0 5
+Vg g 0 0
+Rp vdd d 1k
+M1 d g vdd vdd PMOS W=20u L=1u
+.model PMOS PMOS (VTO=-0.7 KP=40u LAMBDA=0.05)
+.op
+.end

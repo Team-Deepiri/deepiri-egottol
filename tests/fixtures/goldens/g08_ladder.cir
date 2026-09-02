@@ -1,0 +1,7 @@
+* Two-stage divider — mid1=6.667 mid2=3.333
+V1 in 0 10
+R1 in mid1 1k
+R2 mid1 mid2 1k
+R3 mid2 0 1k
+.op
+.end

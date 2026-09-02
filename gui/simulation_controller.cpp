@@ -4,13 +4,11 @@
 #include "scene.h"
 
 #include "../core/mna_solver.h"
-#include "../core/transient.h"
+#include "../core/spice_engine.h"
 #include "../core/ac_analysis.h"
 #include "../core/eii/pipeline.h"
 #include "../io/netlist_parser.h"
 #include "../io/netlist_builder.h"
-#include "../models/vsrc.h"
-#include "../models/isrc.h"
 #include "../models/resistor.h"
 #include "../models/capacitor.h"
 
@@ -73,8 +71,11 @@ SimulationController::DcResult SimulationController::runDcFromNetlist(const std:
         return result;
     }
 
-    MNASolver solver;
-    auto solution = solver.solve(circuit.devices, circuit.nodeMap, {});
+    // Production nonlinear DC (Newton + gmin/source stepping); linear MNA fallback.
+    auto solution = DcOperatingPoint().solve(circuit.devices, circuit.nodeMap);
+    if (!solution.success) {
+        solution = MNASolver().solve(circuit.devices, circuit.nodeMap, {});
+    }
     result.success = solution.success;
     result.message = QString::fromStdString(solution.message);
     if (!solution.success) return result;
@@ -116,11 +117,14 @@ SimulationController::TransientResult SimulationController::runTransientFromNetl
     if (tstop <= tstep) tstop = tstep * 100.0;
 
     size_t probe = pickProbeNode(circuit);
-    size_t numUnknowns = std::max(circuit.numNodes, probe);
-    if (numUnknowns == 0) numUnknowns = 1;
+    if (circuit.numNodes == 0 && probe == 0) {
+        result.message = "No nodes to simulate";
+        return result;
+    }
 
-    Transient transient;
-    auto sim = transient.simulate(0.0, tstop, tstep, circuit.devices, numUnknowns);
+    SpiceTransient::Options opts;
+    opts.tolerance = 1e-5;
+    auto sim = SpiceTransient(opts).simulate(0.0, tstop, tstep, circuit.devices, circuit.nodeMap);
 
     result.converged = sim.converged;
     result.message = QString::fromStdString(sim.message);
@@ -249,22 +253,14 @@ SimulationController::DcResult SimulationController::runDemoDcOperatingPoint() {
 }
 
 SimulationController::TransientResult SimulationController::runDemoTransient() {
-    auto isrc = std::make_shared<Isrc>("I1", 1e-3);
-    isrc->setNodes(1, 2);
-
-    std::vector<std::shared_ptr<Device>> devices{isrc};
-
-    Transient transient;
-    auto sim = transient.simulate(0.0, 1e-3, 1e-5, devices, 2);
-
-    TransientResult result;
-    result.converged = sim.converged;
-    result.message = QString::fromStdString(sim.message);
-    result.timePoints = sim.timePoints;
-    result.traceName = "node1 (I1 = 1mA into open node)";
-    result.values.reserve(sim.nodeVoltages.size());
-    for (const auto& state : sim.nodeVoltages) {
-        result.values.push_back(state.empty() ? 0.0 : state[0]);
+    const char* nl =
+        "V1 1 0 PULSE(0 5 0 1n 1n 0.5m 1m)\n"
+        "R1 1 2 1k\n"
+        "C1 2 0 1n\n"
+        ".tran 1u 1m\n";
+    auto result = runTransientFromNetlist(nl);
+    if (result.converged) {
+        result.traceName = QString("Demo RC: %1").arg(result.traceName);
     }
     return result;
 }

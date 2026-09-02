@@ -14,6 +14,8 @@ public:
 
     void setResistance(double r) { R_ = r; }
     double resistance() const { return R_; }
+    void setKF(double kf) { kf_ = kf; }
+    double kf() const { return kf_; }
 
     void setTemperature(double temp) override;
     void setTC1(double tc) { tc1_ = tc; }
@@ -37,6 +39,7 @@ private:
     double temperature_;
     double Tnom_;
     double tc1_, tc2_;
+    double kf_ = 0.0;
     double G_;
 };
 

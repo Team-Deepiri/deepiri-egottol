@@ -20,6 +20,22 @@ add_executable(golden_waveform_test golden_waveform_test.cpp)
 target_link_libraries(golden_waveform_test PRIVATE deepiri_io deepiri_core deepiri_models deepiri_infra)
 add_test(NAME golden_waveform_test COMMAND golden_waveform_test)
 
+add_executable(spice_production_test spice_production_test.cpp)
+target_link_libraries(spice_production_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME spice_production_test COMMAND spice_production_test)
+
+add_executable(golden_spice_test golden_spice_test.cpp)
+target_link_libraries(golden_spice_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME golden_spice_test COMMAND golden_spice_test)
+
+add_executable(perf_baseline_test perf_baseline_test.cpp)
+target_link_libraries(perf_baseline_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME perf_baseline_test COMMAND perf_baseline_test)
+
+add_executable(design_fixtures_test design_fixtures_test.cpp)
+target_link_libraries(design_fixtures_test PRIVATE deepiri_io deepiri_core deepiri_models)
+add_test(NAME design_fixtures_test COMMAND design_fixtures_test)
+
 add_executable(ac_analysis_test ac_analysis_test.cpp)
 target_link_libraries(ac_analysis_test PRIVATE deepiri_core deepiri_models)
 add_test(NAME ac_analysis_test COMMAND ac_analysis_test)

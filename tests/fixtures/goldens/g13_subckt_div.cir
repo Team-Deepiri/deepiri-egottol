@@ -1,0 +1,9 @@
+* Subckt voltage divider — mid = 2.5
+.subckt DIV in mid
+R1 in mid 3k
+R2 mid 0 1k
+.ends
+V1 in 0 10
+X1 in mid DIV
+.op
+.end

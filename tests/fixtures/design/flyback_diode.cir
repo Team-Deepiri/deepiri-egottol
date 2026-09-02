@@ -1,0 +1,10 @@
+* Freewheeling diode across inductive load (relay/solenoid/motor coil)
+* Coil from vcc to mid; diode anode=mid cathode=vcc (reverse across coil).
+* Transient: force mid current then open the path — diode clamps.
+V1 vcc 0 12
+Rcoil vcc mid 10
+L1 mid 0 50m
+Dfly mid vcc
+.model Dfly D (IS=1e-14 N=1)
+.tran 50u 5m
+.end

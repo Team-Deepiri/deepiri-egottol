@@ -1,0 +1,6 @@
+* DC sweep of divider mid node vs Vin
+V1 in 0 0
+R1 in mid 1k
+R2 mid 0 1k
+.dc V1 0 5 1
+.end

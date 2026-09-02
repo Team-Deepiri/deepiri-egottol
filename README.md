@@ -1,11 +1,14 @@
 # Deepiri Egottol
 
-**Binary Electrical Systems Simulation Lab**
+**Binary Electrical Systems Simulation Lab — v1.0.0**
 
-egottol is an advanced multi-domain circuit simulation platform built for engineers who need more than conventional SPICE tools can provide. It combines analog circuit solving, event-driven digital logic, VHDL-defined hardware blocks, GPU-accelerated computation, and real-time avionics protocol simulation in a single integrated environment.
-<img width="1865" height="1050" alt="image" src="https://github.com/user-attachments/assets/fac32901-a19d-4525-bfec-783f40ccb6e9" />
+egottol is a multi-domain circuit simulation platform: production-grade analog SPICE (MNA), event-driven digital logic, VHDL blocks, GPU-oriented compute hooks, and avionics protocol simulation — with a native Qt desktop app and a headless CLI.
 
----
+<img src="packaging/egottol-logo.jpg" alt="Egottol logo" width="400" />
+
+**Electrical design knowledge** (series/parallel, RC/RL/LC, transistor+C/L, motors, symptom→fix, PCB floorplanning) lives in [`docs/ee/`](docs/ee/README.md) and is searchable from Copilot via `lookup_ee_design`.
+
+See [CHANGELOG.md](CHANGELOG.md) for the 1.0.0 ship list and [docs/RELEASE.md](docs/RELEASE.md) for packaging.
 
 ## What It Does
 
@@ -228,16 +231,20 @@ poetry run python -m egottol.ui.main
 ### Headless Simulation (CLI)
 
 ```bash
+./build/egottol-cli version   # 1.0.0
 ./build/egottol-cli sim tests/fixtures/divider.cir --op
-./build/egottol-cli sim tests/fixtures/divider.cir --tran -o /tmp/wave.csv
+./build/egottol-cli sim tests/fixtures/goldens/g06_rc_step.cir --tran --trap
 ./build/egottol-cli sim my_circuit.cir --ac -o /tmp/bode.csv
+poetry run python -m egottol.simulate tests/fixtures/divider.cir --mode op
 ```
+
+Supports standard SPICE netlists: `.model`, `.subckt` / `X`, `.include`, PULSE sources, MOSFET/BJT/diode.
 
 Exit codes: `0` success, `1` usage/parse error, `2` simulation failure.
 
 ### Export to UQE (Quantum)
 
-Not shipped yet — see Phase 9 in [TODO.md](TODO.md).
+Native bridge: classical gates → OpenQASM-style sequences (`infra/uqe_logic.*`). Covered by `golden_waveform_test`.
 
 ---
 
