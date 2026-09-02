@@ -1,0 +1,13 @@
+* Simplified boost chopper (inductor + switch MOSFET + diode + Cout)
+* Proves boost topology parses and transient-runs in production engine.
+V1 in 0 5
+L1 in sw 22u
+M1 sw gate 0 0 NMOS W=100u L=1u
+Vg gate 0 PULSE(0 5 0 1n 1n 4u 10u)
+D1 sw out
+.model D1 D (IS=1e-14 N=1)
+Cout out 0 47u
+Rload out 0 200
+.model NMOS NMOS (VTO=0.7 KP=20m LAMBDA=0.02)
+.tran 0.5u 100u
+.end

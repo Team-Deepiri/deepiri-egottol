@@ -2,43 +2,36 @@
 
 namespace deepiri {
 
-VCVS::VCVS(double gain)
-    : name_("E"), gain_(gain), nodeCP_(0), nodeCN_(0), vOut_(0.0) {}
+VCVS::VCVS(double gain) : name_("E"), gain_(gain) {}
 
-VCVS::VCVS(const std::string& name, double gain)
-    : name_(name), gain_(gain), nodeCP_(0), nodeCN_(0), vOut_(0.0) {}
+VCVS::VCVS(const std::string& name, double gain) : name_(name), gain_(gain) {}
 
 void VCVS::setNodes(size_t nP, size_t nN, size_t nCP, size_t nCN) {
     nodeP_ = nP;
     nodeN_ = nN;
     nodeCP_ = nCP;
     nodeCN_ = nCN;
+    terminals_ = {nP, nN, nCP, nCN};
 }
 
-void VCVS::initializeDC() {
-    vOut_ = 0.0;
+std::vector<size_t> VCVS::terminals() const {
+    return {nodeP_, nodeN_, nodeCP_, nodeCN_};
 }
+
+void VCVS::initializeDC() {}
 
 std::vector<double> VCVS::getCurrent() const {
-    return {0.0, 0.0};
+    // Branch current lives in the MNA auxiliary unknown.
+    return {0.0, 0.0, 0.0, 0.0};
 }
 
 std::vector<std::vector<double>> VCVS::getConductanceMatrix() const {
-    std::vector<std::vector<double>> G(2, std::vector<double>(2, 0.0));
-    return G;
+    // Stamped via aux branch in MNA / spice_engine (like an ideal Vsrc).
+    return std::vector<std::vector<double>>(4, std::vector<double>(4, 0.0));
 }
 
-void VCVS::getInitialGuess(std::vector<double>& guess) const {
-    if (nodeP_ > 0 && nodeP_ - 1 < guess.size()) {
-        guess[nodeP_ - 1] = 0.0;
-    }
-}
+void VCVS::getInitialGuess(std::vector<double>& /*guess*/) const {}
 
-void VCVS::updateState(const std::vector<double>& state) {
-    if (nodeCP_ > 0 && nodeCN_ > 0 && nodeCP_ - 1 < state.size() && nodeCN_ - 1 < state.size()) {
-        vIn_ = state[nodeCP_ - 1] - state[nodeCN_ - 1];
-        vOut_ = gain_ * vIn_;
-    }
-}
+void VCVS::updateState(const std::vector<double>& /*state*/) {}
 
 }

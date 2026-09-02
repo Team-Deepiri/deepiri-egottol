@@ -1,0 +1,9 @@
+* Nested-looking subckt: series R block
+.subckt SERIES a b
+R1 a b 1k
+.ends
+V1 in 0 10
+X1 in mid SERIES
+R2 mid 0 1k
+.op
+.end

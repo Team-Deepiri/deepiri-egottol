@@ -6,6 +6,8 @@
 #include "../models/inductor.h"
 #include "../models/vsrc.h"
 #include "../models/isrc.h"
+#include "../models/vcvs.h"
+#include "../models/ccvs.h"
 
 #include <cmath>
 #include <algorithm>
@@ -148,29 +150,42 @@ ACResult ACAnalysis::sweep(
 
     size_t auxCount = 0;
     for (auto& device : devices) {
-        if (device->type() == "Vsrc") auxCount++;
+        if (device->type() == "Vsrc" || device->type() == "VCVS" || device->type() == "CCVS")
+            auxCount++;
     }
     size_t total = numNodes + auxCount;
 
-    // Vsrc/Isrc expose setAC()/acValue_ internally but no public accessor, so
-    // the AC drive magnitude here is read via dc() instead (documented gap;
-    // see report). A source's dc() value doubles as its small-signal AC
-    // amplitude for this analysis, matching "driven by a unit AC source"
-    // usage (Vsrc with dc == 1.0).
     std::complex<double> refMagnitude(1.0, 0.0);
+    bool haveRef = false;
     for (auto& device : devices) {
         if (device->type() == "Vsrc") {
             if (auto* v = dynamic_cast<Vsrc*>(device.get())) {
-                refMagnitude = std::complex<double>(v->dc(), 0.0);
+                double mag = (v->signal().acMag != 0.0) ? v->signal().acMag : 0.0;
+                // Fall back to DC only if no AC sources present later — prefer non-zero AC.
+                if (mag == 0.0 && v->dc() != 0.0 && !haveRef) mag = v->dc();
+                if (mag == 0.0) continue;
+                double ph = v->signal().acPhaseDeg * M_PI / 180.0;
+                refMagnitude = std::polar(mag, ph);
+                haveRef = true;
                 break;
             }
         }
-        if (device->type() == "Isrc") {
-            if (auto* i = dynamic_cast<Isrc*>(device.get())) {
-                refMagnitude = std::complex<double>(i->dc(), 0.0);
+    }
+    if (!haveRef) {
+        for (auto& device : devices) {
+            if (device->type() == "Isrc") {
+                if (auto* i = dynamic_cast<Isrc*>(device.get())) {
+                    double mag = (i->signal().acMag != 0.0) ? i->signal().acMag : i->dc();
+                    if (mag == 0.0) continue;
+                    double ph = i->signal().acPhaseDeg * M_PI / 180.0;
+                    refMagnitude = std::polar(mag, ph);
+                    haveRef = true;
+                    break;
+                }
             }
         }
     }
+    if (!haveRef) refMagnitude = std::complex<double>(1.0, 0.0);
 
     std::vector<double> freqs = frequencySweep(freqStartHz, freqEndHz, numPoints);
     result.frequenciesHz = freqs;
@@ -188,20 +203,10 @@ ACResult ACAnalysis::sweep(
 
         size_t vsIndex = 0;
         for (auto& device : devices) {
-            auto g = device->getConductanceMatrix();
             size_t np = device->nodeP();
             size_t nn = device->nodeN();
             bool npValid = np > 0 && np <= numNodes;
             bool nnValid = nn > 0 && nn <= numNodes;
-
-            if ((npValid || nnValid) && g.size() >= 2 && g[0].size() >= 2 && g[1].size() >= 2) {
-                if (npValid) y[(np - 1) * total + (np - 1)] += std::complex<double>(g[0][0], 0.0);
-                if (nnValid) y[(nn - 1) * total + (nn - 1)] += std::complex<double>(g[1][1], 0.0);
-                if (npValid && nnValid) {
-                    y[(np - 1) * total + (nn - 1)] += std::complex<double>(g[0][1], 0.0);
-                    y[(nn - 1) * total + (np - 1)] += std::complex<double>(g[1][0], 0.0);
-                }
-            }
 
             if (device->type() == "Capacitor") {
                 if (auto* cap = dynamic_cast<Capacitor*>(device.get())) {
@@ -216,11 +221,14 @@ ACResult ACAnalysis::sweep(
                 }
             } else if (device->type() == "Isrc") {
                 if (auto* isrc = dynamic_cast<Isrc*>(device.get())) {
-                    std::complex<double> iAc(isrc->dc(), 0.0);
+                    double mag = (isrc->signal().acMag != 0.0) ? isrc->signal().acMag : isrc->dc();
+                    double ph = isrc->signal().acPhaseDeg * M_PI / 180.0;
+                    std::complex<double> iAc = std::polar(mag, ph);
                     if (npValid) iVec[np - 1] -= iAc;
                     if (nnValid) iVec[nn - 1] += iAc;
                 }
-            } else if (device->type() == "Vsrc") {
+            } else if (device->type() == "Vsrc" || device->type() == "VCVS" ||
+                       device->type() == "CCVS") {
                 size_t auxRow = numNodes + vsIndex;
                 if (npValid) {
                     y[auxRow * total + (np - 1)] = std::complex<double>(1.0, 0.0);
@@ -231,9 +239,35 @@ ACResult ACAnalysis::sweep(
                     y[(nn - 1) * total + auxRow] = std::complex<double>(-1.0, 0.0);
                 }
                 if (auto* v = dynamic_cast<Vsrc*>(device.get())) {
-                    iVec[auxRow] = std::complex<double>(v->dc(), 0.0);
+                    double mag = (v->signal().acMag != 0.0) ? v->signal().acMag : v->dc();
+                    double ph = v->signal().acPhaseDeg * M_PI / 180.0;
+                    iVec[auxRow] = std::polar(mag, ph);
+                } else if (auto* e = dynamic_cast<VCVS*>(device.get())) {
+                    size_t ncp = e->nodeCP();
+                    size_t ncn = e->nodeCN();
+                    double gain = e->gain();
+                    if (ncp > 0 && ncp <= numNodes) {
+                        y[auxRow * total + (ncp - 1)] -= std::complex<double>(gain, 0.0);
+                    }
+                    if (ncn > 0 && ncn <= numNodes) {
+                        y[auxRow * total + (ncn - 1)] += std::complex<double>(gain, 0.0);
+                    }
+                    iVec[auxRow] = 0.0;
                 }
                 vsIndex++;
+            } else {
+                // Resistors, VCCS, diodes (linearized), etc. — multi-terminal G stamp.
+                auto terms = device->terminals();
+                auto g = device->getConductanceMatrix();
+                for (size_t a = 0; a < terms.size() && a < g.size(); ++a) {
+                    size_t na = terms[a];
+                    if (na == 0 || na > numNodes) continue;
+                    for (size_t b = 0; b < terms.size() && b < g[a].size(); ++b) {
+                        size_t nb = terms[b];
+                        if (nb == 0 || nb > numNodes) continue;
+                        y[(na - 1) * total + (nb - 1)] += std::complex<double>(g[a][b], 0.0);
+                    }
+                }
             }
         }
 

@@ -1,0 +1,8 @@
+* Three resistor star — center = 10/3
+V1 a 0 10
+R1 a c 1k
+R2 b c 1k
+R3 c 0 1k
+Vb b 0 0
+.op
+.end

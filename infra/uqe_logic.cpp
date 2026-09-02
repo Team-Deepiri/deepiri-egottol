@@ -33,6 +33,10 @@ QuantumGate makeGate(const std::string& name, int a, int b = -1, int c = -1) {
 }  // namespace
 
 QuantumCircuit toUQE(const std::vector<LogicNet>& nets) {
+    // Classical→UQE synthesis assumes:
+    // - Fresh output qubits start in |0⟩ (AND/NAND Toffoli, OR via ancillas).
+    // - OR decompositions allocate ancilla qubits (na, nb) that are not uncomputed;
+    //   treat this as a resource estimate, not a fault-tolerant circuit.
     QuantumCircuit circuit;
     circuit.id = "classical_to_uqe";
     circuit.metadata["source"] = "to_uqe";

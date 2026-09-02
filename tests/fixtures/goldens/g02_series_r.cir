@@ -1,0 +1,6 @@
+* Series R — node a = 5 V
+V1 in 0 5
+R1 in a 1k
+R2 a 0 1k
+.op
+.end

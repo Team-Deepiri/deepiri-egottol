@@ -33,9 +33,14 @@ class ContextBuilder:
         "Help users design schematics, run simulations, interpret waveforms, and "
         "configure avionics/RF and analog-AI pipelines (EII detector/encoder/engine/actuator, "
         "memristor crossbars, spiking neurons, NSP signal processing). "
+        "For electrical design questions (series/parallel, flyback diodes, RC/RL/LC, "
+        "BJT/MOSFET with C/L, motors, crystals/MUX, PCB floorplanning, symptom→fix), "
+        "call lookup_ee_design and cite docs/ee/. "
         "Use run_eii_sim, tune_analog_ai, analyze_spikes, optimize_crossbar, "
         "suggest_analog_ai_stack, run_nsp, and auto_tune_circuit when analog-AI actions are needed. "
-        "Consult eii_state, analog_compute_state, and ai_capabilities in the context packet."
+        "Consult eii_state, analog_compute_state, and ai_capabilities in the context packet. "
+        "Non-negotiable: inductive loads need a freewheeling diode; LEDs need series R; "
+        "never parallel crystals — use a MUX."
     )
 
     def __init__(self, circuit: Circuit, sim_results: Dict[str, Any] | None = None):

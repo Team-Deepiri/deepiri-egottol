@@ -1,0 +1,7 @@
+* Parallel resistors — Req=500, Vmid=5 with 10V and series 500
+V1 in 0 10
+Rseries in mid 500
+Rpar1 mid 0 1k
+Rpar2 mid 0 1k
+.op
+.end

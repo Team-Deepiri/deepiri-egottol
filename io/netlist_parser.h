@@ -16,6 +16,13 @@ enum class NetlistElementType {
     MOSFET,
     BJT,
     Diode,
+    VCVS,
+    VCCS,
+    CCCS,
+    CCVS,
+    VSwitch,
+    ISwitch,
+    Mutual,
     Subckt,
     Instance
 };
@@ -31,6 +38,7 @@ struct NetlistElement {
     std::string name;
     std::vector<NetlistNode> nodes;
     std::vector<double> parameters;
+    std::map<std::string, double> named_parameters;  // W=10u, VTO=0.7, …
     std::string model_name;
     std::string subckt_name;
 };
@@ -41,6 +49,20 @@ struct NetlistControl {
     std::string raw;
     std::vector<std::string> tokens;  // tokens after the leading `.kind`
     std::vector<double> numbers;      // numeric args with unit suffixes applied
+};
+
+// `.model name type (PARAM=val …)`
+struct SpiceModel {
+    std::string name;
+    std::string type;  // d, npn, pnp, nmos, pmos, …
+    std::map<std::string, double> params;
+};
+
+// `.subckt name port1 port2 …` … `.ends`
+struct SpiceSubckt {
+    std::string name;
+    std::vector<std::string> ports;
+    std::vector<NetlistElement> elements;
 };
 
 class NetlistParser {
@@ -55,6 +77,15 @@ public:
     std::map<std::string, std::vector<std::string>> getNets() const;
     std::vector<std::string> getControls() const;
     std::vector<NetlistControl> getControlDirectives() const;
+    std::map<std::string, SpiceModel> getModels() const;
+    std::map<std::string, SpiceSubckt> getSubckts() const;
+    std::map<std::string, double> getParams() const;
+
+    // Override or inject a `.param` value (used by `.step` sweeps).
+    void setParam(const std::string& name, double value);
+
+    // Flatten X instances using defined .subckt bodies (port map + name prefix).
+    std::vector<NetlistElement> expandedElements() const;
 
     std::string toNetlist() const;
 

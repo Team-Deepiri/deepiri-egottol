@@ -96,6 +96,10 @@ class EncodingManifold:
         state.filter_state = z.copy()
         return z
 
+    def reset_filter(self, state: EIIState) -> None:
+        """Clear encoder filter integrator state (filter mode)."""
+        state.filter_state = np.zeros(self.config.embedding_dim)
+
     def _population(
         self,
         state: EIIState,

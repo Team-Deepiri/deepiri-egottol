@@ -6,6 +6,7 @@
 
 namespace deepiri {
 
+// Exxx n+ n- nc+ nc- gain — voltage-controlled voltage source (needs MNA aux branch).
 class VCVS : public Device {
 public:
     VCVS(double gain = 1.0);
@@ -19,6 +20,7 @@ public:
     void initializeDC() override;
     std::vector<double> getCurrent() const override;
     std::vector<std::vector<double>> getConductanceMatrix() const override;
+    std::vector<size_t> terminals() const override;
 
     std::string name() const override { return name_; }
     std::string type() const override { return "VCVS"; }
@@ -26,11 +28,13 @@ public:
     void getInitialGuess(std::vector<double>& guess) const override;
     void updateState(const std::vector<double>& state) override;
 
+    size_t nodeCP() const { return nodeCP_; }
+    size_t nodeCN() const { return nodeCN_; }
+
 private:
     std::string name_;
     double gain_;
-    size_t nodeCP_, nodeCN_;
-    double vOut_, vIn_;
+    size_t nodeCP_ = 0, nodeCN_ = 0;
 };
 
 }

@@ -1,0 +1,6 @@
+* VCVS gain=2: E1 out 0 in 0 2 with Vin=1 → V(out)=2
+V1 in 0 1
+E1 out 0 in 0 2
+R1 out 0 1k
+.op
+.end

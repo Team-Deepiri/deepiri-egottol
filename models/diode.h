@@ -33,6 +33,8 @@ public:
     void updateState(const std::vector<double>& state) override;
 
 private:
+    double gdEff() const;
+
     std::string name_;
     double Is_, n_, Rs_, tt_, BV_, Ibv_;
     double Cj0_, Vj_, m_;

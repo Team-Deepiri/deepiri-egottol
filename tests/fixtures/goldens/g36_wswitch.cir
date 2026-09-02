@@ -1,0 +1,9 @@
+* Current-controlled switch — closes when |I(Vsense)| >= 1mA
+.model swmod SW(IT=1m RON=1 ROFF=1Meg)
+V1 in 0 5
+R1 in sense 1k
+Vsense sense 0 DC 0
+R2 in out 1k
+W1 out 0 Vsense swmod
+Rload out 0 10k
+.end
