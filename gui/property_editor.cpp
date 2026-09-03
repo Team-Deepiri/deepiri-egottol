@@ -1,65 +1,69 @@
 #include "property_editor.h"
-#include "component_item.h"
 
+#include <QDialogButtonBox>
+#include <QDoubleValidator>
 #include <QFormLayout>
-#include <QLineEdit>
 #include <QLabel>
-#include <QStringList>
+#include <QLineEdit>
+#include <QMessageBox>
+#include <QVBoxLayout>
 
 namespace deepiri {
 
-PropertyEditor::PropertyEditor(QWidget* parent) : QWidget(parent) {
-    form_ = new QFormLayout(this);
+PropertyEditor::PropertyEditor(const QString &componentId,
+                               const QMap<QString, QVariant> &parameters,
+                               QWidget *parent)
+    : QDialog(parent) {
+  setWindowTitle(tr("Properties — %1").arg(componentId));
+  setModal(true);
 
-    typeLabel_ = new QLabel("—", this);
-    labelEdit_ = new QLineEdit(this);
-    pinsLabel_ = new QLabel("—", this);
-    pinsLabel_->setWordWrap(true);
-
-    form_->addRow("Type", typeLabel_);
-    form_->addRow("Label", labelEdit_);
-    form_->addRow("Pins", pinsLabel_);
-
-    connect(labelEdit_, &QLineEdit::editingFinished, this, [this]() {
-        if (component_) {
-            component_->set_label(labelEdit_->text());
-        }
-    });
-
-    clearComponent();
-}
-
-PropertyEditor::~PropertyEditor() = default;
-
-void PropertyEditor::setComponent(ComponentItem* component) {
-    component_ = component;
-    rebuild();
-}
-
-void PropertyEditor::clearComponent() {
-    component_ = nullptr;
-    rebuild();
-}
-
-void PropertyEditor::rebuild() {
-    bool hasComponent = component_ != nullptr;
-    labelEdit_->setEnabled(hasComponent);
-
-    if (!hasComponent) {
-        typeLabel_->setText("No component selected");
-        labelEdit_->setText("");
-        pinsLabel_->setText("—");
-        return;
+  auto *layout = new QVBoxLayout(this);
+  auto *form = new QFormLayout();
+  if (parameters.isEmpty())
+    form->addRow(new QLabel(tr("This component has no editable parameters."),
+                            this));
+  for (auto it = parameters.cbegin(); it != parameters.cend(); ++it) {
+    auto *editor = new QLineEdit(it.value().toString(), this);
+    if (it.value().canConvert<double>()) {
+      auto *validator = new QDoubleValidator(editor);
+      validator->setNotation(QDoubleValidator::ScientificNotation);
+      editor->setValidator(validator);
     }
+    editors_.insert(it.key(), editor);
+    form->addRow(it.key(), editor);
+  }
+  layout->addLayout(form);
 
-    typeLabel_->setText(QString("Component type #%1").arg(static_cast<int>(component_->component_type())));
-    labelEdit_->setText(component_->label());
+  auto *buttons =
+      new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                           Qt::Horizontal, this);
+  connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+  layout->addWidget(buttons);
+}
 
-    QStringList pinNames;
-    for (const auto& pin : component_->pins()) {
-        pinNames << pin.name;
+QMap<QString, QVariant> PropertyEditor::parameters() const {
+  QMap<QString, QVariant> values;
+  for (auto it = editors_.cbegin(); it != editors_.cend(); ++it) {
+    bool ok = false;
+    const double number = it.value()->text().toDouble(&ok);
+    values.insert(it.key(), ok ? QVariant(number)
+                               : QVariant(it.value()->text()));
+  }
+  return values;
+}
+
+void PropertyEditor::accept() {
+  for (auto it = editors_.cbegin(); it != editors_.cend(); ++it) {
+    if (!it.value()->hasAcceptableInput()) {
+      QMessageBox::warning(this, tr("Invalid value"),
+                           tr("%1 must be a valid number.").arg(it.key()));
+      it.value()->setFocus();
+      it.value()->selectAll();
+      return;
     }
-    pinsLabel_->setText(pinNames.isEmpty() ? "(none)" : pinNames.join(", "));
+  }
+  QDialog::accept();
 }
 
-}
+} // namespace deepiri

@@ -5,6 +5,7 @@
 #include <QList>
 #include <QString>
 #include <QPointF>
+#include <QMap>
 
 QT_BEGIN_NAMESPACE
 class QGraphicsSceneMouseEvent;
@@ -14,6 +15,7 @@ QT_END_NAMESPACE
 
 namespace deepiri {
 
+class SchematicDocument;
 class ComponentItem;
 class WireItem;
 class SelectionTool;
@@ -34,6 +36,7 @@ public:
     QList<ComponentItem*> components() const;
     QList<WireItem*> wires() const;
     ComponentItem* component_at(const QPointF& pos) const;
+    ComponentItem* component_by_id(const QString& id) const;
     QList<WireItem*> wires_at(const QPointF& pos) const;
 
     void set_grid_size(double size);
@@ -47,14 +50,44 @@ public:
     QPointF snap_position(const QPointF& pos) const;
     QPointF grid_position(const QPointF& pos) const;
 
+    /** Attach logical model (Python SchematicScene._circuit). */
+    void set_document(SchematicDocument* document);
+    SchematicDocument* document() const;
+
+    /** Palette/toolbar sets key; next canvas click places component (Python set_place_mode). */
+    void set_place_mode(const QString& registryKey);
+    void clear_place_mode();
+    QString place_mode() const;
+
+    /** Reset scene + caller should clear document (Python clear_canvas). */
+    void clear_canvas();
+
+    /** Esc: exit place mode and cancel in-progress wire (Python view keyPressEvent). */
+    void handle_escape();
+
+    bool start_wire(const QString& componentId, const QString& portName,
+                    const QPointF& scenePosition);
+    bool finish_wire(const QString& componentId, const QString& portName,
+                     const QPointF& scenePosition);
+    void update_wire_preview(const QPointF& scenePosition);
+    void cancel_wire();
+    bool wire_in_progress() const;
+    void refresh_wires_for_component(const QString& componentId);
+    void delete_selection();
+    void annotate_dc_results(const QMap<QString, double>& portVoltages);
+    void mark_modified();
+
 signals:
+    void placeModeChanged(const QString& modeLabel);
     void component_added(ComponentItem* component);
     void component_removed(ComponentItem* component);
     void wire_added(WireItem* wire);
     void wire_removed(WireItem* wire);
     void selection_changed(const QList<QGraphicsItem*>& items);
+    void schematicChanged();
 
 protected:
+    void drawBackground(QPainter* painter, const QRectF& rect) override;
     void mousePressEvent(QGraphicsSceneMouseEvent* event) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent* event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent* event) override;

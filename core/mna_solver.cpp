@@ -2,8 +2,6 @@
 #include "../models/device.h"
 #include "../models/vsrc.h"
 #include "matrix.h"
-#include <iostream>
-#include <stdexcept>
 
 namespace deepiri {
 
@@ -33,8 +31,6 @@ size_t MNASolver::buildStampMatrix(
     size_t vsIndex = 0;
     for (auto& device : devices) {
         auto g = device->getConductanceMatrix();
-        auto current = device->getCurrent();
-
         size_t np = device->nodeP();
         size_t nn = device->nodeN();
 
@@ -64,7 +60,7 @@ size_t MNASolver::buildStampMatrix(
                 stamp[nn - 1][auxRow] = -1.0;
             }
             if (auto* vsrc = dynamic_cast<Vsrc*>(device.get())) {
-                auxRHS[vsIndex] = vsrc->getVoltage(0.0);
+                auxRHS[vsIndex] = vsrc->dc();
             }
             vsIndex++;
         }
@@ -81,17 +77,20 @@ void MNASolver::addDeviceStamp(
     size_t nodeN,
     size_t auxIndex
 ) {
-    if (nodeP == 0 || nodeN == 0) return;
-    if (nodeP >= stamp.size() || nodeN >= stamp.size()) return;
-
-    for (size_t i = 0; i < deviceG.size(); ++i) {
-        for (size_t j = 0; j < deviceG[i].size(); ++j) {
-            if (i == 0 && j == 0) stamp[nodeP - 1][nodeP - 1] += deviceG[i][j];
-            if (i == 0 && j == 1) stamp[nodeP - 1][nodeN - 1] += deviceG[i][j];
-            if (i == 1 && j == 0) stamp[nodeN - 1][nodeP - 1] += deviceG[i][j];
-            if (i == 1 && j == 1) stamp[nodeN - 1][nodeN - 1] += deviceG[i][j];
-        }
+    (void)deviceRHS;
+    (void)auxIndex;
+    if (deviceG.size() < 2 || deviceG[0].size() < 2 ||
+        deviceG[1].size() < 2)
+        return;
+    const size_t nodeCount = stamp.size();
+    if (nodeP > 0 && nodeP <= nodeCount)
+        stamp[nodeP - 1][nodeP - 1] += deviceG[0][0];
+    if (nodeP > 0 && nodeN > 0 && nodeP <= nodeCount && nodeN <= nodeCount) {
+        stamp[nodeP - 1][nodeN - 1] += deviceG[0][1];
+        stamp[nodeN - 1][nodeP - 1] += deviceG[1][0];
     }
+    if (nodeN > 0 && nodeN <= nodeCount)
+        stamp[nodeN - 1][nodeN - 1] += deviceG[1][1];
 }
 
 MNASolver::Solution MNASolver::solve(
@@ -99,6 +98,7 @@ MNASolver::Solution MNASolver::solve(
     const std::map<std::string, size_t>& nodeMap,
     const std::vector<size_t>& voltageSourceIndices
 ) {
+    (void)voltageSourceIndices;
     Solution result;
     result.success = false;
 
@@ -144,14 +144,11 @@ MNASolver::Solution MNASolver::solve(
     }
 
     try {
-        result.voltages = A.solveGaussian(rhs);
+        const std::vector<double> solution = A.solveGaussian(rhs);
         result.success = true;
         result.message = "Solution found";
-
-        result.currents.resize(auxCount, 0.0);
-        for (size_t i = 0; i < auxCount && (numNodes + i) < result.voltages.size(); ++i) {
-            result.currents[i] = result.voltages[numNodes + i];
-        }
+        result.voltages.assign(solution.begin(), solution.begin() + numNodes);
+        result.currents.assign(solution.begin() + numNodes, solution.end());
     } catch (const std::exception& e) {
         result.message = std::string("Solver error: ") + e.what();
     }

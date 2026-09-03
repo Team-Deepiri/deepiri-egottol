@@ -45,3 +45,12 @@ add_test(NAME eii_pipeline_test COMMAND eii_pipeline_test)
 add_executable(rtl_shadow_sim_test rtl_shadow_sim_test.cpp)
 target_link_libraries(rtl_shadow_sim_test PRIVATE deepiri_logic)
 add_test(NAME rtl_shadow_sim_test COMMAND rtl_shadow_sim_test)
+
+if(TARGET deepiri_gui)
+    add_executable(test_gui_dc test_gui_dc.cpp)
+    target_link_libraries(test_gui_dc PRIVATE deepiri_gui)
+    add_test(NAME gui_dc_milestone COMMAND test_gui_dc)
+    set_tests_properties(gui_dc_milestone PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+endif()

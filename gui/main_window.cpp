@@ -1,203 +1,292 @@
 #include "main_window.h"
-
+#include "component_palette.h"
+#include "console_panel.h"
+#include "egottol_theme.h"
 #include "scene.h"
+#include "schematic_document.h"
+#include "schematic_to_circuit.h"
 #include "schematic_view.h"
 #include "selection_tool.h"
+#include "waveform_panel.h"
 #include "wire_tool.h"
-#include "component_item.h"
-#include "property_editor.h"
-#include "waveform_plotter.h"
-#include "simulation_controller.h"
-#include "../io/simulation_data.h"
-#include "../logic/vhdl_parser.h"
-#include "../logic/subckt.h"
-#include "../avionics/adsb_decoder.h"
 
-#include <QMenuBar>
-#include <QMenu>
-#include <QToolBar>
-#include <QDockWidget>
-#include <QStatusBar>
-#include <QMessageBox>
+#include "../core/circuit.h"
+#include "../core/mna_solver.h"
+
 #include <QAction>
+#include <QApplication>
+#include <QDockWidget>
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QSplitter>
+#include <QStatusBar>
+#include <QStyleFactory>
+#include <QTimer>
+#include <QToolBar>
+#include <QVBoxLayout>
 
 namespace deepiri {
 
-namespace {
-int componentInsertCount = 0;
-}
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+  setWindowTitle(QStringLiteral("deepiri-egottol  —  Schematic & Simulation"));
+  resize(1600, 950);
+  setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
+  applyDarkTheme();
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
-    setWindowTitle("Deepiri Egottol");
-    resize(1200, 800);
+  document_ = new SchematicDocument();
+  setupCentralView();
+  setupTools();
+  setupDocks();
+  setupToolbar();
+  setupStatusBar();
 
-    scene_ = new SchematicScene(this);
-    view_ = new SchematicView(scene_, this);
-    setCentralWidget(view_);
+  connect(palette_, &ComponentPalette::componentRequested, this,
+          &MainWindow::onComponentRequested);
+  connect(scene_, &SchematicScene::placeModeChanged, this,
+          &MainWindow::onPlaceModeChanged);
+  connect(scene_, &SchematicScene::schematicChanged, waveform_,
+          &WaveformPanel::clear);
 
-    selectionTool_ = new SelectionTool(this);
-    selectionTool_->set_scene(scene_);
-    selectionTool_->activate();
-    scene_->set_selection_tool(selectionTool_);
-
-    wireTool_ = new WireTool(this);
-    wireTool_->set_scene(scene_);
-    scene_->set_wire_tool(wireTool_);
-
-    simController_ = new SimulationController(this);
-
-    connect(scene_, &SchematicScene::selectionChanged, this, &MainWindow::onSceneSelectionChanged);
-
-    buildDocks();
-    buildMenusAndToolbars();
-
-    statusBar()->showMessage("Ready — native C++ engine loaded", 5000);
+  console_->appendLine(tr("deepiri-egottol C++ GUI — Stage 1 shell"));
+  console_->appendLine(
+      tr("Click palette or toolbar to place | Middle-drag pan | Scroll zoom"));
 }
 
 MainWindow::~MainWindow() = default;
 
-void MainWindow::setSimulationData(std::shared_ptr<SimulationData> data) {
-    simData_ = std::move(data);
+SchematicScene *MainWindow::schematicScene() const { return scene_; }
+SchematicDocument *MainWindow::document() const { return document_; }
+
+void MainWindow::applyDarkTheme() {
+  QPalette pal;
+  pal.setColor(QPalette::Window, ui::colorBackground());
+  pal.setColor(QPalette::WindowText, ui::colorText());
+  pal.setColor(QPalette::Base, ui::colorBackgroundDeep());
+  pal.setColor(QPalette::Text, ui::colorText());
+  pal.setColor(QPalette::Button, ui::colorToolbarBg());
+  pal.setColor(QPalette::ButtonText, ui::colorText());
+  pal.setColor(QPalette::Highlight, ui::colorHighlight());
+  pal.setColor(QPalette::HighlightedText, ui::colorBackground());
+  qApp->setPalette(pal);
 }
 
-void MainWindow::buildDocks() {
-    propertyEditor_ = new PropertyEditor(this);
-    auto* propertyDock = new QDockWidget("Properties", this);
-    propertyDock->setWidget(propertyEditor_);
-    addDockWidget(Qt::RightDockWidgetArea, propertyDock);
+void MainWindow::setupCentralView() {
+  scene_ = new SchematicScene(this);
+  scene_->set_document(document_);
 
-    waveformPlotter_ = new WaveformPlotter(this);
-    auto* waveformDock = new QDockWidget("Waveform Viewer", this);
-    waveformDock->setWidget(waveformPlotter_);
-    addDockWidget(Qt::BottomDockWidgetArea, waveformDock);
+  view_ = new SchematicView(scene_, this);
+  view_->setBackgroundBrush(ui::colorBackground());
+  setCentralWidget(view_);
+
+  // Python: QTimer.singleShot(0, centerOn origin)
+  view_->centerOn(0, 0);
 }
 
-void MainWindow::buildMenusAndToolbars() {
-    // File menu
-    QMenu* fileMenu = menuBar()->addMenu("&File");
-    fileMenu->addAction("&Quit", QKeySequence::Quit, this, &QWidget::close);
+void MainWindow::setupTools() {
+  wire_tool_ = new WireTool(this);
+  wire_tool_->set_scene(scene_);
+  scene_->set_wire_tool(wire_tool_);
 
-    // View toolbar: zoom + tools
-    QToolBar* viewToolbar = addToolBar("View");
-    viewToolbar->addAction("Zoom In", view_, &SchematicView::zoom_in);
-    viewToolbar->addAction("Zoom Out", view_, &SchematicView::zoom_out);
-    viewToolbar->addAction("Fit", view_, &SchematicView::zoom_fit);
-    viewToolbar->addAction("Reset", view_, &SchematicView::zoom_reset);
-
-    // Insert toolbar: drop a few common components onto the canvas
-    QToolBar* insertToolbar = addToolBar("Insert");
-    struct Entry { const char* label; ComponentType type; };
-    static const Entry entries[] = {
-        {"Resistor", ComponentType::RESISTOR},
-        {"Capacitor", ComponentType::CAPACITOR},
-        {"Source", ComponentType::SOURCE},
-        {"Ground", ComponentType::GROUND},
-        {"LED", ComponentType::LED},
-    };
-    for (const auto& entry : entries) {
-        QAction* action = insertToolbar->addAction(entry.label);
-        ComponentType type = entry.type;
-        connect(action, &QAction::triggered, this, [this, type]() {
-            insertComponent(static_cast<int>(type));
-        });
-    }
-
-    // Simulate menu
-    QMenu* simMenu = menuBar()->addMenu("&Simulate");
-    simMenu->addAction("Run DC Operating Point (demo circuit)", this, &MainWindow::runDemoDcOperatingPoint);
-    simMenu->addAction("Run Transient (demo circuit)", this, &MainWindow::runDemoTransient);
-    simMenu->addAction("Run AC/Bode Analysis (demo RC low-pass)", this, &MainWindow::runDemoAcAnalysis);
-    simMenu->addAction("Run EII Pipeline (demo step signal)", this, &MainWindow::runDemoEiiPipeline);
-
-    // Tools menu: wire in avionics/VHDL that already exist natively
-    QMenu* toolsMenu = menuBar()->addMenu("&Tools");
-    toolsMenu->addAction("Parse Sample VHDL", this, &MainWindow::parseSampleVhdl);
-    toolsMenu->addAction("Decode Sample ADS-B Frame", this, &MainWindow::decodeSampleAdsb);
+  selection_tool_ = new SelectionTool(this);
+  selection_tool_->set_scene(scene_);
+  selection_tool_->activate();
+  scene_->set_selection_tool(selection_tool_);
 }
 
-void MainWindow::onSceneSelectionChanged() {
-    QList<QGraphicsItem*> selected = scene_->selectedItems();
-    ComponentItem* component = selected.isEmpty() ? nullptr : dynamic_cast<ComponentItem*>(selected.first());
-    if (component) {
-        propertyEditor_->setComponent(component);
-    } else {
-        propertyEditor_->clearComponent();
-    }
+void MainWindow::setupDocks() {
+  // --- Left: Components (Python left dock) ---
+  palette_ = new ComponentPalette(this);
+  auto *compDock = new QDockWidget(tr("Components"), this);
+  compDock->setWidget(palette_);
+  addDockWidget(Qt::LeftDockWidgetArea, compDock);
+
+  // --- Right: Services placeholder (Python service LEDs) ---
+  services_dock_ = new QDockWidget(tr("Services"), this);
+  auto *svcWidget = new QWidget(this);
+  svcWidget->setStyleSheet(
+      QStringLiteral("background:%1;").arg(ui::colorDockBg().name()));
+  auto *svcLayout = new QVBoxLayout(svcWidget);
+  for (const char *name : {"ZEPGPU", "UQE"}) {
+    auto *row = new QHBoxLayout();
+    auto *lbl = new QLabel(QString::fromLatin1(name), svcWidget);
+    lbl->setStyleSheet(QStringLiteral("color:%1;font-family:monospace;")
+                           .arg(ui::colorText().name()));
+    auto *led = new QFrame(svcWidget);
+    led->setFixedSize(12, 12);
+    led->setStyleSheet(QStringLiteral("background:gray;border-radius:6px;"));
+    row->addWidget(lbl);
+    row->addWidget(led);
+    svcLayout->addLayout(row);
+  }
+  svcLayout->addStretch();
+  services_dock_->setWidget(svcWidget);
+  addDockWidget(Qt::RightDockWidgetArea, services_dock_);
+
+  // --- Bottom: Waveform + Console (Python bottom splitter) ---
+  console_ = new ConsolePanel(this);
+  waveform_ = new WaveformPanel(this);
+  auto *splitter = new QSplitter(Qt::Horizontal, this);
+  splitter->addWidget(waveform_);
+  splitter->addWidget(console_);
+  splitter->setSizes({900, 400});
+
+  auto *btmDock = new QDockWidget(tr("Waveform / Console"), this);
+  btmDock->setWidget(splitter);
+  addDockWidget(Qt::BottomDockWidgetArea, btmDock);
 }
 
-void MainWindow::insertComponent(int componentType) {
-    auto type = static_cast<ComponentType>(componentType);
-    auto* item = new ComponentItem(type, QString("C%1").arg(++componentInsertCount));
-    item->setPos(componentInsertCount * 20 % 400, componentInsertCount * 35 % 300);
-    scene_->add_component(item);
-    statusBar()->showMessage(QString("Inserted %1").arg(item->label()), 3000);
+void MainWindow::setupToolbar() {
+  auto *tb = addToolBar(tr("Main"));
+  tb->setMovable(false);
+  tb->setStyleSheet(
+      QStringLiteral("background:%1;color:%2;spacing:3px;")
+          .arg(ui::colorToolbarBg().name(), ui::colorText().name()));
+
+  auto addAct = [tb](const QString &text, const QString &tip, auto slot,
+                     QWidget *receiver) {
+    auto *a = new QAction(text, receiver);
+    a->setToolTip(tip);
+    QObject::connect(a, &QAction::triggered, receiver, slot);
+    tb->addAction(a);
+  };
+
+  addAct(QStringLiteral("▶ DC"), tr("Run DC operating point"),
+         &MainWindow::runDcAnalysis, this);
+  addAct(QStringLiteral("⟳ Tran"), tr("Run transient simulation"),
+         &MainWindow::runTransientAnalysis, this);
+  addAct(QStringLiteral("⚙ Cfg"), tr("Simulation settings"),
+         &MainWindow::openSimConfig, this);
+  tb->addSeparator();
+
+  struct Quick {
+    const char *key;
+    const char *label;
+    const char *tip;
+  };
+  const Quick passives[] = {
+      {"RES", "R", "Resistor"},        {"CAP", "C", "Capacitor"},
+      {"IND", "L", "Inductor"},        {"DIODE", "D", "Diode"},
+      {"VSRC", "V", "Voltage Source"}, {"ISRC", "I", "Current Source"},
+      {"GND", "⏚", "Ground"},          {"VCC", "VCC", "VCC Rail"},
+  };
+  for (const Quick &q : passives) {
+    addAct(
+        QString::fromUtf8(q.label), tr(q.tip),
+        [this, k = QString::fromLatin1(q.key)] { onComponentRequested(k); },
+        this);
+  }
+  tb->addSeparator();
+
+  const Quick active[] = {
+      {"NPN", "NPN", "NPN BJT"},     {"PNP", "PNP", "PNP BJT"},
+      {"AND", "AND", "AND Gate"},    {"OR", "OR", "OR Gate"},
+      {"NOT", "NOT", "Inverter"},    {"XOR", "XOR", "XOR Gate"},
+      {"DFF", "DFF", "D Flip-Flop"}, {"LM741", "OpAmp", "Op-Amp"},
+  };
+  for (const Quick &q : active) {
+    addAct(
+        QString::fromUtf8(q.label), tr(q.tip),
+        [this, k = QString::fromLatin1(q.key)] { onComponentRequested(k); },
+        this);
+  }
+  tb->addSeparator();
+
+  addAct(QStringLiteral("🗑"), tr("Clear canvas"), &MainWindow::clearCanvas,
+         this);
+  addAct(QStringLiteral("−"), tr("Zoom out"), &MainWindow::zoomOut, this);
+  addAct(QStringLiteral("+"), tr("Zoom in"), &MainWindow::zoomIn, this);
+  addAct(QStringLiteral("⤢"), tr("Fit view"), &MainWindow::zoomFit, this);
 }
 
-void MainWindow::runDemoDcOperatingPoint() {
-    auto result = simController_->runDemoDcOperatingPoint();
-    if (result.success) {
-        statusBar()->showMessage(result.summary, 8000);
-        QMessageBox::information(this, "DC Operating Point (native solver)", result.summary);
-    } else {
-        QMessageBox::warning(this, "DC Operating Point failed", result.message);
-    }
+void MainWindow::setupStatusBar() {
+  mode_label_ = new QLabel(QStringLiteral("SELECT"), this);
+  mode_label_->setStyleSheet(
+      QStringLiteral("color:%1;font-family:monospace;padding:0 8px;")
+          .arg(ui::colorLabel().name()));
+  statusBar()->addPermanentWidget(mode_label_);
+  statusBar()->showMessage(tr(
+      "Click palette/toolbar to place | Esc cancel | Del delete | Space fit"));
 }
 
-void MainWindow::runDemoTransient() {
-    auto result = simController_->runDemoTransient();
-    if (!result.converged) {
-        QMessageBox::warning(this, "Transient simulation failed", result.message);
-        return;
-    }
-    waveformPlotter_->clear();
-    waveformPlotter_->setTrace("node1 (I1 = 1mA into open node)", result.timePoints, result.values);
-    waveformPlotter_->animateSweep();
-    statusBar()->showMessage("Transient simulation complete — native core/Transient", 5000);
+void MainWindow::onComponentRequested(const QString &registryKey) {
+  scene_->set_place_mode(registryKey);
+  QTimer::singleShot(0, view_, [this]() { view_->setFocus(Qt::OtherFocusReason); });
 }
 
-void MainWindow::runDemoAcAnalysis() {
-    auto result = simController_->runDemoAcAnalysis();
-    if (!result.success) {
-        QMessageBox::warning(this, "AC/Bode analysis failed", result.message);
-        return;
-    }
-    waveformPlotter_->clear();
-    waveformPlotter_->setTrace("|H(f)| at C1 (RC low-pass)", result.frequenciesHz, result.magnitude);
-    waveformPlotter_->animateSweep();
-    statusBar()->showMessage("AC/Bode sweep complete — native core/ACAnalysis", 5000);
+void MainWindow::onPlaceModeChanged(const QString &modeText) {
+  mode_label_->setText(modeText);
 }
 
-void MainWindow::runDemoEiiPipeline() {
-    auto result = simController_->runDemoEiiPipeline();
-    statusBar()->showMessage(result.summary, 8000);
-    QMessageBox::information(this, "EII Pipeline (native)", result.summary);
+void MainWindow::runDcAnalysis() {
+  console_->appendLine(
+      QStringLiteral("─── DC Analysis ───────────────────────"));
+  waveform_->clear();
+  scene_->annotate_dc_results({});
+  SchematicCircuitExport exported = buildCircuitFromSchematic(*document_);
+  if (!exported.isValid()) {
+    console_->appendLine(tr("Error: %1").arg(exported.error));
+    return;
+  }
+
+  MNASolver solver;
+  const MNASolver::Solution solution =
+      solver.solve(exported.circuit->getDevices(), exported.solverNodeMap, {});
+  if (!solution.success) {
+    console_->appendLine(
+        tr("Solver error: %1").arg(QString::fromStdString(solution.message)));
+    return;
+  }
+
+  QMap<QString, double> portVoltages;
+  for (auto it = exported.portNodes.cbegin(); it != exported.portNodes.cend();
+       ++it) {
+    const size_t node = it.value();
+    const double voltage =
+        node == 0 || node > solution.voltages.size()
+            ? 0.0
+            : solution.voltages[node - 1];
+    portVoltages.insert(it.key(), voltage);
+  }
+  scene_->annotate_dc_results(portVoltages);
+
+  QStringList nodeLabels;
+  QVector<double> nodeVoltages;
+  for (qsizetype node = 0; node < exported.nodeLabels.size(); ++node) {
+    nodeLabels.append(exported.nodeLabels[node]);
+    nodeVoltages.append(node == 0 ? 0.0 : solution.voltages[node - 1]);
+    console_->appendLine(
+        QStringLiteral("%1 = %2 V")
+            .arg(exported.nodeLabels[node])
+            .arg(nodeVoltages.last(), 0, 'g', 8));
+  }
+  waveform_->showDcResults(nodeLabels, nodeVoltages);
+  for (qsizetype i = 0; i < static_cast<qsizetype>(solution.currents.size());
+       ++i)
+    console_->appendLine(QStringLiteral("I(V%1) = %2 A")
+                             .arg(i + 1)
+                             .arg(solution.currents[i], 0, 'g', 8));
 }
 
-void MainWindow::parseSampleVhdl() {
-    static const char* kSampleVhdl =
-        "entity AND2 is\n"
-        "  port (A : in bit; B : in bit; Y : out bit);\n"
-        "end entity AND2;\n";
-
-    VHDLParser parser;
-    bool ok = parser.parse(kSampleVhdl);
-    if (ok && parser.getSubckt()) {
-        QMessageBox::information(this, "VHDL Parser (native)",
-            QString("Parsed subcircuit: %1").arg(QString::fromStdString(parser.getSubckt()->getName())));
-    } else {
-        QMessageBox::warning(this, "VHDL Parser (native)",
-            QString("Parse failed: %1").arg(QString::fromStdString(parser.getLastError())));
-    }
+void MainWindow::runTransientAnalysis() {
+  console_->appendLine(
+      QStringLiteral("─── Transient ─────────────────────────"));
+  console_->appendLine(tr("Not implemented — Stage 6"));
 }
 
-void MainWindow::decodeSampleAdsb() {
-    ADSBDemodulator demod;
-    // No real IQ capture wired up yet — this proves the native avionics
-    // library links and runs inside the desktop app, not a full RF pipeline.
-    demod.processIQ({});
-    QMessageBox::information(this, "ADS-B Decoder (native)",
-        QString("Native ADSBDemodulator ran — %1 aircraft tracked so far.")
-            .arg(demod.getDetectedCount()));
+void MainWindow::openSimConfig() {
+  console_->appendLine(tr("Simulation config dialog — Stage 6"));
 }
 
+void MainWindow::clearCanvas() {
+  scene_->clear_canvas();
+  document_->clear();
+  waveform_->clear();
+  console_->appendLine(tr("Canvas cleared."));
 }
+
+void MainWindow::zoomIn() { view_->zoom_in(); }
+void MainWindow::zoomOut() { view_->zoom_out(); }
+void MainWindow::zoomFit() { view_->zoom_fit(); }
+
+} // namespace deepiri
